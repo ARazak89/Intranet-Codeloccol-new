@@ -479,14 +479,9 @@ export async function reassignEvaluationManually(req, res) {
       }
     }
 
-    // Définir le statut de l'assignation à "submitted" pour permettre de nouvelles évaluations
+    // Après réaffectation, conserver l'état "submitted" pour permettre de nouvelles évaluations et la soumission de feedback
     assignment.status = "submitted";
-    assignment.submissionDate = new Date(); // Définir la date de soumission à maintenant
-    // Optionnel: Vous pouvez définir un repoUrl par défaut si nécessaire, ou le laisser vide
-    // assignment.repoUrl = "http://example.com/default-repo"; // Si nécessaire
-
-    // 7. Mettre à jour le statut de l'assignation à "pending_review"
-    assignment.status = "pending_review"; // Ceci sera le statut final après la réaffectation
+    assignment.submissionDate = new Date();
     await project.save();
 
     // 8. Envoyer les notifications

@@ -33,17 +33,9 @@ export async function createAvailabilitySlot(req, res) {
         .json({ error: "Vous ne pouvez pas créer un slot plus de 48 heures à l'avance." });
     }
 
-    // Vérifier les contraintes horaires (Lundi-Vendredi, 9h-17h)
-    const dayOfWeek = start.getUTCDay(); // Dimanche = 0, Lundi = 1, ..., Samedi = 6
+    // Vérifier les contraintes horaires (9h-17h) — Week-end désormais autorisé
     const startHour = start.getUTCHours();
     const endHour = end.getUTCHours();
-
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      // Week-end
-      return res.status(400).json({
-        error: "Les slots ne peuvent être créés que du lundi au vendredi.",
-      });
-    }
 
     // Vérifier si un slot existe déjà ou chevauche cette période pour cet évaluateur
     const overlappingSlot = await AvailabilitySlot.findOne({
