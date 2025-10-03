@@ -44,20 +44,7 @@ export async function autoBlockInactiveUsers() {
 }
 
 export async function attachLastSeen(req, res, next) {
-  console.log('attachLastSeen middleware called.'); // Log de début de middleware
-  const end = res.end;
-  res.end = async function (...args) {
-    try {
-      if (req.user) {
-        console.log(`Updating lastLogin for user: ${req.user.email}`); // Log avant la mise à jour
-        req.user.lastLogin = new Date();
-        await req.user.save();
-        console.log(`lastLogin updated successfully for user: ${req.user.email}`); // Log après la mise à jour
-      }
-    } catch (error) {
-      console.error("Error updating lastLogin:", error);
-    }
-    end.apply(this, args);
-  };
+  // Ne met plus à jour lastLogin sur chaque requête.
+  // Conservation du middleware pour compatibilité.
   next();
 }

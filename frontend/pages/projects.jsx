@@ -722,10 +722,17 @@ function ProjectsPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            if ((me?.evaluationPoints ?? 0) < 2) {
+                              setErrorPopupMessage("Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet.");
+                              setPopupType('error');
+                              setShowErrorPopup(true);
+                              return;
+                            }
                             handleOpenSubmitProjectModal(project);
                           }}
                           className="btn btn-primary w-100 btn-sm"
                           title="Soumettre ce projet"
+                          disabled={(me?.evaluationPoints ?? 0) < 2}
                         >
                           <i className="bi bi-upload me-2"></i>
                           Soumettre le Projet

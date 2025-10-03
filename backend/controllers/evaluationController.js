@@ -3,6 +3,7 @@ import Project from "../models/Project.js";
 import User from "../models/User.js";
 import AvailabilitySlot from "../models/AvailabilitySlot.js";
 import Notification from "../models/Notification.js";
+import ActivityLogger from "../utils/activityLogger.js";
 
 // Pour l'apprenant qui a soumis le projet: voir les évaluations en attente pour son projet
 export async function getEvaluationsForMySubmittedProjects(req, res) {
@@ -297,6 +298,27 @@ export async function submitEvaluation(req, res) {
     evaluation.status = status;
     evaluation.submissionDate = new Date();
     await evaluation.save();
+
+    // Logger la soumission d'évaluation
+    await ActivityLogger.logEvaluationSubmitted(
+      evaluatorId,
+      evaluation._id,
+      evaluation.project._id,
+      evaluation.assignment,
+      evaluation.score,
+      req
+    );
+
+    // Incrémenter les points d'évaluation de l'évaluateur après envoi de feedback (borné à 10)
+    try {
+      const evaluator = await User.findById(evaluatorId);
+      if (evaluator) {
+        evaluator.evaluationPoints = Math.min(10, (evaluator.evaluationPoints || 0) + 1);
+        await evaluator.save();
+      }
+    } catch (incrementErr) {
+      console.error('Error incrementing evaluation points on feedback submit:', incrementErr);
+    }
 
     // Récupérer toutes les évaluations pour cette assignation spécifique
     const assignmentEvaluations = await Evaluation.find({

@@ -1,4 +1,5 @@
 import AvailabilitySlot from "../models/AvailabilitySlot.js";
+import ActivityLogger from "../utils/activityLogger.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import Project from "../models/Project.js";
@@ -57,6 +58,9 @@ export async function createAvailabilitySlot(req, res) {
       startTime: start,
       endTime: end,
     });
+
+    // Log: création de slot
+    await ActivityLogger.logSlotCreated(evaluatorId, newSlot._id, req);
 
     res.status(201).json({
       message: "Slot de disponibilité créé avec succès.",
@@ -144,6 +148,20 @@ export async function bookSlot(req, res) {
     slot.bookedByStudent = studentId;
     slot.bookedForProject = projectId;
     await slot.save();
+
+    // Log: réservation de slot par l'étudiant
+    await ActivityLogger.logSlotReserved(studentId, slot._id, projectId, req);
+
+  // Décrémenter les points d'évaluation de l'apprenant (1 point par slot réservé)
+  try {
+    const student = await User.findById(studentId);
+    if (student) {
+      student.evaluationPoints = Math.max(0, Math.min(10, (student.evaluationPoints || 0) - 1));
+      await student.save();
+    }
+  } catch (decrementErr) {
+    console.error('Error decrementing evaluation points on slot booking:', decrementErr);
+  }
 
     // Notifier l'évaluateur que son slot a été réservé
     await Notification.create({

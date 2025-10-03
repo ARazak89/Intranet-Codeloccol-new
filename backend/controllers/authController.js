@@ -4,6 +4,7 @@ import User from "../models/User.js";
 // import crypto from "crypto"; // Commenter si non utilisé
 // import { sendMail } from "../utils/emailService.js"; // Commenter si non utilisé
 import Project from "../models/Project.js"; // Importer le modèle Project
+import ActivityLogger from "../utils/activityLogger.js";
 
 export async function login(req, res) {
   try {
@@ -26,8 +27,9 @@ export async function login(req, res) {
         error: "Votre compte est bloqué pour cause d'inactivité (plus de 4 jours sans connexion). Veuillez contacter le personnel pour le réactiver.",
       });
     }
-    user.lastLogin = new Date();
-    await user.save();
+    // Logger la connexion réussie
+    await ActivityLogger.logLogin(user._id, req);
+    
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
@@ -46,6 +48,23 @@ export async function login(req, res) {
     console.error(
       `Erreur lors de la connexion pour l'email: ${req.body.email || "N/A"}: ${e.message}`,
     );
+    res.status(500).json({ error: e.message });
+  }
+}
+
+export async function logout(req, res) {
+  try {
+    // Logger la déconnexion
+    if (req.user) {
+      // Mettre à jour lastLogin uniquement à la déconnexion
+      req.user.lastLogin = new Date();
+      await req.user.save();
+      await ActivityLogger.logLogout(req.user._id, req);
+    }
+    
+    res.json({ message: "Déconnexion réussie" });
+  } catch (e) {
+    console.error(`Erreur lors de la déconnexion: ${e.message}`);
     res.status(500).json({ error: e.message });
   }
 }

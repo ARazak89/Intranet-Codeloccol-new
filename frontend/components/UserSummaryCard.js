@@ -25,6 +25,9 @@ const UserSummaryCard = ({ me, onShowCreateSlotModal, onShowAddUserModal }) => {
             <>
               <span className="badge bg-info me-2"><i className="bi bi-graph-up me-1"></i> Niveau: {me.level}</span>
               <span className="badge bg-warning text-dark"><i className="bi bi-hourglass-split me-1"></i> Jours Restants: {me.daysRemaining}</span>
+              <div className="mt-2">
+                <span className="badge bg-secondary"><i className="bi bi-star me-1"></i> Points d'évaluation: {me.evaluationPoints ?? 0}</span>
+              </div>
             </>
           )}
         </p>

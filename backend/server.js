@@ -21,6 +21,7 @@ import resourceRoutes from './routes/resourceRoutes.js'; // Importez les routes 
 import evaluationRoutes from './routes/evaluationRoutes.js'; // Importez les routes des évaluations
 import availabilityRoutes from './routes/availabilityRoutes.js'; // Importez les routes de disponibilité
 import teamRoutes from "./routes/teamRoutes.js"; // Importez les routes des équipes
+import activityRoutes from './routes/activityRoutes.js'; // Importez les routes des activités
 
 import {
   autoBlockInactiveUsers,
@@ -77,6 +78,7 @@ app.use('/api/resources', resourceRoutes); // Nouvelle route pour les ressources
 app.use('/api/evaluations', evaluationRoutes); // Nouvelle route pour les évaluations
 app.use('/api/availability', availabilityRoutes); // Nouvelle route pour les slots de disponibilité
 app.use('/api/teams', teamRoutes); // Nouvelle route pour la gestion des équipes
+app.use('/api/activities', activityRoutes); // Route pour la gestion des activités utilisateur
 
 const PORT = process.env.PORT || 4000;
 mongoose

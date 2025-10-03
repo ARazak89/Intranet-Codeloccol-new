@@ -2,6 +2,7 @@ import Project from '../models/Project.js';
 import AvailabilitySlot from '../models/AvailabilitySlot.js';
 import User from '../models/User.js';
 import Evaluation from '../models/Evaluation.js';
+import ActivityLogger from '../utils/activityLogger.js';
 // import Notification from '../models/Notification.js'; // Décommenter si vous avez un modèle Notification
 // import Badge from '../models/Badge.js'; // Décommenter si vous avez un modèle Badge
 
@@ -293,6 +294,20 @@ export async function submitProjectSolution(req, res) {
     const { assignmentId, repoUrl, selectedSlotIds } = req.body; // Attendre l'ID de l'assignation et les slots
     const studentId = req.user._id; // ID de l'apprenant connecté
 
+    // Vérifier que l'apprenant a au moins 2 points d'évaluation avant de soumettre
+    try {
+      const student = await User.findById(studentId).select('evaluationPoints');
+      if (!student) {
+        return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+      }
+      if ((student.evaluationPoints || 0) < 2) {
+        return res.status(400).json({ error: "Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet." });
+      }
+    } catch (pointsErr) {
+      console.error('Error checking evaluation points before submit:', pointsErr);
+      return res.status(500).json({ error: 'Erreur lors de la vérification des points d\'évaluation.' });
+    }
+
     if (!assignmentId) {
       return res.status(400).json({ error: 'ID d\'assignation manquant.' });
     }
@@ -351,6 +366,29 @@ export async function submitProjectSolution(req, res) {
     }
 
     await project.save();
+
+    // Décrémenter les points d'évaluation en fonction du nombre de slots réservés dans cette soumission
+    try {
+      const student = await User.findById(studentId);
+      if (student) {
+        const decrement = Array.isArray(slots) ? slots.length : 0;
+        if (decrement > 0) {
+          student.evaluationPoints = Math.max(0, Math.min(10, (student.evaluationPoints || 0) - decrement));
+          await student.save();
+        }
+      }
+    } catch (decrementErr) {
+      console.error('Error decrementing evaluation points on project submit:', decrementErr);
+    }
+
+    // Logger la soumission de projet
+    await ActivityLogger.logProjectSubmitted(
+      studentId,
+      projectId,
+      assignmentId,
+      repoUrl,
+      req
+    );
 
     res.status(200).json({ message: 'Solution soumise avec succès.', project });
   } catch (e) {

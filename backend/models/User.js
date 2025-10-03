@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
   status: { type: String, default: 'active' },
   totalProjectsCompleted: { type: Number, default: 0 },
   daysRemaining: { type: Number, default: 0 },
+  evaluationPoints: { type: Number, default: 2 },
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

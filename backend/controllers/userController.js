@@ -57,6 +57,7 @@ export async function me(req, res) {
     status: u.status,
     daysRemaining: u.daysRemaining,
     level: u.level,
+    evaluationPoints: u.evaluationPoints,
     lastLogin: u.lastLogin,
     projects,
     profilePicture: u.profilePicture,

@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import ActivityLogger from "../utils/activityLogger.js";
 
 export const requireAuth = async (req, res, next) => {
   const auth = req.headers.authorization || "";
@@ -11,6 +12,7 @@ export const requireAuth = async (req, res, next) => {
     if (!user) return res.status(401).json({ error: "User not found" });
     if (user.status === "blocked")
       return res.status(403).json({ error: "Account is blocked" });
+    
     req.user = user;
     next();
   } catch (e) {
@@ -25,3 +27,13 @@ export const requireRole =
       return res.status(403).json({ error: "Forbidden" });
     next();
   };
+
+/**
+ * Middleware pour logger les déconnexions
+ */
+export const logLogout = async (req, res, next) => {
+  if (req.user) {
+    await ActivityLogger.logLogout(req.user._id, req);
+  }
+  next();
+};
