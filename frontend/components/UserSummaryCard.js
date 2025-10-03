@@ -1,11 +1,19 @@
 import React from 'react';
-
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+const STATIC_ASSETS_BASE_URL = API.replace('/api', '');
 const UserSummaryCard = ({ me, onShowCreateSlotModal, onShowAddUserModal }) => {
   return (
     <div className="card shadow-sm h-100 border-0 transform-hover">
       <div className="card-body d-flex flex-column">
         <div className="d-flex align-items-center mb-3">
-          <i className="bi bi-person-circle fs-1 text-primary me-3"></i>
+          {/* <i className="bi bi-person-circle fs-1 text-primary me-3"></i>
+           */}
+            <img
+                    src={me.profilePicture ? `${STATIC_ASSETS_BASE_URL}${me.profilePicture}` : '/default-avatar.jpg'}
+                    alt="Avatar"
+                    className="rounded-circle me-2 border border-light"
+                    style={{ width: '30px', height: '30px', objectFit: 'cover' }}
+                  />
           <div>
             <h5 className="card-title mb-0">Bonjour {me.name}</h5>
             <p className="text-muted mb-0">{me.email}</p>

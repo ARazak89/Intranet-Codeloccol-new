@@ -36,7 +36,12 @@ r.put(
 );
 r.get("/", requireAuth, requireRole(["staff", "admin"]), listUsers);
 console.log('Registering /api/users/evaluators route...'); // Log avant la définition de la route
-r.get("/evaluators", requireAuth, requireRole(["staff", "admin"]), getEvaluators); // Nouvelle route pour les évaluateurs
+r.get(
+  "/evaluators",
+  requireAuth,
+  requireRole(["staff", "admin"]),
+  getEvaluators,
+); // Nouvelle route pour les évaluateurs
 r.get("/:id", requireAuth, requireRole(["staff", "admin"]), getUserById);
 r.delete("/:id", requireAuth, requireRole(["admin"]), deleteUser);
 r.put(

@@ -59,6 +59,7 @@ export async function me(req, res) {
     level: u.level,
     lastLogin: u.lastLogin,
     projects,
+    profilePicture: u.profilePicture,
     hackathons,
     badges,
     progress: {
@@ -151,6 +152,7 @@ export async function updateUserPassword(req, res) {
 export async function updateUserProfilePicture(req, res) {
   try {
     // L'URL de l'image est maintenant générée par Multer après le téléchargement
+
     if (!req.file) {
       return res
         .status(400)

@@ -7,7 +7,8 @@ import Script from 'next/script'; // Importez Script
 import { getAuthToken, removeAuthToken } from '../utils/auth'; // Importer la fonction getAuthToken
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-const STATIC_ASSETS_BASE_URL = process.env.NEXT_PUBLIC_STATIC_ASSETS_BASE_URL || '/static';
+// const STATIC_ASSETS_BASE_URL = process.env.NEXT_PUBLIC_STATIC_ASSETS_BASE_URL || '/static';
+const STATIC_ASSETS_BASE_URL = API.replace('/api', '');
 
 const Layout = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -243,7 +244,7 @@ const Layout = ({ children }) => {
               </li>
               <li className="nav-item dropdown ms-2">
                 <a className="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  <img 
+                  <img
                     src={user.profilePicture ? `${STATIC_ASSETS_BASE_URL}${user.profilePicture}` : '/default-avatar.jpg'}
                     alt="Avatar"
                     className="rounded-circle me-2 border border-light"
