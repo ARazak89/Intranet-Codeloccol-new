@@ -1,0 +1,398 @@
+import AvailabilitySlot from "../models/AvailabilitySlot.js";
+import User from "../models/User.js";
+import Notification from "../models/Notification.js";
+import Project from "../models/Project.js";
+
+// Fonction pour qu'un apprenant (évaluateur) crée des slots de disponibilité
+export async function createAvailabilitySlot(req, res) {
+  try {
+    const { startTime, endTime } = req.body;
+    const evaluatorId = req.user._id; // L'utilisateur connecté est l'évaluateur
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    // Validation des dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+      return res.status(400).json({ error: "Dates et heures invalides." });
+    }
+
+    // Nouvelle validation : La durée du slot ne doit pas dépasser 2 jours (48 heures)
+    const twoDaysInMs = 2 * 24 * 60 * 60 * 1000;
+    if (end.getTime() - start.getTime() > twoDaysInMs) {
+      return res
+        .status(400)
+        .json({ error: "La durée d'un slot ne peut pas dépasser 2 jours." });
+    }
+
+    // Nouvelle validation : L'heure de début du slot ne doit pas être plus de 48 heures dans le futur
+    const fortyEightHoursFromNow = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    if (start.getTime() > fortyEightHoursFromNow.getTime()) {
+      return res
+        .status(400)
+        .json({ error: "Vous ne pouvez pas créer un slot plus de 48 heures à l'avance." });
+    }
+
+    // Vérifier les contraintes horaires (Lundi-Vendredi, 9h-17h)
+    const dayOfWeek = start.getUTCDay(); // Dimanche = 0, Lundi = 1, ..., Samedi = 6
+    const startHour = start.getUTCHours();
+    const endHour = end.getUTCHours();
+
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      // Week-end
+      return res.status(400).json({
+        error: "Les slots ne peuvent être créés que du lundi au vendredi.",
+      });
+    }
+
+    // Vérifier si un slot existe déjà ou chevauche cette période pour cet évaluateur
+    const overlappingSlot = await AvailabilitySlot.findOne({
+      evaluator: evaluatorId,
+      $or: [
+        { startTime: { $lt: end }, endTime: { $gt: start } }, // Chevauchement
+        { startTime: start, endTime: end }, // Identique
+      ],
+    });
+
+    if (overlappingSlot) {
+      return res.status(400).json({
+        error: "Un slot de disponibilité chevauche déjà cette période.",
+      });
+    }
+
+    const newSlot = await AvailabilitySlot.create({
+      evaluator: evaluatorId,
+      startTime: start,
+      endTime: end,
+    });
+
+    res.status(201).json({
+      message: "Slot de disponibilité créé avec succès.",
+      slot: newSlot,
+    });
+  } catch (e) {
+    console.error('Error creating availability slot:', e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// Fonction pour lister les slots de disponibilité disponibles
+export async function getAvailableSlots(req, res) {
+  try {
+    // On peut ajouter des filtres ici (par date, par évaluateur, etc.)
+    const { date, evaluatorId } = req.query;
+    let query = { isBooked: false }; // Seulement les slots non réservés
+
+    if (evaluatorId) {
+      query.evaluator = evaluatorId;
+    }
+
+    if (date) {
+      const d = new Date(date);
+      const nextDay = new Date(date);
+      nextDay.setDate(d.getDate() + 1);
+      query.startTime = { $gte: d, $lt: nextDay };
+    }
+
+    console.log('Query for available slots:', query); // Ajout du console.log
+    const slots = await AvailabilitySlot.find(query)
+      .populate("evaluator", "name profilePicture") // Populer le nom de l'évaluateur
+      .sort("startTime");
+
+    res.status(200).json(slots);
+  } catch (e) {
+    console.error('Error fetching available slots:', e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// Fonction pour qu'un apprenant réserve un slot
+export async function bookSlot(req, res) {
+  try {
+    const { slotId, projectId } = req.body;
+    const studentId = req.user._id; // L'apprenant qui réserve
+
+    // Vérifier si le slot existe et est disponible
+    const slot = await AvailabilitySlot.findById(slotId);
+    if (!slot || slot.isBooked) {
+      return res
+        .status(400)
+        .json({ error: "Slot de disponibilité non trouvé ou déjà réservé." });
+    }
+
+    // Vérifier que le slot n'est pas réservé par l'évaluateur lui-même
+    if (slot.evaluator.equals(studentId)) {
+      return res
+        .status(400)
+        .json({ error: "Vous ne pouvez pas réserver votre propre slot." });
+    }
+
+    // Vérifier que l'apprenant ne réserve pas deux slots pour le même projet avec un décalage insuffisant
+    const existingBookingsForProject = await AvailabilitySlot.find({
+      bookedByStudent: studentId,
+      bookedForProject: projectId,
+      isBooked: true,
+    });
+
+    for (const existingBooking of existingBookingsForProject) {
+      const diffMs = Math.abs(
+        new Date(slot.startTime).getTime() -
+          new Date(existingBooking.startTime).getTime(),
+      );
+      const diffMinutes = Math.round(diffMs / 60000);
+      if (diffMinutes < 45) {
+        return res.status(400).json({
+          error:
+            'Vous devez choisir des slots avec un décalage d\'au moins 45 minutes pour le même projet.',
+        });
+      }
+    }
+
+    slot.isBooked = true;
+    slot.bookedByStudent = studentId;
+    slot.bookedForProject = projectId;
+    await slot.save();
+
+    // Notifier l'évaluateur que son slot a été réservé
+    await Notification.create({
+      user: slot.evaluator,
+      type: "slot_booked",
+      message: `Votre slot de disponibilité le ${new Date(slot.startTime).toLocaleString()} a été réservé pour un projet.`, // ${new Date(slot.startTime).toLocaleString()} pour un affichage lisible
+    });
+
+    // Notifier l'apprenant qu'il a réservé un slot
+    const project = await Project.findById(projectId);
+    await Notification.create({
+      user: studentId,
+      type: "slot_booked_by_student",
+      message: `Vous avez réservé un slot pour l'évaluation du projet '${project.title}' le ${new Date(slot.startTime).toLocaleString()}.`,
+    });
+
+    res.status(200).json({ message: "Slot réservé avec succès.", slot });
+  } catch (e) {
+    console.error('Error booking slot:', e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// Fonction pour un évaluateur pour voir ses réservations
+export async function getPeerBookings(req, res) {
+  try {
+    const evaluatorId = req.user._id;
+
+    const bookings = await AvailabilitySlot.find({
+      evaluator: evaluatorId,
+      isBooked: true,
+    })
+      .populate("bookedByStudent", "name")
+      .populate("bookedForProject", "title")
+      .sort("startTime");
+
+    res.status(200).json(bookings);
+  } catch (e) {
+    console.error('Error fetching peer bookings:', e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// Fonction pour qu'un apprenant voit les slots qu'il a créés
+export async function getMyCreatedSlots(req, res) {
+  try {
+    const evaluatorId = req.user._id;
+
+    const slots = await AvailabilitySlot.find({ evaluator: evaluatorId })
+      .populate("bookedByStudent", "name")
+      .populate("bookedForProject", "title")
+      .sort("startTime");
+
+    res.status(200).json(slots);
+  } catch (e) {
+    console.error('Error fetching my created slots:', e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// Fonction pour récupérer les créneaux disponibles pour un projet spécifique
+export async function getAvailableSlotsForProject(req, res) {
+  try {
+    const { projectId, assignmentId } = req.params; // projectId est ici l'ID du projet maître
+    const studentId = req.user._id;
+
+    console.log(`[getAvailableSlotsForProject] Received - ProjectId: ${projectId}, AssignmentId: ${assignmentId}, StudentId: ${studentId}`);
+
+    // Chercher le projet maître par son ID directement
+    const project = await Project.findById(projectId).populate({
+      path: 'assignments.student',
+      select: 'name'
+    });
+    console.log(`[getAvailableSlotsForProject] Fetched Project:`, project);
+
+    if (!project) {
+      return res.status(404).json({
+        error: 'Projet non trouvé.'
+      });
+    }
+
+    // Trouver l'assignation pertinente dans le projet
+    const relevantAssignment = project.assignments.id(assignmentId);
+    console.log(`[getAvailableSlotsForProject] Relevant Assignment:`, relevantAssignment);
+
+    if (!relevantAssignment || !relevantAssignment.student.equals(studentId)) {
+      return res.status(404).json({
+        error: 'Assignation de projet non trouvée, ou non assignée à cet étudiant.'
+      });
+    }
+
+    if (relevantAssignment.status === 'approved' || relevantAssignment.status === 'rejected') {
+      return res.status(400).json({
+        error: 'Cette assignation de projet a déjà été évaluée.'
+      });
+    }
+
+    // Récupérer tous les slots disponibles (non réservés et non expirés)
+    const now = new Date();
+    const availableSlots = await AvailabilitySlot.find({
+      isBooked: false,
+      startTime: { $gt: now }, // Seulement les slots futurs
+      evaluator: { $ne: studentId } // L'étudiant ne peut pas s'évaluer lui-même
+    })
+    .populate('evaluator', 'name') // Populer le nom de l'évaluateur
+    .sort('startTime');
+    console.log(`[getAvailableSlotsForProject] Available Slots before grouping:`, availableSlots);
+
+    // Grouper les slots par évaluateur pour vérifier qu'il y a au moins 2 évaluateurs différents
+    const slotsByEvaluator = availableSlots.reduce((acc, slot) => {
+      // S'assurer que slot.evaluator n'est pas null avant d'accéder à ses propriétés
+      if (!slot.evaluator) {
+        console.warn(`Slot ${slot._id} has a null evaluator. Skipping.`);
+        return acc; // Ignorer ce slot ou le gérer autrement si nécessaire
+      }
+      const evaluatorId = slot.evaluator._id.toString();
+      if (!acc[evaluatorId]) {
+        acc[evaluatorId] = {
+          evaluatorId: slot.evaluator._id,
+          evaluatorName: slot.evaluator.name, // Inclure le nom de l'évaluateur
+          slots: []
+        };
+      }
+      acc[evaluatorId].slots.push(slot);
+      return acc;
+    }, {});
+
+    // Convertir en tableau et s'assurer qu'il y a au moins 2 évaluateurs différents
+    const evaluatorsWithSlots = Object.values(slotsByEvaluator);
+    console.log(`[getAvailableSlotsForProject] Evaluators with Slots:`, evaluatorsWithSlots);
+
+    if (evaluatorsWithSlots.length < 2) {
+      return res.status(400).json({
+        error: 'Il n\'y a pas assez d\'évaluateurs disponibles. Au moins 2 évaluateurs différents sont nécessaires.'
+      });
+    }
+
+    const slotsWithEvaluatorInfo = availableSlots.map(slot => ({
+      _id: slot._id,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      evaluator: slot.evaluator ? {
+        _id: slot.evaluator._id,
+        name: slot.evaluator.name
+      } : {
+        _id: null,
+        name: 'Évaluateur Inconnu'
+      } // Gérer le cas où l'évaluateur est null
+    }));
+    console.log(`[getAvailableSlotsForProject] Final Slots to send:`, slotsWithEvaluatorInfo);
+
+    res.status(200).json(slotsWithEvaluatorInfo);
+  } catch (e) {
+    console.error('Error fetching available slots for project:', e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// Fonction pour un apprenant pour supprimer un slot qu'il a créé
+export async function deleteAvailabilitySlot(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const slot = await AvailabilitySlot.findById(id);
+
+    if (!slot) {
+      return res.status(404).json({ error: 'Slot de disponibilité non trouvé.' });
+    }
+
+    if (slot.isBooked) {
+      return res.status(400).json({ error: 'Ce slot est déjà réservé et ne peut pas être supprimé.' });
+    }
+
+    // Seul le créateur du slot (evaluator) peut le supprimer
+    if (!slot.evaluator.equals(userId)) {
+      return res.status(403).json({ error: 'Vous n\'êtes pas autorisé à supprimer ce slot.' });
+    }
+
+    await slot.deleteOne(); // Utiliser deleteOne() sur l'instance trouvée
+
+    res.status(200).json({ message: 'Slot de disponibilité supprimé avec succès.' });
+  } catch (e) {
+    console.error('Error deleting availability slot:', e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+// Fonction pour expirer les slots non réservés 30 minutes avant leur début
+export async function expireUnbookedSlots() {
+  try {
+    const now = new Date();
+    // Calculer le point limite : 30 minutes avant maintenant
+    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+
+    const expiredSlots = await AvailabilitySlot.find({
+      isBooked: false,
+      startTime: { $lt: thirtyMinutesFromNow }, // Slots dont l'heure de début est dans moins de 30 minutes
+    });
+
+    if (expiredSlots.length > 0) {
+      const deleted = await AvailabilitySlot.deleteMany({
+        _id: { $in: expiredSlots.map((slot) => slot._id) },
+      });
+      console.log(
+        `Expired ${deleted.deletedCount} unbooked availability slots.`,
+      );
+
+      // Optionnel: Envoyer une notification aux évaluateurs dont les slots ont expiré
+      for (const slot of expiredSlots) {
+        await Notification.create({
+          user: slot.evaluator,
+          type: "slot_expired",
+          message: `Votre slot de disponibilité le ${new Date(slot.startTime).toLocaleString()} a expiré car il n'a pas été réservé.`,
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Error expiring unbooked slots:', e);
+  }
+}
+
+export async function getAllAvailableSlots(req, res) {
+  try {
+    if (req.user.role !== 'staff' && req.user.role !== 'admin') {
+      return res.status(403).json({
+        error: 'Non autorisé à consulter cette ressource.',
+      });
+    }
+
+    const now = new Date();
+    const slots = await AvailabilitySlot.find({
+      isBooked: false,
+      startTime: { $gt: now },
+    })
+      .populate("evaluator", "name email")
+      .sort("startTime");
+
+    res.status(200).json(slots);
+  } catch (e) {
+    console.error('Error fetching all available slots:', e);
+    res.status(500).json({ error: e.message });
+  }
+}

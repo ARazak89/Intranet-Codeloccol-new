@@ -1,0 +1,139 @@
+body {
+  font-family: 'Inter', sans-serif; /* Une police plus moderne */
+  background-color: #f8f9fa; /* Arrière-plan légèrement gris */
+  color: #343a40; /* Couleur de texte par défaut */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #212529;
+}
+
+a {
+  color: #007bff; /* Couleur des liens par défaut de Bootstrap */
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.card {
+  border-radius: 0.75rem; /* Coins plus arrondis pour les cartes */
+  border: none; /* Supprimer la bordure par défaut */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); /* Ombre subtile pour un effet de profondeur */
+}
+
+.btn {
+  border-radius: 0.5rem; /* Coins plus arrondis pour les boutons */
+}
+
+.navbar {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.form-control, .form-select {
+  border-radius: 0.5rem;
+  border-color: #ced4da;
+}
+
+.modal-content {
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Anciens styles pour React Big Calendar (supprimés) */
+
+/* Styles pour la sidebar mobile */
+.sidebar {
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+  z-index: 1040; /* Au-dessus du contenu principal et de l'overlay */
+  width: 250px; /* Largeur de la sidebar sur mobile */
+}
+
+.sidebar.sidebar-open {
+  transform: translateX(0);
+}
+
+/* L'overlay qui apparaît quand la sidebar est ouverte sur mobile */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1039; /* En dessous de la sidebar, au-dessus du reste */
+}
+
+/* Sur les écrans desktop, la sidebar est toujours visible et l'overlay est caché */
+@media (min-width: 768px) {
+  .sidebar {
+    transform: translateX(0); /* Toujours visible sur desktop */
+    width: auto; /* Laisser Bootstrap gérer la largeur sur desktop */
+  }
+
+  .sidebar-overlay {
+    display: none;
+  }
+
+  /* S'assurer que le bouton hamburger est caché sur desktop */
+  .navbar .d-md-none {
+    display: none !important;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
