@@ -1,7 +1,7 @@
 // import 'bootstrap/dist/css/bootstrap.min.css'; // Assurez-vous que Bootstrap est importé
 import 'bootstrap-icons/font/bootstrap-icons.css'; // Importez les icônes Bootstrap
 import '../styles/global.css'; // Importez vos styles globaux ici
-
+import 'bootstrap/dist/css/bootstrap.min.css';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -30,9 +30,9 @@ export default function App({ Component, pageProps }) {
       <>
         <Head>
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossOrigin="anonymous" />
+          {/* <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossOrigin="anonymous" /> */}
 
-          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+          {/* <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" /> */}
         </Head>
         <div className="container-fluid py-3">
           <Component {...pageProps} />
