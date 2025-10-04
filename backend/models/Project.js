@@ -13,6 +13,7 @@ const assignmentSchema = new mongoose.Schema({
 const projectSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
+  module: { type: String, required: true }, // Nouveau champ pour le module
   specifications: [{ type: String }],
   objectives: [{ type: String }],
   exerciseStatements: [{ type: String }],

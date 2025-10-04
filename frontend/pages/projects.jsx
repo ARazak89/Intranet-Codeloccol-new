@@ -20,6 +20,7 @@ function ProjectsPage() {
   const [projects, setProjects] = useState([]); // Garde pour les projets combinés si besoin, ou réaffecter
   const [myProjects, setMyProjects] = useState([]); // NOUVEL ÉTAT pour les projets de l'apprenant
   const [projectsToEvaluate, setProjectsToEvaluate] = useState([]); // NOUVEL ÉTAT pour les projets à évaluer
+  const [groupedProjectsByModule, setGroupedProjectsByModule] = useState({}); // Nouveau: Projets regroupés par module
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false); // Nouvel état pour la modale
@@ -40,6 +41,7 @@ function ProjectsPage() {
   const [currentProjectToEdit, setCurrentProjectToEdit] = useState(null);
   const [currentProjectToDelete, setCurrentProjectToDelete] = useState(null);
   const [confirmProjectTitle, setConfirmProjectTitle] = useState('');
+  const [selectedModule, setSelectedModule] = useState(null); // Nouveau champ pour le module sélectionné
   // États pour le formulaire d'ajout/modification de projet
   const [projectTitle, setProjectTitle] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
@@ -51,6 +53,7 @@ function ProjectsPage() {
   const [projectResourceLinks, setProjectResourceLinks] = useState([]); // Changé de chaîne à tableau
   const [projectObjectives, setProjectObjectives] = useState([]); // Changé de chaîne à tableau
   const [projectOrder, setProjectOrder] = useState(0); // Nouvel état pour l'ordre du projet
+  const [projectModule, setProjectModule] = useState(''); // Nouveau champ pour le module
   
   // États pour la soumission de projet par un apprenant
   const [showSubmitProjectModal, setShowSubmitProjectModal] = useState(false);
@@ -123,9 +126,17 @@ function ProjectsPage() {
         // La logique d'affichage des cartes gérera les statuts individuels.
         const allStudentAssignments = formattedStudentProjects.sort((a, b) => (a.order || 0) - (b.order || 0));
         
-        // projectsToEvaluate devrait uniquement contenir les évaluations que l'apprenant DOIT faire (en tant que pair)
-        // Ces données sont généralement récupérées par un appel à /api/evaluations/pending-as-evaluator
-        // Pour l'instant, nous laissons cette liste vide ici ou laissons le dashboard la gérer.
+        // Regrouper les projets par module
+        const grouped = allStudentAssignments.reduce((acc, project) => {
+          const moduleName = project.module || 'Sans module';
+          if (!acc[moduleName]) {
+            acc[moduleName] = [];
+          }
+          acc[moduleName].push(project);
+          return acc;
+        }, {});
+        setGroupedProjectsByModule(grouped);
+
         setMyProjects(allStudentAssignments);
         setProjectsToEvaluate([]); // Vider cette liste ici, elle est gérée dans le dashboard si nécessaire
         setProjects([]); // On n'utilise plus cet état directement pour l'affichage apprenant
@@ -135,7 +146,7 @@ function ProjectsPage() {
       } finally {
         setLoading(false);
       }
-  }, [API, setMe, setProjects, setAllProjects, setError, setLoading, setMyProjects, setProjectsToEvaluate]); // Ajouter toutes les dépendances ici
+  }, [API, setMe, setProjects, setAllProjects, setError, setLoading, setMyProjects, setProjectsToEvaluate, setGroupedProjectsByModule]); // Ajouter toutes les dépendances ici
 
   const handleShowAddProjectModal = useCallback(() => {
     // Calculer le plus grand numéro d'ordre existant parmi les templates de projet
@@ -154,8 +165,9 @@ function ProjectsPage() {
     setProjectExerciseStatements([]);
     setProjectResourceLinks([]);
     setProjectObjectives([]);
+    setProjectModule(''); // Réinitialiser le module
     setError(null);
-  }, [setProjectOrder, setShowAddProjectModal, setProjectTitle, setProjectDescription, setProjectRepoUrl, setProjectDemoVideoUrl, setProjectSpecifications, setProjectSize, setProjectExerciseStatements, setProjectResourceLinks, setProjectObjectives, setError]); // allProjects est retiré des dépendances ici
+  }, [setProjectOrder, setShowAddProjectModal, setProjectTitle, setProjectDescription, setProjectRepoUrl, setProjectDemoVideoUrl, setProjectSpecifications, setProjectSize, setProjectExerciseStatements, setProjectResourceLinks, setProjectObjectives, setProjectModule, setError]); // allProjects est retiré des dépendances ici
 
   useEffect(() => {
     const token = getAuthToken();
@@ -231,7 +243,8 @@ function ProjectsPage() {
           order: projectOrder, 
           objectives: projectObjectives, 
           exerciseStatements: projectExerciseStatements, 
-          resourceLinks: projectResourceLinks 
+          resourceLinks: projectResourceLinks,
+          module: projectModule // Ajouter le module
         }),
       });
       const data = await res.json();
@@ -248,6 +261,7 @@ function ProjectsPage() {
         setProjectResourceLinks([]); // Réinitialiser
         setProjectObjectives([]); // Réinitialiser
         setProjectOrder(0); // Réinitialiser
+        setProjectModule(''); // Réinitialiser le module
         loadData(token); // Recharger toutes les données
       } else {
         throw new Error(data.error || 'Échec de l\'ajout du projet.');
@@ -272,6 +286,7 @@ function ProjectsPage() {
     setProjectResourceLinks(project.resourceLinks || []);
     setProjectObjectives(project.objectives || []);
     setProjectOrder(project.order || 0);
+    setProjectModule(project.module || ''); // Récupérer le module
     setShowEditProjectModal(true);
   };
 
@@ -298,6 +313,7 @@ function ProjectsPage() {
           projectObjectives: projectObjectives,
           projectExerciseStatements: projectExerciseStatements,
           projectResourceLinks: projectResourceLinks,
+          module: projectModule // Ajouter le module
       };
 
       let url = `${API}/projects/${currentProjectToEdit._id}`;
@@ -307,8 +323,6 @@ function ProjectsPage() {
         body.repoUrl = projectRepoUrl; // Mettre à jour le repoUrl de l'assignation
         body.status = currentProjectToEdit.assignmentStatus; // Ajouter le statut de l'assignation
       }
-
-      console.log('Sending update request with body:', body); // Added for debugging
 
       const res = await fetch(url, {
         method: 'PUT',
@@ -331,6 +345,7 @@ function ProjectsPage() {
         setProjectResourceLinks([]);
         setProjectObjectives([]);
         setProjectOrder(0);
+        setProjectModule(''); // Réinitialiser le module
         loadData(getAuthToken()); // Recharger toutes les données
       } else {
         throw new Error(data.error || 'Échec de la mise à jour du projet.');
@@ -664,86 +679,114 @@ function ProjectsPage() {
         <div className="row">
           <div className="col-12 mb-4">
             <h3>Mes Projets</h3>
-            {myProjects.length === 0 ? (
-              <div className="alert alert-info text-center mt-3">
-            <i className="bi bi-info-circle me-2"></i> Aucun projet assigné ou approuvé pour le moment.
-          </div>
-        ) : (
-          <div className="row">
-                {myProjects.map(project => (
-              <div key={project._id} className="col-md-6 col-lg-4 mb-4">
-                <div 
-                  className="card h-100 shadow-hover-3d border-0"
-                  onClick={() => handleCardClick(project)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="card-body d-flex flex-column">
-                  <div>
-                      <h5 className="card-title text-primary mb-2">
-                        <i className="bi bi-folder-check me-2"></i> {project.title}
-                      </h5>
-                          {project.templateProject && project.templateProject.order && (
-                            <p className="card-text text-muted"><small>(Projet {project.templateProject.order})</small></p>
-                          )}
-                    </div>
-
-                    {/* Indicateur de statut avec icône */}
-                      <div className="mt-3 mb-3 d-flex align-items-center">
-                      <span className={`badge rounded-pill bg-${
-                        project.assignmentStatus === 'assigned' ? 'warning text-dark' : 
-                        project.assignmentStatus === 'submitted' ? 'info' : // Nouveau statut pour "soumis"
-                        project.assignmentStatus === 'approved' ? 'success' : // Statut approuvé
-                        project.assignmentStatus === 'rejected' ? 'danger' : // Statut rejeté
-                        'secondary' // Statut par défaut
-                      } me-2`}>
-                        <i className={`bi bi-${
-                        project.assignmentStatus === 'assigned' ? 'clock' : 
-                        project.assignmentStatus === 'submitted' ? 'hourglass-split' : 
-                        project.assignmentStatus === 'approved' ? 'check-circle' : 
-                        project.assignmentStatus === 'rejected' ? 'x-circle' : 
-                        'question-circle'
-                        } me-1`}></i>
-                        {project.assignmentStatus === 'assigned' ? 'Assigné' : 
-                         project.assignmentStatus === 'submitted' ? 'Soumis (en attente d\'évaluation)' : 
-                         project.assignmentStatus === 'approved' ? 'Approuvé' : 
-                         project.assignmentStatus === 'rejected' ? 'Rejeté' : 
-                         'Inconnu'}
-                    </span>
-                      
-                      {/* Message spécial pour les projets approuvés */}
-                      {project.assignmentStatus === 'approved' && (
-                          <span className="text-success small"><i className="bi bi-trophy-fill me-1"></i> Projet Approuvé !</span>
-                      )}
-                </div>
-
-                    {/* Bouton de soumission pour les projets assignés */}
-                    {project.assignmentStatus === 'assigned' && (
-                      <div className="mt-auto">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if ((me?.evaluationPoints ?? 0) < 2) {
-                              setErrorPopupMessage("Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet.");
-                              setPopupType('error');
-                              setShowErrorPopup(true);
-                              return;
-                            }
-                            handleOpenSubmitProjectModal(project);
-                          }}
-                          className="btn btn-primary w-100 btn-sm"
-                          title="Soumettre ce projet"
-                          disabled={(me?.evaluationPoints ?? 0) < 2}
+            {selectedModule ? (
+              // Afficher les projets individuels pour le module sélectionné
+              <div className="mb-3">
+                <button className="btn btn-secondary mb-3" onClick={() => setSelectedModule(null)}>
+                  <i className="bi bi-arrow-left me-2"></i> Retour aux Modules
+                </button>
+                <h4>Projets du module : {selectedModule}</h4>
+                <div className="row">
+                  {groupedProjectsByModule[selectedModule] && groupedProjectsByModule[selectedModule].length > 0 ? (
+                    groupedProjectsByModule[selectedModule].map(project => (
+                      <div key={project._id} className="col-md-6 col-lg-4 mb-4">
+                        <div 
+                          className="card h-100 shadow-hover-3d border-0"
+                          onClick={() => handleCardClick(project)}
+                          style={{ cursor: 'pointer' }}
                         >
-                          <i className="bi bi-upload me-2"></i>
-                          Soumettre le Projet
-                        </button>
+                          <div className="card-body d-flex flex-column">
+                            <div>
+                              <h5 className="card-title text-primary mb-2">
+                                <i className="bi bi-folder-check me-2"></i> {project.title}
+                              </h5>
+                              {project.templateProject && project.templateProject.order && (
+                                <p className="card-text text-muted"><small>(Projet {project.templateProject.order})</small></p>
+                              )}
+                            </div>
+                            <div className="mt-3 mb-3 d-flex align-items-center">
+                              <span className={`badge rounded-pill bg-${ 
+                                project.assignmentStatus === 'assigned' ? 'warning text-dark' : 
+                                project.assignmentStatus === 'submitted' ? 'info' : 
+                                project.assignmentStatus === 'approved' ? 'success' : 
+                                project.assignmentStatus === 'rejected' ? 'danger' : 
+                                'secondary' 
+                              } me-2`}>
+                                <i className={`bi bi-${ 
+                                project.assignmentStatus === 'assigned' ? 'clock' : 
+                                project.assignmentStatus === 'submitted' ? 'hourglass-split' : 
+                                project.assignmentStatus === 'approved' ? 'check-circle' : 
+                                project.assignmentStatus === 'rejected' ? 'x-circle' : 
+                                'question-circle'
+                                } me-1`}></i>
+                                {project.assignmentStatus === 'assigned' ? 'Assigné' : 
+                                 project.assignmentStatus === 'submitted' ? 'Soumis (en attente d\'évaluation)' : 
+                                 project.assignmentStatus === 'approved' ? 'Approuvé' : 
+                                 project.assignmentStatus === 'rejected' ? 'Rejeté' : 
+                                 'Inconnu'}
+                              </span>
+                              {project.assignmentStatus === 'approved' && (
+                                <span className="text-success small"><i className="bi bi-trophy-fill me-1"></i> Projet Approuvé !</span>
+                              )}
+                            </div>
+                            {project.assignmentStatus === 'assigned' && (
+                              <div className="mt-auto">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if ((me?.evaluationPoints ?? 0) < 2) {
+                                      setErrorPopupMessage("Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet.");
+                                      setPopupType('error');
+                                      setShowErrorPopup(true);
+                                      return;
+                                    }
+                                    handleOpenSubmitProjectModal(project);
+                                  }}
+                                  className="btn btn-primary w-100 btn-sm"
+                                  title="Soumettre ce projet"
+                                  disabled={(me?.evaluationPoints ?? 0) < 2}
+                                >
+                                  <i className="bi bi-upload me-2"></i>
+                                  Soumettre le Projet
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="alert alert-info text-center mt-3">
+                      <i className="bi bi-info-circle me-2"></i> Aucun projet disponible pour ce module.
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
+            ) : (
+              // Afficher les cartes de module
+              Object.keys(groupedProjectsByModule).length > 0 ? (
+                <div className="row">
+                  {Object.entries(groupedProjectsByModule).map(([moduleName, projectsInModule]) => (
+                    <div key={moduleName} className="col-md-6 col-lg-4 mb-4">
+                      <div 
+                        className="card h-100 shadow-hover-3d border-0 module-card"
+                        onClick={() => setSelectedModule(moduleName)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className="card-body d-flex flex-column justify-content-center align-items-center">
+                          <i className="bi bi-folder-fill fs-1 text-primary mb-3"></i>
+                          <h5 className="card-title text-center text-primary">{moduleName}</h5>
+                          <p className="card-text text-muted">{projectsInModule.length} projet(s)</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="alert alert-info text-center mt-3">
+                  <i className="bi bi-info-circle me-2"></i> Aucun projet assigné pour le moment.
+                </div>
+              )
             )}
           </div>
 
@@ -1172,6 +1215,32 @@ function ProjectsPage() {
                       <option value="medium">Moyen (2 jours)</option>
                       <option value="long">Long (3 jours)</option>
                     </select>
+                  </div>
+
+                  {/* Module */}
+                  <div className="mb-3">
+                    <label htmlFor="projectModule" className="form-label">Module <span className="text-danger">*</span></label>
+                    <select
+                      className="form-select"
+                      id="projectModule"
+                      value={projectModule}
+                      onChange={(e) => setProjectModule(e.target.value)}
+                      required
+                    >
+                      <option value="">Sélectionner un module</option>
+                      <option value="CLI/Git & GIt Hub">CLI/Git & GIt Hub</option>
+                      <option value="HTML / CSS">HTML / CSS</option>
+                      <option value="Framework">Framework</option>
+                      <option value="WordPress">WordPress</option>
+                      <option value="JavaScript">JavaScript</option>
+                      <option value="Node Js (API)">Node Js (API)</option>
+                      <option value="React JS">React JS</option>
+                      <option value="Electron JS">Electron JS</option>
+                      <option value="Mobile">Mobile</option>
+                      <option value="Full Stack">Full Stack</option>
+                      <option value="Soft Skills">Soft Skills</option>
+                    </select>
+                    <div className="form-text text-muted">Sélectionnez le module auquel appartient le projet.</div>
                   </div>
 
                   <button type="submit" className="btn btn-success mt-3">{currentProjectToEdit ? 'Modifier' : 'Ajouter'} le Projet</button>

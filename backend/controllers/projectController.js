@@ -8,6 +8,21 @@ import ActivityLogger from '../utils/activityLogger.js';
 
 const DAY_BONUS = { short: 1, medium: 2, long: 3 };
 
+// Mappage des niveaux aux modules
+const levelToModuleMap = {
+  1: 'CLI/Git & GIt Hub',
+  2: 'HTML / CSS',
+  3: 'Framework',
+  4: 'WordPress',
+  5: 'JavaScript',
+  6: 'Node Js (API)',
+  7: 'React JS',
+  8: 'Electron JS',
+  9: 'Mobile',
+  10: 'Full Stack',
+  11: 'Soft Skills',
+};
+
 // Fonctions utilitaires
 function validateGithubUrl(url) {
   return /^https:\/\/github\.com\/[^/]+\/[^/]+(\.git)?$/.test(url);
@@ -58,6 +73,7 @@ async function _assignProjectByLevel(studentId, level) {
     const projectTemplate = await Project.findOne({
       status: 'template',
       order: level,
+      module: levelToModuleMap[level], // Filtrer par module correspondant au niveau
     });
 
     if (!projectTemplate) {
@@ -98,7 +114,7 @@ async function _assignProjectByLevel(studentId, level) {
 // Fonctions de contrôleur de projet
 export async function createProject(req, res) {
   try {
-    const { title, description, specifications, objectives, exerciseStatements, resourceLinks, demoVideoUrl, size } = req.body;
+    const { title, description, specifications, objectives, exerciseStatements, resourceLinks, demoVideoUrl, size, module } = req.body;
 
     // Déterminer l'ordre du nouveau projet
     const latestProject = await Project.findOne({ status: 'template' }).sort({ order: -1 });
@@ -116,6 +132,7 @@ export async function createProject(req, res) {
       size,
       status: 'template',
       order: newOrder, // Assigner l'ordre calculé
+      module, // Ajouter le module
     });
     console.log("New project created:", newProject);
 
@@ -129,7 +146,7 @@ export async function createProject(req, res) {
 export async function updateProject(req, res) {
   try {
     const { id: projectId } = req.params;
-    const { assignmentId, projectTitle, projectDescription, projectDemoVideoUrl, projectSpecifications, projectSize, projectOrder, projectObjectives, projectExerciseStatements, projectResourceLinks, repoUrl, status } = req.body;
+    const { assignmentId, projectTitle, projectDescription, projectDemoVideoUrl, projectSpecifications, projectSize, projectOrder, projectObjectives, projectExerciseStatements, projectResourceLinks, repoUrl, status, projectModule } = req.body;
 
     if (assignmentId) {
       // Mise à jour d'une assignation spécifique
@@ -162,6 +179,7 @@ export async function updateProject(req, res) {
         objectives: projectObjectives,
         exerciseStatements: projectExerciseStatements,
         resourceLinks: projectResourceLinks,
+        module: projectModule, // Ajouter le module pour la mise à jour du projet maître
       };
 
       const project = await Project.findByIdAndUpdate(
@@ -196,9 +214,13 @@ export async function getProjects(req, res) {
 export async function getStudentProjects(req, res) {
   try {
   const studentId = req.user._id;
-  console.log(`Fetching projects for studentId: ${studentId}`);
 
-    const projects = await Project.find({ "assignments.student": studentId }).populate({
+    // Retirer la logique de filtrage par niveau/module ici, le frontend gérera le regroupement et l'affichage.
+    const query = {
+      "assignments.student": studentId,
+    };
+
+    const projects = await Project.find(query).populate({
       path: 'assignments.student',
       select: 'name'
     });
@@ -223,6 +245,7 @@ export async function getStudentProjects(req, res) {
           resourceLinks: project.resourceLinks,
           demoVideoUrl: project.demoVideoUrl,
           status: project.status, // Statut du projet maître
+          module: project.module, // Inclure le module du projet maître
           assignmentId: studentAssignment._id,
           assignmentStatus: studentAssignment.status,
           repoUrl: studentAssignment.repoUrl,
