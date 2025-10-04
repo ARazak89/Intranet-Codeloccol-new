@@ -834,6 +834,24 @@ function ProjectsPage() {
                   <div className="">
                     <h6 className="text-primary mb-3">Informations du Projet</h6>
                     
+                    {/* Lecteur Vidéo de Démonstration */}
+                    {selectedProject.demoVideoUrl && getEmbedUrl(selectedProject.demoVideoUrl) && (
+                      <div className="card mb-3 shadow-sm">
+                        <div className="card-body">
+                          <h6 className="card-title d-flex align-items-center text-primary"><i className="bi bi-play-circle me-2"></i> Vidéo de Démonstration</h6>
+                          <div className="ratio ratio-16x9">
+                            <iframe
+                              src={getEmbedUrl(selectedProject.demoVideoUrl)}
+                              title="Vidéo de démonstration du projet"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              loading="lazy"
+                            ></iframe>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Section Description */}
                     <div className="card mb-3 shadow-sm">
                       <div className="card-body">
