@@ -213,16 +213,47 @@ export async function updateProject(req, res) {
         return res.status(404).json({ error: 'Projet maître non trouvé.' });
       }
 
+      // Utilitaire local: rendre le parsing tolérant aux formats (Array direct, JSON string, CSV, simple string)
+      const safelyParseArrayField = (raw) => {
+        if (raw === undefined || raw === null) return [];
+        if (Array.isArray(raw)) return raw.filter(v => v !== undefined && v !== null && String(v).trim() !== '').map(v => String(v).trim());
+        const text = String(raw).trim();
+        if (text === '') return [];
+        // Si la chaîne ressemble à du JSON, tenter de parser
+        if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+          try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) return parsed;
+            // objet unique => l'encapsuler pour conserver l'API
+            return [parsed];
+          } catch {
+            // Tomber plus bas sur CSV/unique string
+          }
+        }
+        // Support CSV
+        if (text.includes(',')) {
+          return text.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+        // Sinon, considérer comme un seul élément
+        return [text];
+      };
+
+      const coerceNumber = (val) => {
+        if (val === undefined || val === null || val === '') return undefined;
+        const n = Number(val);
+        return Number.isNaN(n) ? undefined : n;
+      };
+
       const updateFields = {
         title: projectTitle,
         description: projectDescription,
         demoVideoUrl: projectDemoVideoUrl,
-        specifications: req.body.projectSpecifications ? JSON.parse(req.body.projectSpecifications) : [], // Parse les tableaux JSON.
-        size: projectSize,
-        order: projectOrder,
-        objectives: req.body.projectObjectives ? JSON.parse(req.body.projectObjectives) : [],
-        exerciseStatements: req.body.projectExerciseStatements ? JSON.parse(req.body.projectExerciseStatements) : [],
-        resourceLinks: req.body.projectResourceLinks ? JSON.parse(req.body.projectResourceLinks) : [],
+        specifications: safelyParseArrayField(req.body.projectSpecifications),
+        size: coerceNumber(projectSize) ?? projectSize, // garder la valeur brute si non numérique
+        order: coerceNumber(projectOrder) ?? projectOrder,
+        objectives: safelyParseArrayField(req.body.projectObjectives),
+        exerciseStatements: safelyParseArrayField(req.body.projectExerciseStatements),
+        resourceLinks: safelyParseArrayField(req.body.projectResourceLinks),
         module: projectModule, // Met à jour le module.
       };
 
