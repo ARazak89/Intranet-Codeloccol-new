@@ -2,12 +2,13 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { getAuthToken } from '../utils/auth';
 import React from 'react'; // Added for React.Fragment
+import { marked } from 'marked'; // Import de marked
 
 import HtmlRenderer from '../utils/HtmlRenderer';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-// Fonction utilitaire pour s'assurer que les propriétés sont des tableaux
+// Fonction utilitaire pour s'assurer que les propriétés sont des tableaux, gérant les valeurs nulles ou indéfinies.
 const sanitizeProjectArrays = (project) => ({
   ...project,
   objectives: project.objectives || [],
@@ -16,64 +17,81 @@ const sanitizeProjectArrays = (project) => ({
   resourceLinks: project.resourceLinks || [],
 });
 
+/**
+ * `ProjectsPage` est le composant principal pour afficher et gérer les projets.
+ * Il gère l'affichage des projets pour les apprenants (par module) et pour le staff/admin (vue tableau avec CRUD).
+ * Il inclut la logique pour les modales d'ajout, modification, suppression et soumission de projet.
+ */
 function ProjectsPage() {
-  const [projects, setProjects] = useState([]); // Garde pour les projets combinés si besoin, ou réaffecter
-  const [myProjects, setMyProjects] = useState([]); // NOUVEL ÉTAT pour les projets de l'apprenant
-  const [projectsToEvaluate, setProjectsToEvaluate] = useState([]); // NOUVEL ÉTAT pour les projets à évaluer
-  const [groupedProjectsByModule, setGroupedProjectsByModule] = useState({}); // Nouveau: Projets regroupés par module
+  // États pour la gestion des données et de l'UI
+  const [projects, setProjects] = useState([]); // Utilisé principalement pour des besoins historiques ou de filtrage si nécessaire.
+  const [myProjects, setMyProjects] = useState([]); // Stocke les projets assignés à l'apprenant connecté.
+  const [projectsToEvaluate, setProjectsToEvaluate] = useState([]); // Stocke les projets que le staff/admin doit évaluer.
+  const [groupedProjectsByModule, setGroupedProjectsByModule] = useState({}); // Regroupe les projets de l'apprenant par module pour l'affichage.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showProjectModal, setShowProjectModal] = useState(false); // Nouvel état pour la modale
-  const [selectedProject, setSelectedProject] = useState(null); // Nouvel état pour le projet sélectionné
-  const [me, setMe] = useState(null); // Pour stocker les infos de l'utilisateur (rôle)
-  const [allProjects, setAllProjects] = useState([]); // Pour stocker tous les projets (staff/admin)
-  const allProjectsRef = useRef(allProjects); // Créez une réf pour allProjects
+  const [showProjectModal, setShowProjectModal] = useState(false); // Contrôle l'affichage de la modale de détails du projet.
+  const [selectedProject, setSelectedProject] = useState(null); // Stocke le projet sélectionné pour affichage dans la modale.
+  const [me, setMe] = useState(null); // Informations de l'utilisateur connecté (rôle, etc.).
+  const [projectMarkdownContent, setProjectMarkdownContent] = useState(''); // Contenu Markdown d'un projet sélectionné.
+  const [allProjects, setAllProjects] = useState([]); // Stocke tous les projets maîtres pour le staff/admin.
+  const allProjectsRef = useRef(allProjects); // Référence mutable pour accéder à `allProjects` dans les callbacks sans le lister comme dépendance.
   
-  // Synchronisez la réf avec l'état actuel d'allProjects
+  // Synchronisation de la référence avec l'état actuel d'allProjects.
   useEffect(() => {
     allProjectsRef.current = allProjects;
   }, [allProjects]);
 
-  // États pour les modales CRUD des projets
-  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
-  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
-  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
-  const [currentProjectToEdit, setCurrentProjectToEdit] = useState(null);
-  const [currentProjectToDelete, setCurrentProjectToDelete] = useState(null);
-  const [confirmProjectTitle, setConfirmProjectTitle] = useState('');
-  const [selectedModule, setSelectedModule] = useState(null); // Nouveau champ pour le module sélectionné
+  // États pour la gestion des modales CRUD des projets (staff/admin)
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false); // Affiche la modale d'ajout de projet.
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false); // Affiche la modale de modification de projet.
+  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false); // Affiche la modale de confirmation de suppression.
+  const [currentProjectToEdit, setCurrentProjectToEdit] = useState(null); // Projet actuellement en cours d'édition.
+  const [currentProjectToDelete, setCurrentProjectToDelete] = useState(null); // Projet actuellement en cours de suppression.
+  const [confirmProjectTitle, setConfirmProjectTitle] = useState(''); // Champ de confirmation de suppression.
+  const [selectedModule, setSelectedModule] = useState(null); // Module sélectionné par l'apprenant pour filtrer les projets.
+  
   // États pour le formulaire d'ajout/modification de projet
   const [projectTitle, setProjectTitle] = useState('');
   const [projectDescription, setProjectDescription] = useState('');
   const [projectRepoUrl, setProjectRepoUrl] = useState('');
   const [projectDemoVideoUrl, setProjectDemoVideoUrl] = useState('');
-  const [projectSpecifications, setProjectSpecifications] = useState([]); // Changé de chaîne à tableau
-  const [projectSize, setProjectSize] = useState('short');
-  const [projectExerciseStatements, setProjectExerciseStatements] = useState([]); // Changé de chaîne à tableau
-  const [projectResourceLinks, setProjectResourceLinks] = useState([]); // Changé de chaîne à tableau
-  const [projectObjectives, setProjectObjectives] = useState([]); // Changé de chaîne à tableau
-  const [projectOrder, setProjectOrder] = useState(0); // Nouvel état pour l'ordre du projet
-  const [projectModule, setProjectModule] = useState(''); // Nouveau champ pour le module
+  const [projectSpecifications, setProjectSpecifications] = useState([]); // Spécifications du projet (tableau de chaînes).
+  const [projectSize, setProjectSize] = useState('short'); // Taille du projet (short, medium, long).
+  const [projectExerciseStatements, setProjectExerciseStatements] = useState([]); // Énoncés d'exercices (tableau de chaînes).
+  const [projectResourceLinks, setProjectResourceLinks] = useState([]); // Liens de ressources (tableau de chaînes).
+  const [projectObjectives, setProjectObjectives] = useState([]); // Objectifs du projet (tableau de chaînes).
+  const [projectOrder, setProjectOrder] = useState(0); // Ordre d'affichage/progression du projet.
+  const [projectModule, setProjectModule] = useState(''); // Module auquel appartient le projet.
+  const [markdownFile, setMarkdownFile] = useState(null); // Fichier Markdown pour upload.
+  const [existingMarkdownUrl, setExistingMarkdownUrl] = useState(null); // URL du fichier Markdown existant pour modification.
   
   // États pour la soumission de projet par un apprenant
-  const [showSubmitProjectModal, setShowSubmitProjectModal] = useState(false);
-  const [currentProjectToSubmit, setCurrentProjectToSubmit] = useState(null);
-  const [projectSubmissionRepoUrl, setProjectSubmissionRepoUrl] = useState('');
-  const [availableSlots, setAvailableSlots] = useState([]);
-  const [selectedSlotIds, setSelectedSlotIds] = useState([]);
-  const [success, setSuccess] = useState(null);
-  const [showErrorPopup, setShowErrorPopup] = useState(false); // Nouvel état pour le popup d'erreur
-  const [errorPopupMessage, setErrorPopupMessage] = useState(''); // Message pour le popup d'erreur
-  const [popupType, setPopupType] = useState('error'); // 'error' ou 'warning'
+  const [showSubmitProjectModal, setShowSubmitProjectModal] = useState(false); // Affiche la modale de soumission de projet.
+  const [currentProjectToSubmit, setCurrentProjectToSubmit] = useState(null); // Projet en cours de soumission.
+  const [projectSubmissionRepoUrl, setProjectSubmissionRepoUrl] = useState(''); // URL du dépôt GitHub pour la soumission.
+  const [availableSlots, setAvailableSlots] = useState([]); // Créneaux d'évaluation disponibles.
+  const [selectedSlotIds, setSelectedSlotIds] = useState([]); // IDs des créneaux sélectionnés pour l'évaluation.
+  const [success, setSuccess] = useState(null); // Message de succès.
   
-  const router = useRouter();
+  // États pour les popups d'erreur/avertissement personnalisés
+  const [showErrorPopup, setShowErrorPopup] = useState(false); // Contrôle l'affichage du popup.
+  const [errorPopupMessage, setErrorPopupMessage] = useState(''); // Message affiché dans le popup.
+  const [popupType, setPopupType] = useState('error'); // Type du popup ('error' ou 'warning').
+  
+  const router = useRouter(); // Hook Next.js pour la navigation.
 
+  /**
+   * `loadData` est une fonction de rappel qui charge toutes les données nécessaires (projets de l'utilisateur, projets à évaluer, etc.)
+   * en fonction du rôle de l'utilisateur. Elle met à jour les états pertinents et gère les états de chargement/erreur.
+   * @param {string} token - Le jeton d'authentification de l'utilisateur.
+   */
   const loadData = useCallback(async (token) => {
       try {
         setLoading(true);
     setError(null);
 
-        // Charger les informations de l'utilisateur
+        // Charger les informations de l'utilisateur connecté
         const userRes = await fetch(`${API}/users/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (!userRes.ok) {
           const errorData = await userRes.json();
@@ -82,51 +100,47 @@ function ProjectsPage() {
         const userData = await userRes.json();
         setMe(userData);
 
-        // Chargement conditionnel des projets
-        let projectsToSet = [];
+        // Chargement conditionnel des projets en fonction du rôle de l'utilisateur
         if (userData.role === 'staff' || userData.role === 'admin') {
-        // Pour staff/admin: charger tous les projets templates avec leurs assignations peuplées
+        // Pour le staff/admin: charger tous les projets templates avec leurs assignations et étudiants.
           const allProjectsRes = await fetch(`${API}/projects/all`, { headers: { Authorization: `Bearer ${token}` } });
           if (!allProjectsRes.ok) {
             const errorData = await allProjectsRes.json();
           throw new Error(errorData.error || 'Échec du chargement de tous les projets maîtres.');
           }
           const rawProjects = await allProjectsRes.json();
-        // Assainir les projets maîtres et leurs assignations
+        // Assainir les projets maîtres et leurs assignations pour une meilleure cohérence des données.
         const sanitizedProjects = rawProjects.map(project => ({
           ...sanitizeProjectArrays(project),
           assignments: (project.assignments || []).map(assign => ({
             ...assign,
-            student: assign.student ? { _id: assign.student._id, name: assign.student.name, email: assign.student.email } : null, // S'assurer que student est un objet
+            student: assign.student ? { _id: assign.student._id, name: assign.student.name, email: assign.student.email } : null, // S'assurer que student est un objet simple.
             evaluations: (assign.evaluations || []).map(evalItem => ({
               ...evalItem,
               evaluator: evalItem.evaluator ? { _id: evalItem.evaluator._id, name: evalItem.evaluator.name } : null,
             })),
           })),
         }));
-        setAllProjects(sanitizedProjects);
-        setProjects([]); // Les apprenants n'ont pas de projets "template" directement ici
+        setAllProjects(sanitizedProjects); // Stocke tous les projets pour la vue admin.
+        setProjects([]); // Cet état n'est pas directement utilisé pour le staff/admin dans la nouvelle structure.
         } else {
-        // Pour apprenant: charger leurs projets maîtres avec leurs assignations
+        // Pour l'apprenant: charger ses projets assignés.
           const myProjectsRes = await fetch(`${API}/projects/my-projects`, { headers: { Authorization: `Bearer ${token}` } });
           if (!myProjectsRes.ok) {
             const errorData = await myProjectsRes.json();
             throw new Error(errorData.error || 'Échec du chargement de mes projets.');
           }
           const rawProjects = await myProjectsRes.json();
-        // Les projets reçus sont déjà filtrés pour l'utilisateur et contiennent seulement l'assignation pertinente
+        // Formater les projets de l'apprenant, assurant la présence de `projectId` et `_id`.
         const formattedStudentProjects = rawProjects.map(project => {
             const sanitizedProject = sanitizeProjectArrays(project);
-            // Le backend renvoie déjà projectId comme une propriété distincte, nous n'avons qu'à l'assurer.
-            // S'assurer que l'ID du projet maître est disponible sous `projectId` et `_id` est l'ID de l'assignation.
             return { ...sanitizedProject, _id: sanitizedProject.assignmentId, projectId: sanitizedProject.projectId };
         });
-
-        // myProjects doit contenir TOUS les projets assignés à l'apprenant, y compris ceux soumis, en attente, etc.
-        // La logique d'affichage des cartes gérera les statuts individuels.
+        
+        // Trier les projets de l'apprenant par ordre.
         const allStudentAssignments = formattedStudentProjects.sort((a, b) => (a.order || 0) - (b.order || 0));
         
-        // Regrouper les projets par module
+        // Regrouper les projets de l'apprenant par module pour l'affichage.
         const grouped = allStudentAssignments.reduce((acc, project) => {
           const moduleName = project.module || 'Sans module';
           if (!acc[moduleName]) {
@@ -137,25 +151,29 @@ function ProjectsPage() {
         }, {});
         setGroupedProjectsByModule(grouped);
 
-        setMyProjects(allStudentAssignments);
-        setProjectsToEvaluate([]); // Vider cette liste ici, elle est gérée dans le dashboard si nécessaire
-        setProjects([]); // On n'utilise plus cet état directement pour l'affichage apprenant
+        setMyProjects(allStudentAssignments); // Stocke tous les projets assignés de l'apprenant.
+        setProjectsToEvaluate([]); // Non pertinent pour les apprenants dans cette section.
+        setProjects([]); // Non pertinent pour les apprenants dans cette section.
       }
     } catch (e) {
         setError('Error loading data: ' + e.message);
       } finally {
         setLoading(false);
       }
-  }, [API, setMe, setProjects, setAllProjects, setError, setLoading, setMyProjects, setProjectsToEvaluate, setGroupedProjectsByModule]); // Ajouter toutes les dépendances ici
+  }, [API, setMe, setProjects, setAllProjects, setError, setLoading, setMyProjects, setProjectsToEvaluate, setGroupedProjectsByModule]); // Liste complète des dépendances de useCallback.
 
+  /**
+   * `handleShowAddProjectModal` ouvre la modale d'ajout de projet et initialise les champs du formulaire.
+   * Calcule automatiquement un nouvel ordre pour le projet basé sur les projets existants.
+   */
   const handleShowAddProjectModal = useCallback(() => {
-    // Calculer le plus grand numéro d'ordre existant parmi les templates de projet
+    // Calculer le plus grand numéro d'ordre existant pour les projets templates.
     const maxOrder = allProjectsRef.current.reduce((max, projectGroup) => {
       return Math.max(max, projectGroup.order || 0);
     }, 0);
-    setProjectOrder(maxOrder + 1);
-    setShowAddProjectModal(true);
-    // Réinitialiser les autres champs du formulaire pour un nouveau projet
+    setProjectOrder(maxOrder + 1); // Définit le prochain ordre disponible.
+    setShowAddProjectModal(true); // Ouvre la modale.
+    // Réinitialiser tous les champs du formulaire pour un ajout propre.
     setProjectTitle('');
     setProjectDescription('');
     setProjectRepoUrl('');
@@ -165,43 +183,58 @@ function ProjectsPage() {
     setProjectExerciseStatements([]);
     setProjectResourceLinks([]);
     setProjectObjectives([]);
-    setProjectModule(''); // Réinitialiser le module
+    setProjectModule('');
+    setMarkdownFile(null); // Réinitialiser le champ d'upload de fichier Markdown.
+    setExistingMarkdownUrl(null); // Réinitialiser l'URL du fichier Markdown existant.
     setError(null);
-  }, [setProjectOrder, setShowAddProjectModal, setProjectTitle, setProjectDescription, setProjectRepoUrl, setProjectDemoVideoUrl, setProjectSpecifications, setProjectSize, setProjectExerciseStatements, setProjectResourceLinks, setProjectObjectives, setProjectModule, setError]); // allProjects est retiré des dépendances ici
+  }, [setProjectOrder, setShowAddProjectModal, setProjectTitle, setProjectDescription, setProjectRepoUrl, setProjectDemoVideoUrl, setProjectSpecifications, setProjectSize, setProjectExerciseStatements, setProjectResourceLinks, setProjectObjectives, setProjectModule, setError]);
 
+  /**
+   * `useEffect` pour charger les données initiales au montage du composant et gérer la redirection si non authentifié.
+   * Gère également l'ouverture de la modale d'ajout de projet via un paramètre d'URL.
+   */
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
-      router.push('/login');
+      router.push('/login'); // Redirige vers la page de connexion si pas de token.
       return;
     }
 
-    loadData(token); // Passer le token à loadData
+    loadData(token); // Charge les données du projet.
 
-    // Vérifier les paramètres d'URL pour ouvrir la modale d'ajout de projet si nécessaire
+    // Vérifier les paramètres d'URL pour ouvrir la modale d'ajout de projet.
     const { openAddProject } = router.query;
     if (openAddProject === 'true') {
-      handleShowAddProjectModal();
-      // Supprimer le paramètre d'URL après l'avoir utilisé pour éviter de réouvrir la modale à chaque rafraîchissement
-      router.replace('/projects', undefined, { shallow: true });
+      handleShowAddProjectModal(); // Ouvre la modale d'ajout.
+      router.replace('/projects', undefined, { shallow: true }); // Nettoie l'URL.
     }
-  }, [router, loadData, handleShowAddProjectModal]); // handleShowAddProjectModal est toujours une dépendance
+  }, [router, loadData, handleShowAddProjectModal]); // Dépendances du hook.
 
+  /**
+   * `getEmbedUrl` est une fonction utilitaire qui génère une URL d'intégration pour les vidéos YouTube et Vimeo.
+   * @param {string} url - L'URL complète de la vidéo.
+   * @returns {string|null} L'URL d'intégration ou `null` si l'URL n'est pas supportée.
+   */
   const getEmbedUrl = (url) => {
     if (!url) return null;
-    // Gérer YouTube
+    // Gérer les URL YouTube.
     const youtubeMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:embed\/|watch\?v=|v\/)|youtu\.be\/)([\w-]{11})(?:\S+)?/);
     if (youtubeMatch && youtubeMatch[1]) {
       return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
     }
-    // Gérer Vimeo (simple - peut nécessiter plus de robustesse)
+    // Gérer les URL Vimeo.
     const vimeoMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:vimeo\.com\/(?:video\/|)([0-9]+))(?:\S+)?/);
     if (vimeoMatch && vimeoMatch[1]) {
       return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
     }
-    return null;
+    return null; // Retourne null si l'URL n'est ni YouTube ni Vimeo.
   };
 
+  /**
+   * `handleCardClick` gère le clic sur une carte de projet d'un apprenant, ouvrant la modale de détails.
+   * Si un fichier Markdown est associé, il est récupéré via l'API.
+   * @param {object} project - L'objet projet cliqué.
+   */
   const handleCardClick = (project) => {
     const sanitizedProject = {
       ...project,
@@ -212,14 +245,42 @@ function ProjectsPage() {
     };
     setSelectedProject(sanitizedProject);
     setShowProjectModal(true);
+
+    if (sanitizedProject.markdownFilePath) {
+      // Récupérer le contenu du fichier Markdown via une requête API.
+      const token = getAuthToken();
+      fetch(`${API}/projects/${sanitizedProject.projectId}/markdown`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Échec du chargement du fichier Markdown.');
+        }
+        return res.text(); // Le contenu Markdown est renvoyé en tant que texte brut.
+      })
+      .then(content => setProjectMarkdownContent(content)) // Met à jour l'état avec le contenu Markdown.
+      .catch(err => {
+        console.error('Error loading markdown content:', err);
+        setProjectMarkdownContent('Erreur lors du chargement du contenu Markdown.'); // Affiche un message d'erreur si la récupération échoue.
+      });
+    } else {
+      setProjectMarkdownContent(''); // Réinitialise le contenu Markdown si aucun fichier n'est associé.
+    }
   };
 
+  /**
+   * `handleCloseModal` ferme la modale de détails du projet et réinitialise l'état du projet sélectionné.
+   */
   const handleCloseModal = () => {
     setShowProjectModal(false);
     setSelectedProject(null);
   };
 
-  // Fonctions CRUD pour les projets (pour staff/admin)
+  /**
+   * `handleAddProject` gère la soumission du formulaire pour créer un nouveau projet template (staff/admin).
+   * Utilise `FormData` pour l'upload de fichiers et l'envoi de données.
+   * @param {Event} e - L'événement de soumission du formulaire.
+   */
   const handleAddProject = async (e) => {
     e.preventDefault();
     setError(null);
@@ -231,38 +292,42 @@ function ProjectsPage() {
         throw new Error('Token not found. Please log in.');
       }
 
+      const formData = new FormData();
+      formData.append('title', projectTitle);
+      formData.append('description', projectDescription);
+      formData.append('demoVideoUrl', projectDemoVideoUrl);
+      formData.append('specifications', JSON.stringify(projectSpecifications)); // Les tableaux sont stringifiés pour FormData.
+      formData.append('size', projectSize);
+      formData.append('order', projectOrder);
+      formData.append('objectives', JSON.stringify(projectObjectives));
+      formData.append('exerciseStatements', JSON.stringify(projectExerciseStatements));
+      formData.append('resourceLinks', JSON.stringify(projectResourceLinks));
+      formData.append('module', projectModule);
+      if (markdownFile) {
+        formData.append('markdownFile', markdownFile);
+      }
+
       const res = await fetch(`${API}/projects`, {
       method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ 
-          title: projectTitle, 
-          description: projectDescription, 
-          demoVideoUrl: projectDemoVideoUrl, 
-          specifications: projectSpecifications, 
-          size: projectSize, 
-          order: projectOrder, 
-          objectives: projectObjectives, 
-          exerciseStatements: projectExerciseStatements, 
-          resourceLinks: projectResourceLinks,
-          module: projectModule // Ajouter le module
-        }),
+        headers: { Authorization: `Bearer ${token}` }, // Le Content-Type est géré automatiquement par le navigateur pour FormData.
+        body: formData,
       });
       const data = await res.json();
       if (res.ok) {
         alert('Projet ajouté avec succès !');
         setShowAddProjectModal(false);
-        // Réinitialiser les champs du formulaire
+        // Réinitialise les champs du formulaire après un ajout réussi.
         setProjectTitle('');
         setProjectDescription('');
         setProjectDemoVideoUrl('');
-        setProjectSpecifications([]); // Réinitialiser
+        setProjectSpecifications([]);
         setProjectSize('short');
-        setProjectExerciseStatements([]); // Réinitialiser
-        setProjectResourceLinks([]); // Réinitialiser
-        setProjectObjectives([]); // Réinitialiser
-        setProjectOrder(0); // Réinitialiser
-        setProjectModule(''); // Réinitialiser le module
-        loadData(token); // Recharger toutes les données
+        setProjectExerciseStatements([]);
+        setProjectResourceLinks([]);
+        setProjectObjectives([]);
+        setProjectOrder(0);
+        setProjectModule('');
+        loadData(token); // Recharge toutes les données pour mettre à jour l'affichage.
       } else {
         throw new Error(data.error || 'Échec de l\'ajout du projet.');
       }
@@ -274,11 +339,16 @@ function ProjectsPage() {
     }
   };
 
+  /**
+   * `handleEditProject` pré-remplit le formulaire de modification avec les données du projet sélectionné.
+   * Gère également l'état du fichier Markdown existant.
+   * @param {object} project - L'objet projet à modifier.
+   */
   const handleEditProject = (project) => {
     setCurrentProjectToEdit(project);
     setProjectTitle(project.title);
     setProjectDescription(project.description);
-    setProjectRepoUrl(project.repoUrl || ''); // Sera utilisé pour les assignations
+    setProjectRepoUrl(project.repoUrl || '');
     setProjectDemoVideoUrl(project.demoVideoUrl || '');
     setProjectSpecifications(project.specifications || []);
     setProjectSize(project.size || 'short');
@@ -286,10 +356,21 @@ function ProjectsPage() {
     setProjectResourceLinks(project.resourceLinks || []);
     setProjectObjectives(project.objectives || []);
     setProjectOrder(project.order || 0);
-    setProjectModule(project.module || ''); // Récupérer le module
-    setShowEditProjectModal(true);
+    setProjectModule(project.module || '');
+    setMarkdownFile(null); // Réinitialise l'input file à null pour un nouvel upload.
+    if (project.markdownFilePath) {
+      setExistingMarkdownUrl(`${API}${project.markdownFilePath}`); // Affiche le lien de l'ancien fichier.
+    } else {
+      setExistingMarkdownUrl(null);
+    }
+    setShowEditProjectModal(true); // Ouvre la modale de modification.
   };
 
+  /**
+   * `handleUpdateProject` gère la soumission du formulaire pour mettre à jour un projet existant (staff/admin).
+   * Gère l'envoi de données en `FormData` (si fichier Markdown) ou JSON, et la suppression de l'ancien fichier Markdown.
+   * @param {Event} e - L'événement de soumission du formulaire.
+   */
   const handleUpdateProject = async (e) => {
     e.preventDefault();
     setError(null);
@@ -303,38 +384,87 @@ function ProjectsPage() {
         throw new Error('Token not found. Please log in.');
       }
 
-      const body = {
-          projectTitle: projectTitle, 
-          projectDescription: projectDescription, 
-          projectDemoVideoUrl: projectDemoVideoUrl, 
-          projectSpecifications: projectSpecifications, 
-          projectSize: projectSize, 
+      let url;
+      let method;
+      let bodyToSend;
+      let headers = { Authorization: `Bearer ${token}` };
+
+      // Déterminer l'ID du projet principal (maître) ou de l'assignation.
+      const mainProjectId = currentProjectToEdit.assignmentId ? currentProjectToEdit.projectId : currentProjectToEdit._id;
+
+      // Logique pour déterminer si un fichier Markdown est impliqué dans la modification.
+      const isMarkdownChange = markdownFile || (existingMarkdownUrl === null && currentProjectToEdit.markdownFilePath);
+
+      if (isMarkdownChange) {
+        // Envoyer via FormData si un fichier Markdown est uploadé ou si l'ancien est supprimé.
+        url = `${API}/projects/${mainProjectId}/upload-markdown`;
+        method = 'POST'; // Note: Cette route utilise POST pour l'upload de fichier Multer.
+        const formData = new FormData();
+
+        formData.append('projectTitle', projectTitle);
+        formData.append('projectDescription', projectDescription);
+        formData.append('projectDemoVideoUrl', projectDemoVideoUrl);
+        formData.append('projectSpecifications', JSON.stringify(projectSpecifications));
+        formData.append('projectSize', projectSize);
+        formData.append('projectOrder', projectOrder);
+        formData.append('projectObjectives', JSON.stringify(projectObjectives));
+        formData.append('projectExerciseStatements', JSON.stringify(projectExerciseStatements));
+        formData.append('projectResourceLinks', JSON.stringify(projectResourceLinks));
+        formData.append('projectModule', projectModule);
+
+        if (markdownFile) {
+          formData.append('markdownFile', markdownFile);
+        } else if (existingMarkdownUrl === null && currentProjectToEdit.markdownFilePath) {
+          formData.append('clearMarkdown', 'true'); // Indique au backend de supprimer l'ancien fichier.
+        }
+
+        // Ajouter l'assignmentId et d'autres champs spécifiques si c'est une assignation de projet.
+        if (currentProjectToEdit.assignmentId) {
+          formData.append('assignmentId', currentProjectToEdit.assignmentId);
+          formData.append('repoUrl', projectRepoUrl);
+          formData.append('status', currentProjectToEdit.assignmentStatus);
+        }
+        bodyToSend = formData;
+        // Le Content-Type est géré automatiquement par le navigateur pour FormData.
+        headers = { Authorization: `Bearer ${token}` }; 
+
+      } else {
+        // Envoyer via JSON pour les mises à jour sans fichier Markdown.
+        url = `${API}/projects/${mainProjectId}`;
+        method = 'PUT';
+        const jsonBody = {
+          projectTitle: projectTitle,
+          projectDescription: projectDescription,
+          projectDemoVideoUrl: projectDemoVideoUrl,
+          projectSpecifications: projectSpecifications,
+          projectSize: projectSize,
           projectOrder: projectOrder,
           projectObjectives: projectObjectives,
           projectExerciseStatements: projectExerciseStatements,
           projectResourceLinks: projectResourceLinks,
-          module: projectModule // Ajouter le module
-      };
-
-      let url = `${API}/projects/${currentProjectToEdit._id}`;
-      if (currentProjectToEdit.assignmentId) { // Si c'est une assignation d'étudiant
-        url = `${API}/projects/${currentProjectToEdit.projectId}`; // L'ID du projet maître
-        body.assignmentId = currentProjectToEdit.assignmentId; // Passer l'ID de l'assignation
-        body.repoUrl = projectRepoUrl; // Mettre à jour le repoUrl de l'assignation
-        body.status = currentProjectToEdit.assignmentStatus; // Ajouter le statut de l'assignation
+          projectModule: projectModule,
+        };
+        bodyToSend = JSON.stringify(jsonBody);
+        headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+        // console.log('Frontend - Sending JSON Body:', jsonBody);
       }
 
+      // console.log('Frontend - Final URL:', url);
+      // console.log('Frontend - Final Method:', method);
+      // Note: bodyToSend ne peut pas être loggé directement s'il est un FormData
+      // console.log('Frontend - Final Body:', bodyToSend);
+
       const res = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
+        method: method,
+        headers: headers,
+        body: bodyToSend,
       });
       const data = await res.json();
       if (res.ok) {
         alert('Projet mis à jour avec succès !');
         setShowEditProjectModal(false);
         setCurrentProjectToEdit(null);
-        // Réinitialiser les champs du formulaire
+        // Réinitialiser les champs du formulaire après une mise à jour réussie.
         setProjectTitle('');
         setProjectDescription('');
         setProjectRepoUrl('');
@@ -345,8 +475,8 @@ function ProjectsPage() {
         setProjectResourceLinks([]);
         setProjectObjectives([]);
         setProjectOrder(0);
-        setProjectModule(''); // Réinitialiser le module
-        loadData(getAuthToken()); // Recharger toutes les données
+        setProjectModule('');
+        loadData(getAuthToken()); // Recharger toutes les données pour mettre à jour l'affichage.
       } else {
         throw new Error(data.error || 'Échec de la mise à jour du projet.');
       }
@@ -358,11 +488,19 @@ function ProjectsPage() {
     }
   };
 
+  /**
+   * `handleDeleteProject` ouvre la modale de confirmation de suppression pour un projet.
+   * @param {object} projectToDelete - Le projet à supprimer.
+   */
   const handleDeleteProject = (projectToDelete) => {
     setCurrentProjectToDelete(projectToDelete);
       setShowDeleteProjectModal(true);
   };
 
+  /**
+   * `handleDeleteProjectConfirmed` gère la suppression confirmée d'un projet (staff/admin).
+   * Gère la suppression d'un projet maître ou d'une assignation spécifique.
+   */
   const handleDeleteProjectConfirmed = async () => {
     setError(null);
     setLoading(true);
@@ -383,9 +521,9 @@ function ProjectsPage() {
       let url = `${API}/projects/${currentProjectToDelete._id}`;
 
       if (currentProjectToDelete.assignmentId) {
-        // Si c'est une assignation, l'ID à supprimer est l'assignation
-        url = `${API}/projects/${currentProjectToDelete.projectId}`; // L'ID du projet maître
-        body.assignmentId = currentProjectToDelete.assignmentId; // Passer l'ID de l'assignation
+        // Si c'est une assignation, la requête DELETE cible le projet maître avec l'ID de l'assignation dans le corps.
+        url = `${API}/projects/${currentProjectToDelete.projectId}`; // L'ID du projet maître.
+        body.assignmentId = currentProjectToDelete.assignmentId; // Passer l'ID de l'assignation à supprimer.
       }
 
       const res = await fetch(url, {
@@ -399,7 +537,7 @@ function ProjectsPage() {
         setShowDeleteProjectModal(false);
         setCurrentProjectToDelete(null);
         setConfirmProjectTitle('');
-        loadData(getAuthToken()); // Recharger toutes les données
+        loadData(getAuthToken()); // Recharger toutes les données.
       } else {
         throw new Error(data.error || 'Échec de la suppression.');
       }
@@ -411,7 +549,11 @@ function ProjectsPage() {
     }
   };
 
-  // Fonctions pour la soumission de projet par un apprenant
+  /**
+   * `handleOpenSubmitProjectModal` ouvre la modale de soumission de projet pour un apprenant.
+   * Charge les créneaux d'évaluation disponibles pour le projet sélectionné.
+   * @param {object} project - Le projet à soumettre.
+   */
   const handleOpenSubmitProjectModal = async (project) => {
     setCurrentProjectToSubmit(project);
     setProjectSubmissionRepoUrl('');
@@ -421,8 +563,7 @@ function ProjectsPage() {
     
     try {
       const token = getAuthToken();
-      // Charger les slots disponibles pour ce projet
-      // La route doit maintenant prendre projectId et assignmentId
+      // Charger les slots disponibles pour ce projet en spécifiant projectId et assignmentId.
       const slotsRes = await fetch(`${API}/availability/available-for-project/${project.projectId}/${project.assignmentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -430,7 +571,6 @@ function ProjectsPage() {
         const slotsData = await slotsRes.json();
         setAvailableSlots(slotsData);
       } else {
-        // Ici, nous affichons l'erreur dans le popup au lieu de setError(null)
         const errorData = await slotsRes.json();
         setErrorPopupMessage(errorData.error || 'Impossible de charger les créneaux disponibles.');
         setShowErrorPopup(true);
@@ -443,21 +583,30 @@ function ProjectsPage() {
     setShowSubmitProjectModal(true);
   };
 
+  /**
+   * `handleCloseErrorPopup` ferme le popup d'erreur/avertissement et réinitialise son état.
+   */
   const handleCloseErrorPopup = () => {
     setShowErrorPopup(false);
     setErrorPopupMessage('');
-    setPopupType('error'); // Réinitialiser le type à 'error' par défaut
+    setPopupType('error'); // Réinitialise le type à 'error' par défaut.
   };
 
+  /**
+   * `handleSubmitProject` gère la soumission d'une solution de projet par un apprenant.
+   * Valide les créneaux sélectionnés et envoie les données de soumission au backend.
+   * @param {Event} e - L'événement de soumission du formulaire.
+   */
   const handleSubmitProject = async (e) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
     setLoading(true);
-    setShowErrorPopup(false); // Réinitialiser le popup d'erreur au début de la soumission
+    setShowErrorPopup(false); // Réinitialiser le popup d'erreur au début de la soumission.
     setErrorPopupMessage('');
-    setPopupType('error'); // S'assurer que le type est 'error' par défaut pour les erreurs de soumission
+    setPopupType('error'); // S'assurer que le type est 'error' par défaut pour les erreurs de soumission.
 
+    // Validation des champs de soumission.
     if (!currentProjectToSubmit || selectedSlotIds.length !== 2 || (!isRepoUrlOptional && !projectSubmissionRepoUrl)) {
       let errorMessage = 'Veuillez sélectionner exactement 2 créneaux d\'évaluateurs différents.';
       if (!isRepoUrlOptional && !projectSubmissionRepoUrl) {
@@ -466,23 +615,23 @@ function ProjectsPage() {
       if (isRepoUrlOptional && selectedSlotIds.length !== 2) {
         errorMessage = 'Veuillez sélectionner exactement 2 créneaux d\'évaluateurs différents.';
       }
-      setErrorPopupMessage(errorMessage); // Utiliser le nouvel état
-      setShowErrorPopup(true); // Afficher le popup
-      setPopupType('error'); // C'est une erreur de validation de soumission
+      setErrorPopupMessage(errorMessage);
+      setShowErrorPopup(true);
+      setPopupType('error');
       setLoading(false);
       return;
     }
 
-    // Vérifier que les créneaux sélectionnés sont uniques
+    // Vérifier que les créneaux sélectionnés sont uniques.
     if (new Set(selectedSlotIds).size !== selectedSlotIds.length) {
       setErrorPopupMessage('Veuillez sélectionner des créneaux distincts.');
       setShowErrorPopup(true);
-      setPopupType('error'); // C'est une erreur de validation de soumission
+      setPopupType('error');
       setLoading(false);
       return;
     }
 
-    // Vérifier que les 2 slots sont d'évaluateurs différents
+    // Vérifier que les 2 slots sont d'évaluateurs différents.
     const selectedSlots = availableSlots.filter(slot => selectedSlotIds.includes(slot._id));
     const evaluatorIds = selectedSlots.map(slot => slot.evaluator._id);
     const uniqueEvaluators = [...new Set(evaluatorIds)];
@@ -490,19 +639,19 @@ function ProjectsPage() {
     if (uniqueEvaluators.length !== 2) {
       setErrorPopupMessage('Vous devez sélectionner exactement 2 créneaux, chacun d\'un évaluateur différent.');
       setShowErrorPopup(true);
-      setPopupType('error'); // C'est une erreur de validation de soumission
+      setPopupType('error');
       setLoading(false);
       return;
     }
 
     try {
       const token = getAuthToken();
-      // L'API submitProjectSolution doit maintenant prendre projectId et assignmentId
+      // Envoi de la soumission de projet à l'API.
       const res = await fetch(`${API}/projects/${currentProjectToSubmit.projectId}/submit-solution`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          assignmentId: currentProjectToSubmit.assignmentId, // Passer l'ID de l'assignation
+          assignmentId: currentProjectToSubmit.assignmentId,
           repoUrl: projectSubmissionRepoUrl,
           selectedSlotIds: selectedSlotIds
         }),
@@ -515,15 +664,15 @@ function ProjectsPage() {
         setProjectSubmissionRepoUrl('');
         setSelectedSlotIds([]);
         setAvailableSlots([]);
-        loadData(getAuthToken()); // Recharger les données
+        loadData(getAuthToken()); // Recharger les données pour refléter le changement de statut.
       } else {
-        setErrorPopupMessage(data.error || 'Échec de la soumission du projet.'); // Utiliser le popup
+        setErrorPopupMessage(data.error || 'Échec de la soumission du projet.');
         setShowErrorPopup(true);
         setPopupType('error');
       }
     } catch (e) {
       console.error("Error submitting project:", e);
-      setErrorPopupMessage(e.message || 'Erreur lors de la communication avec le serveur.'); // Utiliser le popup
+      setErrorPopupMessage(e.message || 'Erreur lors de la communication avec le serveur.');
       setShowErrorPopup(true);
       setPopupType('error');
     } finally {
@@ -531,6 +680,9 @@ function ProjectsPage() {
     }
   };
 
+  /**
+   * `handleCloseSubmitProjectModal` ferme la modale de soumission de projet et réinitialise ses états.
+   */
   const handleCloseSubmitProjectModal = () => {
     setShowSubmitProjectModal(false);
     setCurrentProjectToSubmit(null);
@@ -539,18 +691,18 @@ function ProjectsPage() {
     setAvailableSlots([]);
     setError(null);
     setSuccess(null);
-    // Réinitialiser les états du popup d'erreur/avertissement
     setShowErrorPopup(false);
     setErrorPopupMessage('');
     setPopupType('error');
   };
 
-  // Déplacer la définition de isRepoUrlOptional ici pour la rendre disponible dans le JSX de la modale
+  // Détermine si l'URL du dépôt est optionnelle pour le projet en cours de soumission.
   const isRepoUrlOptional = [
     "CLI (Command Line Interface)",
     "Pratique guidée Git / GitHub"
   ].includes(currentProjectToSubmit?.title);
 
+  // Affiche un écran de chargement si les données sont en cours de chargement.
   if (loading) return (
     <div className="d-flex justify-content-center align-items-center vh-100">
       <div className="spinner-border text-primary" role="status">
@@ -559,6 +711,7 @@ function ProjectsPage() {
       <p className="ms-2">Chargement des projets...</p>
     </div>
   );
+  // Affiche un message d'erreur si une erreur critique est survenue lors du chargement initial.
   if (error) return <div className="alert alert-danger text-center mt-5">Error loading projects: {error}</div>;
 
   return (
@@ -567,7 +720,7 @@ function ProjectsPage() {
       {error && <div className="alert alert-danger text-center mt-5">Error: {error}</div>}
 
       {me && (me.role === 'staff' || me.role === 'admin') ? (
-        // Vue pour Staff/Admin: Tableau de tous les projets avec CRUD
+        // Vue pour Staff/Admin: Tableau de tous les projets avec fonctionnalités CRUD.
         <div className="row">
           <div className="col-12 mb-3 d-flex justify-content-end">
             <button className="btn btn-primary" onClick={handleShowAddProjectModal}>
@@ -675,12 +828,12 @@ function ProjectsPage() {
           </div>
         </div>
       ) : (
-        // Vue pour Apprenant: Cartes de projets
+        // Vue pour Apprenant: Affichage des projets regroupés par modules.
         <div className="row">
           <div className="col-12 mb-4">
             <h3>Mes Projets</h3>
             {selectedModule ? (
-              // Afficher les projets individuels pour le module sélectionné
+              // Afficher les projets individuels pour le module sélectionné.
               <div className="mb-3">
                 <button className="btn btn-secondary mb-3" onClick={() => setSelectedModule(null)}>
                   <i className="bi bi-arrow-left me-2"></i> Retour aux Modules
@@ -763,7 +916,7 @@ function ProjectsPage() {
                 </div>
               </div>
             ) : (
-              // Afficher les cartes de module
+              // Afficher les cartes de module.
               Object.keys(groupedProjectsByModule).length > 0 ? (
                 <div className="row">
                   {Object.entries(groupedProjectsByModule).map(([moduleName, projectsInModule]) => (
@@ -883,11 +1036,23 @@ function ProjectsPage() {
                           <h6 className="card-title d-flex align-items-center text-primary"><i className="bi bi-file-earmark-text me-2"></i> Spécifications</h6>
                           <ul className="list-group list-group-flush">
                             {(selectedProject.specifications || []).map((spec, index) => (
-                              <li key={index} className="list-group-item d-flex align-items-start border-0 py-1 px-0">
-                                <i className="bi bi-check-lg text-success me-2 mt-1"></i> {spec}
-                              </li>
-                            ))}
-                          </ul>
+                            <li key={index} className="list-group-item d-flex align-items-start border-0 py-1 px-0">
+                              <i className="bi bi-check-lg text-success me-2 mt-1"></i> {spec}
+                            </li>
+                          ))}
+                        </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section Style-Guide (Markdown) */}
+                    {projectMarkdownContent && (
+                      <div className="card mb-3 shadow-sm">
+                        <div className="card-body">
+                          <h6 className="card-title d-flex align-items-center text-primary"><i className="bi bi-book me-2"></i> Style-Guide</h6>
+                          <div className="markdown-content"
+                                 dangerouslySetInnerHTML={{ __html: marked.parse(projectMarkdownContent) }}>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1078,7 +1243,36 @@ function ProjectsPage() {
                       required
                     ></textarea>
                   </div>
-                  
+
+                  {/* Upload Fichier Markdown (Optionnel) */}
+                  <div className="mb-3">
+                    <label htmlFor="markdownFile" className="form-label">Fichier Markdown (Optionnel, .md)</label>
+                    <input
+                      type="file"
+                      className="form-control"
+                      id="markdownFile"
+                      accept=".md"
+                      onChange={(e) => setMarkdownFile(e.target.files[0])}
+                    />
+                    {existingMarkdownUrl && (
+                      <div className="d-flex align-items-center mt-2">
+                        <p className="mb-0 me-2">Fichier existant: <a href={existingMarkdownUrl} target="_blank" rel="noopener noreferrer">Voir le .md</a></p>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => {
+                            setExistingMarkdownUrl(null);
+                            // Une option pour indiquer au backend de supprimer le fichier existant
+                            // Nous gérons cela côté backend via `clearMarkdown` dans updateFields
+                          }}
+                        >
+                          <i className="bi bi-x-circle me-1"></i> Supprimer le fichier
+                        </button>
+                      </div>
+                    )}
+                    <div className="form-text text-muted">Téléchargez un fichier Markdown pour la description détaillée du projet.</div>
+                  </div>
+
                   {/* Spécifications */}
                   <div className="mb-3">
                     <label htmlFor="projectSpecifications" className="form-label d-block">Spécifications (Optionnel)</label>
