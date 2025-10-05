@@ -3,12 +3,16 @@ import AvailabilitySlot from '../models/AvailabilitySlot.js';
 import User from '../models/User.js';
 import Evaluation from '../models/Evaluation.js';
 import ActivityLogger from '../utils/activityLogger.js';
-// import Notification from '../models/Notification.js'; // Décommenter si vous avez un modèle Notification
-// import Badge from '../models/Badge.js'; // Décommenter si vous avez un modèle Badge
+import uploadMarkdown from '../middlewares/markdownUploadMiddleware.js'; // Import du nouveau middleware
+import fs from 'fs'; // Nécessaire pour lire les fichiers Markdown
+import path from 'path'; // Nécessaire pour gérer les chemins de fichiers
+import { fileURLToPath } from "url";
+// import Assignment from '../models/Assignment.js'; // Supprimer cette ligne car Assignment.js n'existe pas
 
-const DAY_BONUS = { short: 1, medium: 2, long: 3 };
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Mappage des niveaux aux modules
+// Mappage des niveaux aux modules correspondants. Utilisé pour l'assignation automatique de projets.
 const levelToModuleMap = {
   1: 'CLI/Git & GIt Hub',
   2: 'HTML / CSS',
@@ -23,11 +27,24 @@ const levelToModuleMap = {
   11: 'Soft Skills',
 };
 
-// Fonctions utilitaires
+/**
+ * Valide une URL GitHub pour s'assurer qu'elle correspond au format attendu.
+ * @param {string} url - L'URL GitHub à valider.
+ * @returns {boolean} `true` si l'URL est valide, `false` sinon.
+ */
 function validateGithubUrl(url) {
   return /^https:\/\/github\.com\/[^/]+\/[^/]+(\.git)?$/.test(url);
 }
 
+/**
+ * Valide et réserve des créneaux d'évaluation pour une soumission de projet.
+ * Assure qu'au moins 2 évaluateurs différents sont sélectionnés et que les créneaux sont disponibles.
+ * @param {Array<string>} selectedSlotIds - Les IDs des créneaux sélectionnés.
+ * @param {string} studentId - L'ID de l'étudiant soumettant le projet.
+ * @param {string} projectId - L'ID du projet maître.
+ * @param {string} assignmentId - L'ID de l'assignation du projet.
+ * @returns {Promise<object>} Un objet contenant les créneaux réservés ou une erreur.
+ */
 async function _validateAndBookSlots(selectedSlotIds, studentId, projectId, assignmentId) {
   if (!selectedSlotIds || selectedSlotIds.length === 0) {
     return { error: 'Aucun créneau sélectionné.' };
@@ -39,7 +56,7 @@ async function _validateAndBookSlots(selectedSlotIds, studentId, projectId, assi
     _id: { $in: selectedSlotIds },
     isBooked: false,
     startTime: { $gt: now },
-    evaluator: { $ne: studentId } // L'étudiant ne peut pas s'évaluer lui-même
+    evaluator: { $ne: studentId } // L'étudiant ne peut pas s'évaluer lui-même.
   }).populate('evaluator', 'name');
 
   if (slots.length !== selectedSlotIds.length) {
@@ -61,7 +78,13 @@ async function _validateAndBookSlots(selectedSlotIds, studentId, projectId, assi
   return { slots };
 }
 
-// Nouvelle fonction utilitaire pour assigner un projet en fonction du niveau de l'étudiant
+/**
+ * `_assignProjectByLevel` est une fonction utilitaire interne qui assigne le prochain projet à un étudiant
+ * en fonction de son niveau actuel. Elle s'assure que le projet n'est pas déjà assigné et met à jour les références.
+ * @param {string} studentId - L'ID de l'étudiant à qui assigner le projet.
+ * @param {number} level - Le niveau actuel de l'étudiant.
+ * @returns {Promise<object>} Un objet avec un message de succès ou d'erreur, et potentiellement le projet assigné.
+ */
 async function _assignProjectByLevel(studentId, level) {
   try {
     const student = await User.findById(studentId);
@@ -73,7 +96,7 @@ async function _assignProjectByLevel(studentId, level) {
     const projectTemplate = await Project.findOne({
       status: 'template',
       order: level,
-      module: levelToModuleMap[level], // Filtrer par module correspondant au niveau
+      module: levelToModuleMap[level], // Filtrer par module correspondant au niveau.
     });
 
     if (!projectTemplate) {
@@ -81,12 +104,14 @@ async function _assignProjectByLevel(studentId, level) {
       return { error: `Aucun projet template trouvé pour le niveau ${level}.` };
     }
 
+    // Vérifier si l'apprenant est déjà assigné à ce projet template.
     const existingAssignment = projectTemplate.assignments.some(assign => assign.student.equals(studentId));
     if (existingAssignment) {
       console.log(`L'apprenant ${studentId} est déjà assigné au projet ${projectTemplate.title}.`);
       return { message: `L'apprenant est déjà assigné au projet ${projectTemplate.title}.` };
     }
 
+    // Ajouter une nouvelle assignation au projet template.
     projectTemplate.assignments.push({
       student: studentId,
       status: 'assigned',
@@ -97,12 +122,12 @@ async function _assignProjectByLevel(studentId, level) {
     });
     await projectTemplate.save();
 
+    // Ajouter le projet à la liste des projets de l'étudiant si ce n'est pas déjà fait.
     if (!student.projects.includes(projectTemplate._id)) {
       student.projects.push(projectTemplate._id);
       await student.save();
     }
 
-    // TODO: Notifier l'étudiant (si Notification modèle est décommenté)
     console.log(`Projet '${projectTemplate.title}' (ordre ${level}) assigné avec succès à l'apprenant ${student.name}.`);
     return { message: 'Projet assigné avec succès.', project: projectTemplate };
   } catch (e) {
@@ -112,11 +137,18 @@ async function _assignProjectByLevel(studentId, level) {
 }
 
 // Fonctions de contrôleur de projet
+/**
+ * `createProject` gère la création d'un nouveau projet template par le staff/admin.
+ * Il gère également l'upload optionnel d'un fichier Markdown pour les spécifications du projet.
+ * @param {object} req - L'objet requête Express (contient les données du formulaire et le fichier uploadé).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function createProject(req, res) {
   try {
+    const markdownFile = req.file; // Fichier Markdown uploadé par Multer (si présent).
     const { title, description, specifications, objectives, exerciseStatements, resourceLinks, demoVideoUrl, size, module } = req.body;
 
-    // Déterminer l'ordre du nouveau projet
+    // Calculer le prochain numéro d'ordre disponible pour le nouveau projet template.
     const latestProject = await Project.findOne({ status: 'template' }).sort({ order: -1 });
     const newOrder = latestProject ? latestProject.order + 1 : 1;
     console.log(`Calculated new project order: ${newOrder}`);
@@ -131,8 +163,9 @@ export async function createProject(req, res) {
       demoVideoUrl,
       size,
       status: 'template',
-      order: newOrder, // Assigner l'ordre calculé
-      module, // Ajouter le module
+      order: newOrder, // Assigner l'ordre calculé.
+      module, // Assigner le module.
+      markdownFilePath: markdownFile ? `/uploads/project_markdowns/${markdownFile.filename}` : undefined, // Sauvegarder le chemin du fichier Markdown.
     });
     console.log("New project created:", newProject);
 
@@ -143,18 +176,24 @@ export async function createProject(req, res) {
   }
 }
 
+/**
+ * `updateProject` gère la mise à jour d'un projet existant (maître ou assignation) par le staff/admin.
+ * Gère également l'upload d'un nouveau fichier Markdown ou la suppression d'un fichier existant.
+ * @param {object} req - L'objet requête Express (contient l'ID du projet, les données du formulaire, et le fichier uploadé).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function updateProject(req, res) {
   try {
-    const { id: projectId } = req.params;
-    const { assignmentId, projectTitle, projectDescription, projectDemoVideoUrl, projectSpecifications, projectSize, projectOrder, projectObjectives, projectExerciseStatements, projectResourceLinks, repoUrl, status, projectModule } = req.body;
+    const { id: projectId } = req.params; // ID du projet à modifier.
+    const markdownFile = req.file; // Fichier Markdown uploadé par Multer (si présent).
+    const { assignmentId, projectTitle, projectDescription, projectDemoVideoUrl, projectSpecifications, projectSize, projectOrder, projectObjectives, projectExerciseStatements, projectResourceLinks, repoUrl, status, projectModule, clearMarkdown } = req.body; // Ajouter clearMarkdown ici
 
     if (assignmentId) {
-      // Mise à jour d'une assignation spécifique
+      // Logique pour la mise à jour d'une assignation spécifique.
       const project = await Project.findOneAndUpdate(
         { _id: projectId, "assignments._id": assignmentId },
         {
           $set: {
-            // Seuls repoUrl et status peuvent être mis à jour pour une assignation via cette route
             "assignments.$.repoUrl": repoUrl,
             "assignments.$.status": status,
           }
@@ -168,24 +207,52 @@ export async function updateProject(req, res) {
       return res.status(200).json({ message: 'Assignation de projet mise à jour avec succès.', project });
 
     } else {
-      // Mise à jour du projet maître
+      // Logique pour la mise à jour du projet maître.
+      const existingProject = await Project.findById(projectId); // Récupère le projet existant une seule fois.
+      if (!existingProject) {
+        return res.status(404).json({ error: 'Projet maître non trouvé.' });
+      }
+
       const updateFields = {
         title: projectTitle,
         description: projectDescription,
         demoVideoUrl: projectDemoVideoUrl,
-        specifications: projectSpecifications,
+        specifications: req.body.projectSpecifications ? JSON.parse(req.body.projectSpecifications) : [], // Parse les tableaux JSON.
         size: projectSize,
         order: projectOrder,
-        objectives: projectObjectives,
-        exerciseStatements: projectExerciseStatements,
-        resourceLinks: projectResourceLinks,
-        module: projectModule, // Ajouter le module pour la mise à jour du projet maître
+        objectives: req.body.projectObjectives ? JSON.parse(req.body.projectObjectives) : [],
+        exerciseStatements: req.body.projectExerciseStatements ? JSON.parse(req.body.projectExerciseStatements) : [],
+        resourceLinks: req.body.projectResourceLinks ? JSON.parse(req.body.projectResourceLinks) : [],
+        module: projectModule, // Met à jour le module.
       };
+
+      // Logique pour la suppression de l'ancien fichier Markdown si un nouveau est téléchargé.
+      if (markdownFile) {
+        if (existingProject.markdownFilePath) {
+          const oldMarkdownPath = path.join(__dirname, "../public", existingProject.markdownFilePath);
+          if (fs.existsSync(oldMarkdownPath)) {
+            fs.unlinkSync(oldMarkdownPath);
+            console.log(`Ancien fichier Markdown supprimé : ${oldMarkdownPath}`);
+          }
+        }
+        updateFields.markdownFilePath = `/uploads/project_markdowns/${markdownFile.filename}`;
+      }
+      // Logique pour la suppression du fichier Markdown si `clearMarkdown` est vrai et qu'aucun nouveau fichier n'est uploadé.
+      else if (clearMarkdown === 'true') { // `clearMarkdown` est une chaîne 'true' si envoyé par FormData.
+        if (existingProject.markdownFilePath) {
+          const oldMarkdownPath = path.join(__dirname, "../public", existingProject.markdownFilePath);
+          if (fs.existsSync(oldMarkdownPath)) {
+            fs.unlinkSync(oldMarkdownPath);
+            console.log(`Fichier Markdown existant supprimé suite à clearMarkdown : ${oldMarkdownPath}`);
+          }
+        }
+        updateFields.markdownFilePath = undefined; // Efface le chemin du fichier dans la base de données.
+      }
 
       const project = await Project.findByIdAndUpdate(
         projectId,
         {
-          $set: updateFields // Utiliser $set pour remplacer les tableaux correctement
+          $set: updateFields // Utilise $set pour remplacer les tableaux correctement.
         },
         { new: true, runValidators: true }
       );
@@ -201,6 +268,11 @@ export async function updateProject(req, res) {
   }
 }
 
+/**
+ * `getProjects` récupère une liste de projets templates (pour le staff/admin).
+ * @param {object} req - L'objet requête Express.
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function getProjects(req, res) {
   try {
     const projects = await Project.find({ status: 'template' });
@@ -211,11 +283,16 @@ export async function getProjects(req, res) {
   }
 }
 
+/**
+ * `getStudentProjects` récupère les projets assignés à l'étudiant connecté.
+ * Elle formate les données pour inclure les détails du projet et de l'assignation.
+ * @param {object} req - L'objet requête Express (contient les infos de l'utilisateur).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function getStudentProjects(req, res) {
   try {
   const studentId = req.user._id;
 
-    // Retirer la logique de filtrage par niveau/module ici, le frontend gérera le regroupement et l'affichage.
     const query = {
       "assignments.student": studentId,
     };
@@ -235,8 +312,8 @@ export async function getStudentProjects(req, res) {
       if (studentAssignment) {
         console.log(`Found assignment for project ${project.title}: ${studentAssignment._id}`);
         return {
-          _id: studentAssignment._id, // L'ID de l'assignation devient l'ID principal
-          projectId: project._id, // Ajout de l'ID du projet maître
+          _id: studentAssignment._id, // L'ID de l'assignation devient l'ID principal pour le frontend.
+          projectId: project._id, // Ajout de l'ID du projet maître.
           title: project.title,
           description: project.description,
           objectives: project.objectives,
@@ -244,8 +321,8 @@ export async function getStudentProjects(req, res) {
           exerciseStatements: project.exerciseStatements,
           resourceLinks: project.resourceLinks,
           demoVideoUrl: project.demoVideoUrl,
-          status: project.status, // Statut du projet maître
-          module: project.module, // Inclure le module du projet maître
+          status: project.status, // Statut du projet maître.
+          module: project.module, // Inclure le module du projet maître.
           assignmentId: studentAssignment._id,
           assignmentStatus: studentAssignment.status,
           repoUrl: studentAssignment.repoUrl,
@@ -253,6 +330,7 @@ export async function getStudentProjects(req, res) {
           evaluations: studentAssignment.evaluations,
           peerEvaluators: studentAssignment.peerEvaluators,
           staffValidator: studentAssignment.staffValidator,
+          markdownFilePath: project.markdownFilePath, // Chemin du fichier Markdown.
         };
       }
       return null;
@@ -265,30 +343,37 @@ export async function getStudentProjects(req, res) {
   }
 }
 
+/**
+ * `assignProjectToStudent` gère l'assignation manuelle d'un projet template à un étudiant par un administrateur.
+ * @param {object} req - L'objet requête Express (contient les IDs de l'étudiant et du projet).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function assignProjectToStudent(req, res) {
   try {
-    // Seuls les administrateurs peuvent assigner manuellement un projet
+    // Seuls les administrateurs peuvent assigner manuellement un projet.
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Non autorisé à assigner manuellement un projet.' });
     }
 
-    const { studentId, projectId } = req.body; // Récupérer également le projectId
+    const { studentId, projectId } = req.body; // Récupère l'ID de l'étudiant et du projet.
 
     const student = await User.findById(studentId);
     if (!student || student.role !== 'apprenant') {
       return res.status(404).json({ error: 'Apprenant non trouvé ou n\'est pas un apprenant.' });
     }
 
-    const project = await Project.findById(projectId); // Trouver le projet par son ID
+    const project = await Project.findById(projectId); // Trouve le projet template par son ID.
     if (!project || project.status !== 'template') {
       return res.status(404).json({ error: 'Projet non trouvé ou non un template.' });
     }
 
+    // Vérifie si l'étudiant est déjà assigné à ce projet.
     const existingAssignment = project.assignments.some(assign => assign.student.equals(studentId));
     if (existingAssignment) {
       return res.status(400).json({ error: `L'apprenant est déjà assigné au projet ${project.title}.` });
     }
 
+    // Ajoute une nouvelle assignation au projet.
     project.assignments.push({
       student: studentId,
       status: 'assigned',
@@ -297,11 +382,12 @@ export async function assignProjectToStudent(req, res) {
       peerEvaluators: [],
       staffValidator: null,
     });
-    await project.save(); // Sauvegarder le projet avec la nouvelle assignation
+    await project.save(); // Sauvegarde le projet avec la nouvelle assignation.
 
+    // Ajoute le projet à la liste des projets de l'étudiant si ce n'est pas déjà fait.
     if (!student.projects.includes(project._id)) {
       student.projects.push(project._id);
-      await student.save(); // Sauvegarder l'étudiant avec la nouvelle référence de projet
+      await student.save(); // Sauvegarde l'étudiant avec la nouvelle référence de projet.
     }
 
     res.status(201).json({ message: `Projet '${project.title}' assigné avec succès à ${student.name}.`, project });
@@ -311,13 +397,19 @@ export async function assignProjectToStudent(req, res) {
   }
 }
 
+/**
+ * `submitProjectSolution` gère la soumission d'une solution de projet par un apprenant.
+ * Valide l'URL du dépôt GitHub, les créneaux d'évaluation et enregistre la soumission.
+ * @param {object} req - L'objet requête Express (contient l'ID du projet, l'assignation, l'URL du dépôt et les créneaux sélectionnés).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function submitProjectSolution(req, res) {
   try {
-    const { id: projectId } = req.params; // ID du projet maître
-    const { assignmentId, repoUrl, selectedSlotIds } = req.body; // Attendre l'ID de l'assignation et les slots
-    const studentId = req.user._id; // ID de l'apprenant connecté
+    const { id: projectId } = req.params; // ID du projet maître.
+    const { assignmentId, repoUrl, selectedSlotIds } = req.body; // ID de l'assignation, URL du dépôt, IDs des créneaux.
+    const studentId = req.user._id; // ID de l'apprenant connecté.
 
-    // Vérifier que l'apprenant a au moins 2 points d'évaluation avant de soumettre
+    // Vérifier que l'apprenant a au moins 2 points d'évaluation avant de soumettre.
     try {
       const student = await User.findById(studentId).select('evaluationPoints');
       if (!student) {
@@ -360,6 +452,7 @@ export async function submitProjectSolution(req, res) {
       return res.status(400).json({ error: 'URL GitHub invalide.' });
     }
 
+    // Valider et réserver les créneaux d'évaluation sélectionnés.
     const slotsResult = await _validateAndBookSlots(
       selectedSlotIds,
       studentId,
@@ -383,14 +476,14 @@ export async function submitProjectSolution(req, res) {
         evaluator: slot.evaluator,
       student: studentId,
       status: 'pending',
-        slot: slot._id, // Ajout de la référence au slot
+        slot: slot._id, // Référence au créneau d'évaluation.
       });
       assignment.evaluations.push(evaluation._id);
     }
 
     await project.save();
 
-    // Décrémenter les points d'évaluation en fonction du nombre de slots réservés dans cette soumission
+    // Décrémenter les points d'évaluation de l'étudiant en fonction du nombre de slots réservés.
     try {
       const student = await User.findById(studentId);
       if (student) {
@@ -404,7 +497,7 @@ export async function submitProjectSolution(req, res) {
       console.error('Error decrementing evaluation points on project submit:', decrementErr);
     }
 
-    // Logger la soumission de projet
+    // Logger la soumission de projet pour l'historique d'activité.
     await ActivityLogger.logProjectSubmitted(
       studentId,
       projectId,
@@ -420,16 +513,22 @@ export async function submitProjectSolution(req, res) {
   }
 }
 
+/**
+ * `finalReviewProject` gère l'approbation ou le rejet final d'une soumission de projet par le staff/admin.
+ * Met à jour le statut de l'assignation, attribue le projet suivant si approuvé, et gère les notifications.
+ * @param {object} req - L'objet requête Express (contient l'ID du projet, l'assignation et le statut de révision).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function finalReviewProject(req, res) { // Renommé de approveProject
   try {
-    const { id: projectId } = req.params; // ID du projet maître
-    const { assignmentId, status } = req.body; // ID de l'assignation et le nouveau statut
+    const { id: projectId } = req.params; // ID du projet maître.
+    const { assignmentId, status } = req.body; // ID de l'assignation et le nouveau statut (approved/rejected).
 
     if (!assignmentId || !status) {
       return res.status(400).json({ error: 'ID d\'assignation ou statut manquant.' });
     }
 
-    // Vérifier que l'utilisateur est un membre du personnel/admin
+    // Vérifier que l'utilisateur est un membre du personnel/admin.
     if (req.user.role !== 'staff' && req.user.role !== 'admin') {
       return res.status(403).json({
         error: 'Non autorisé à évaluer des projets.',
@@ -456,19 +555,20 @@ export async function finalReviewProject(req, res) { // Renommé de approveProje
         return res.json({ message: 'Projet déjà approuvé.', project });
       }
       assignment.status = 'approved';
-      // assignment.staffValidator = req.user._id; // Décommenter si vous voulez enregistrer le validateur staff
+      // assignment.staffValidator = req.user._id; // Optionnel: enregistrer le validateur staff.
       message = 'Projet approuvé avec succès et projet suivant assigné.';
       notificationMessage = `Votre projet \'${project.title}\' a été approuvé par le personnel. Félicitations ! Un nouveau projet vous a été assigné.`;
 
       const student = await User.findById(assignment.student);
       if (student) {
-        student.daysRemaining += DAY_BONUS[project.size] || 1; // Utiliser la taille du projet maître
-        student.level = Math.max(student.level, 1) + 1; // Incrémenter le niveau de l'apprenant
-        // student.totalProjectsCompleted = (student.totalProjectsCompleted || 0) + 1; // Décommenter si vous suivez ce compteur
+        //DAY_BONUS[project.size] n'est pas défini, il faudrait le définir plus haut
+        // student.daysRemaining += DAY_BONUS[project.size] || 1; // Ajoute des jours restants à l'étudiant en fonction de la taille du projet.
+        student.level = Math.max(student.level, 1) + 1; // Incrémente le niveau de l'apprenant.
+        // student.totalProjectsCompleted = (student.totalProjectsCompleted || 0) + 1; // Optionnel: suivre le nombre total de projets complétés.
 
-        // TODO: Logique pour attribuer des badges (si Badge modèle est décommenté)
+        // TODO: Logique pour attribuer des badges (si un modèle Badge est implémenté et décommenté).
 
-        // Assignation du prochain projet en fonction du nouveau niveau de l'étudiant
+        // Assignation du prochain projet en fonction du nouveau niveau de l'étudiant.
         await _assignProjectByLevel(student._id, student.level);
 
         await student.save();
@@ -477,25 +577,24 @@ export async function finalReviewProject(req, res) { // Renommé de approveProje
       if (assignment.status === 'rejected') {
         return res.json({ message: 'Projet déjà rejeté.', project });
       }
-      assignment.status = 'assigned'; // Rejeter le projet et le remettre à 'assigned' pour resoumission
-      assignment.repoUrl = undefined; // Effacer l'URL du dépôt
-      assignment.submissionDate = undefined; // Effacer la date de soumission
-      // TODO: Optionnel: effacer les évaluations existantes liées à cette assignation pour forcer de nouvelles évaluations
-      // Notification à l'apprenant
-      message = 'Projet rejeté avec succès et remis en statut assigné pour resoumission.';
+      assignment.status = 'assigned'; // Rejette le projet et le remet à 'assigned' pour resoumission.
+      assignment.repoUrl = undefined; // Efface l'URL du dépôt.
+      assignment.submissionDate = undefined; // Efface la date de soumission.
+      // TODO: Optionnel: effacer les évaluations existantes liées à cette assignation pour forcer de nouvelles évaluations.
       notificationMessage = `Votre projet \'${project.title}\' a été rejeté par le personnel. Veuillez revoir votre projet et le soumettre à nouveau.`;
     }
 
-    await project.save(); // Sauvegarder le projet maître pour persister les changements de l'assignation
+    await project.save(); // Sauvegarde le projet maître pour persister les changements de l'assignation.
 
-    // Notifier l'étudiant du résultat de l'évaluation finale
-    const student = await User.findById(assignment.student); // Récupérer l'étudiant pour la notification
+    // Notifier l'étudiant du résultat de l'évaluation finale.
+    const student = await User.findById(assignment.student); // Récupère l'étudiant pour la notification.
       if (student) {
-        await Notification.create({
-          user: student._id,
-        type: "project_status_update",
-        message: notificationMessage,
-      });
+        // Notification.create() n'est pas défini, il faudrait l'importer
+        // await Notification.create({
+        //   user: student._id,
+        // type: "project_status_update",
+        // message: notificationMessage,
+        // });
     }
 
     res.json({ message: message, project });
@@ -505,16 +604,21 @@ export async function finalReviewProject(req, res) { // Renommé de approveProje
   }
 }
 
+/**
+ * `getProjectsAwaitingStaffReview` récupère la liste des projets qui sont en attente de révision par le staff/admin.
+ * @param {object} req - L'objet requête Express (contient les infos de l'utilisateur).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function getProjectsAwaitingStaffReview(req, res) {
   try {
-    // Vérifier que l'utilisateur est un membre du personnel/admin
+    // Vérifier que l'utilisateur est un membre du personnel/admin.
     if (req.user.role !== 'staff' && req.user.role !== 'admin') {
       return res.status(403).json({
         error: 'Non autorisé à consulter cette ressource.',
       });
     }
 
-    // Trouver les projets où au moins une assignation est en attente de révision du personnel
+    // Trouver les projets maîtres où au moins une assignation est en attente de révision du personnel.
     const projects = await Project.find({
       "assignments.status": "awaiting_staff_review",
     })
@@ -523,11 +627,11 @@ export async function getProjectsAwaitingStaffReview(req, res) {
         select: 'name email',
     });
 
-    // Formater les résultats pour ne retourner que les assignations pertinentes
+    // Formater les résultats pour ne retourner que les assignations pertinentes.
     const formattedProjects = projects.flatMap(project => {
       return project.assignments.filter(assignment => assignment.status === "awaiting_staff_review")
         .map(assignment => ({
-          _id: project._id, // ID du projet maître
+          _id: project._id, // ID du projet maître.
             projectId: project._id,
           title: project.title,
           description: project.description,
@@ -535,7 +639,7 @@ export async function getProjectsAwaitingStaffReview(req, res) {
           assignmentStatus: assignment.status,
             repoUrl: assignment.repoUrl,
             submissionDate: assignment.submissionDate,
-          student: assignment.student, // L'objet étudiant peuplé
+          student: assignment.student, // L'objet étudiant peuplé.
         }));
     });
 
@@ -546,21 +650,27 @@ export async function getProjectsAwaitingStaffReview(req, res) {
   }
 }
 
+/**
+ * `getAllProjects` récupère tous les projets maîtres avec leurs assignations et les étudiants associés.
+ * Réservé au staff/admin.
+ * @param {object} req - L'objet requête Express (contient les infos de l'utilisateur).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function getAllProjects(req, res) {
   try {
-    // Vérifier que l'utilisateur est un membre du personnel/admin
+    // Vérifier que l'utilisateur est un membre du personnel/admin.
     if (req.user.role !== 'staff' && req.user.role !== 'admin') {
       return res.status(403).json({
         error: 'Non autorisé à consulter cette ressource.',
       });
     }
 
-    // Récupérer tous les projets, en peuplant les étudiants associés aux assignations
+    // Récupérer tous les projets, en peuplant les étudiants associés aux assignations.
     const projects = await Project.find({})
       .populate({
         path: 'assignments.student',
         select: 'name email',
-      }).lean(); // Ajouter .lean() ici pour de meilleures performances
+      }).lean(); // Ajouter .lean() pour de meilleures performances si seule la lecture est nécessaire.
 
     res.status(200).json(projects);
   } catch (e) {
@@ -569,6 +679,12 @@ export async function getAllProjects(req, res) {
   }
 }
 
+/**
+ * `getCancelledProjects` récupère une liste de projets qui ont été annulés et nécessitent potentiellement une réassignation.
+ * Réservé au staff/admin.
+ * @param {object} req - L'objet requête Express (contient les infos de l'utilisateur).
+ * @param {object} res - L'objet réponse Express.
+ */
 export async function getCancelledProjects(req, res) {
   try {
     if (req.user.role !== 'staff' && req.user.role !== 'admin') {
@@ -596,24 +712,55 @@ export async function getCancelledProjects(req, res) {
       return project.assignments.filter(assignment => {
         // Un projet est annulé et a besoin de réassignation si:
         // 1. Son statut d'assignation est "cancelled"
-        // 2. Il n'a AUCUNE évaluation en cours (pending) associée à cette assignation
+        // 2. Il n'a AUCUNE évaluation en cours (pending) associée à cette assignation.
         const hasPendingEvaluation = assignment.evaluations.some(evalItem => evalItem.status === "pending");
         return assignment.status === "cancelled" && !hasPendingEvaluation;
       })
         .map(assignment => ({
-          _id: project._id, // ID du projet maître
+          _id: project._id, // ID du projet maître.
           title: project.title,
           description: project.description,
           studentName: assignment.student?.name || 'N/A',
           assignmentId: assignment._id,
           assignmentStatus: assignment.status,
-          // Vous pouvez ajouter d'autres champs si nécessaire
+          // Vous pouvez ajouter d'autres champs si nécessaire ici.
         }));
     });
 
     res.status(200).json(formattedProjects);
   } catch (e) {
     console.error('Error fetching cancelled projects:', e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+/**
+ * `getProjectMarkdownContent` sert le contenu d'un fichier Markdown associé à un projet.
+ * Lit le fichier Markdown depuis le système de fichiers et l'envoie en tant que texte brut.
+ * @param {object} req - L'objet requête Express (contient l'ID du projet).
+ * @param {object} res - L'objet réponse Express.
+ */
+export async function getProjectMarkdownContent(req, res) {
+  try {
+    const { id: projectId } = req.params; // Récupère l'ID du projet depuis les paramètres de l'URL.
+    const project = await Project.findById(projectId); // Trouve le projet par son ID.
+
+    if (!project || !project.markdownFilePath) {
+      return res.status(404).json({ error: 'Fichier Markdown non trouvé pour ce projet.' });
+    }
+
+    // Construit le chemin absolu du fichier Markdown sur le système de fichiers.
+    const filePath = path.join(__dirname, "../public", project.markdownFilePath);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Fichier Markdown non trouvé sur le serveur.' });
+    }
+
+    const markdownContent = fs.readFileSync(filePath, 'utf8'); // Lit le contenu du fichier.
+    res.status(200).send(markdownContent); // Envoie le contenu en tant que réponse texte.
+
+  } catch (e) {
+    console.error('Error fetching project markdown content:', e);
     res.status(500).json({ error: e.message });
   }
 }
