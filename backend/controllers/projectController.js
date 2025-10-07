@@ -93,15 +93,32 @@ async function _assignProjectByLevel(studentId, level) {
       return { error: 'Apprenant non trouvé.' };
     }
 
-    const projectTemplate = await Project.findOne({
+    // 1) Essayer correspondance stricte: order + module
+    let projectTemplate = await Project.findOne({
       status: 'template',
       order: level,
-      module: levelToModuleMap[level], // Filtrer par module correspondant au niveau.
+      module: levelToModuleMap[level],
     });
 
+    // 2) Fallback: essayer par order seulement (ne pas bloquer si module ne matche pas)
     if (!projectTemplate) {
-      console.warn(`Aucun projet template trouvé pour l'ordre: ${level}`);
-      return { error: `Aucun projet template trouvé pour le niveau ${level}.` };
+      projectTemplate = await Project.findOne({
+        status: 'template',
+        order: level,
+      });
+    }
+
+    // 3) Fallback: prendre le plus petit order supérieur disponible
+    if (!projectTemplate) {
+      projectTemplate = await Project.findOne({
+        status: 'template',
+        order: { $gt: level },
+      }).sort({ order: 1 });
+    }
+
+    if (!projectTemplate) {
+      console.warn(`Aucun projet template disponible pour le niveau ${level} ni pour un ordre supérieur.`);
+      return { error: `Aucun projet suivant disponible après le niveau ${level}.` };
     }
 
     // Vérifier si l'apprenant est déjà assigné à ce projet template.
