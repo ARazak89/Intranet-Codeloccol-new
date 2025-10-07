@@ -385,6 +385,7 @@ export async function createUser(req, res) {
     await newUser.save();
 
     // Si l'utilisateur est un apprenant, lui assigner automatiquement le projet d'ordre 1
+    let projectAssignment = { assigned: false, message: null };
     if (newUser.role === "apprenant") {
       const firstProjectTemplate = await Project.findOne({
         order: 1,
@@ -396,7 +397,7 @@ export async function createUser(req, res) {
         firstProjectTemplate.assignments.push({
           student: newUser._id,
           status: "assigned",
-          repoUrl: "", // Initialisé vide
+          repoUrl: "",
           evaluations: [],
           peerEvaluators: [],
           staffValidator: null,
@@ -406,10 +407,25 @@ export async function createUser(req, res) {
         // Ajouter une référence au projet maître dans les projets du nouvel utilisateur
         newUser.projects.push(firstProjectTemplate._id);
         await newUser.save();
+
+        projectAssignment = {
+          assigned: true,
+          projectId: firstProjectTemplate._id,
+          message: `Projet d'ordre 1 assigné à l'apprenant.`,
+        };
+      } else {
+        projectAssignment = {
+          assigned: false,
+          message: `Aucun projet d'ordre 1 (status "template") disponible. Aucun projet assigné à cet apprenant.`,
+        };
       }
     }
 
-    res.status(201).json({ message: 'Utilisateur créé avec succès.', user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role } });
+    res.status(201).json({
+      message: 'Utilisateur créé avec succès.',
+      user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role },
+      projectAssignment,
+    });
   } catch (e) {
     console.error("Error creating user by admin:", e);
     res.status(500).json({ error: e.message });
