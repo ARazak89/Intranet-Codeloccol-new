@@ -70,8 +70,7 @@ function ProjectsPage() {
   const [showSubmitProjectModal, setShowSubmitProjectModal] = useState(false); // Affiche la modale de soumission de projet.
   const [currentProjectToSubmit, setCurrentProjectToSubmit] = useState(null); // Projet en cours de soumission.
   const [projectSubmissionRepoUrl, setProjectSubmissionRepoUrl] = useState(''); // URL du dépôt GitHub pour la soumission.
-  const [availableSlots, setAvailableSlots] = useState([]); // Créneaux d'évaluation disponibles.
-  const [selectedSlotIds, setSelectedSlotIds] = useState([]); // IDs des créneaux sélectionnés pour l'évaluation.
+  const [projectSubmissionGithubPagesUrl, setProjectSubmissionGithubPagesUrl] = useState(''); // URL GitHub Pages pour la soumission.
   const [success, setSuccess] = useState(null); // Message de succès.
   
   // États pour les popups d'erreur/avertissement personnalisés
@@ -80,6 +79,18 @@ function ProjectsPage() {
   const [popupType, setPopupType] = useState('error'); // Type du popup ('error' ou 'warning').
   
   const router = useRouter(); // Hook Next.js pour la navigation.
+
+  // Détermine si l'URL du dépôt est optionnelle pour le projet en cours de soumission.
+  const isRepoUrlOptional = [
+    "CLI (Command Line Interface)",
+    "Pratique guidée Git / GitHub"
+  ].includes(currentProjectToSubmit?.title);
+
+  // Détermine si l'URL GitHub Pages est obligatoire pour le projet en cours de soumission.
+  const requiresGithubPages = [
+    "HTML / CSS",
+    "Framework"
+  ].includes(currentProjectToSubmit?.module);
 
   /**
    * `loadData` est une fonction de rappel qui charge toutes les données nécessaires (projets de l'utilisateur, projets à évaluer, etc.)
@@ -557,27 +568,22 @@ function ProjectsPage() {
   const handleOpenSubmitProjectModal = async (project) => {
     setCurrentProjectToSubmit(project);
     setProjectSubmissionRepoUrl('');
-    setSelectedSlotIds([]);
+    setProjectSubmissionGithubPagesUrl(''); // Réinitialiser l'URL GitHub Pages
     setError(null);
     setSuccess(null);
     
+    console.log("[handleOpenSubmitProjectModal] Projet soumis:", project);
+    console.log("[handleOpenSubmitProjectModal] Module du projet:", project.module);
+    
     try {
       const token = getAuthToken();
-      // Charger les slots disponibles pour ce projet en spécifiant projectId et assignmentId.
-      const slotsRes = await fetch(`${API}/availability/available-for-project/${project.projectId}/${project.assignmentId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (slotsRes.ok) {
-        const slotsData = await slotsRes.json();
-        setAvailableSlots(slotsData);
-      } else {
-        const errorData = await slotsRes.json();
-        setErrorPopupMessage(errorData.error || 'Impossible de charger les créneaux disponibles.');
-        setShowErrorPopup(true);
-      }
+      // La sélection des créneaux est maintenant automatique au backend, pas besoin de les charger ici.
+      // S'assurer que l'apprenant a les points d'évaluation nécessaires sera géré par le backend.
     } catch (e) {
-      setErrorPopupMessage('Erreur lors du chargement des créneaux.');
+      console.error("Erreur lors de l'ouverture de la modale de soumission:", e);
+      setErrorPopupMessage('Erreur inattendue lors de la préparation de la soumission.');
       setShowErrorPopup(true);
+      setPopupType('error');
     }
     
     setShowSubmitProjectModal(true);
@@ -607,37 +613,8 @@ function ProjectsPage() {
     setPopupType('error'); // S'assurer que le type est 'error' par défaut pour les erreurs de soumission.
 
     // Validation des champs de soumission.
-    if (!currentProjectToSubmit || selectedSlotIds.length !== 2 || (!isRepoUrlOptional && !projectSubmissionRepoUrl)) {
-      let errorMessage = 'Veuillez sélectionner exactement 2 créneaux d\'évaluateurs différents.';
-      if (!isRepoUrlOptional && !projectSubmissionRepoUrl) {
-        errorMessage = 'Veuillez fournir l\'URL du dépôt GitHub et sélectionner exactement 2 créneaux d\'évaluateurs différents.';
-      }
-      if (isRepoUrlOptional && selectedSlotIds.length !== 2) {
-        errorMessage = 'Veuillez sélectionner exactement 2 créneaux d\'évaluateurs différents.';
-      }
-      setErrorPopupMessage(errorMessage);
-      setShowErrorPopup(true);
-      setPopupType('error');
-      setLoading(false);
-      return;
-    }
-
-    // Vérifier que les créneaux sélectionnés sont uniques.
-    if (new Set(selectedSlotIds).size !== selectedSlotIds.length) {
-      setErrorPopupMessage('Veuillez sélectionner des créneaux distincts.');
-      setShowErrorPopup(true);
-      setPopupType('error');
-      setLoading(false);
-      return;
-    }
-
-    // Vérifier que les 2 slots sont d'évaluateurs différents.
-    const selectedSlots = availableSlots.filter(slot => selectedSlotIds.includes(slot._id));
-    const evaluatorIds = selectedSlots.map(slot => slot.evaluator._id);
-    const uniqueEvaluators = [...new Set(evaluatorIds)];
-    
-    if (uniqueEvaluators.length !== 2) {
-      setErrorPopupMessage('Vous devez sélectionner exactement 2 créneaux, chacun d\'un évaluateur différent.');
+    if (!currentProjectToSubmit || (!isRepoUrlOptional && !projectSubmissionRepoUrl)) {
+      setErrorPopupMessage('Veuillez fournir l\'URL du dépôt GitHub pour soumettre le projet.');
       setShowErrorPopup(true);
       setPopupType('error');
       setLoading(false);
@@ -653,7 +630,7 @@ function ProjectsPage() {
         body: JSON.stringify({
           assignmentId: currentProjectToSubmit.assignmentId,
           repoUrl: projectSubmissionRepoUrl,
-          selectedSlotIds: selectedSlotIds
+          ...(requiresGithubPages && { githubPagesUrl: projectSubmissionGithubPagesUrl }), // Ajoute conditionnellement githubPagesUrl
         }),
         });
         const data = await res.json();
@@ -662,8 +639,7 @@ function ProjectsPage() {
         setShowSubmitProjectModal(false);
         setCurrentProjectToSubmit(null);
         setProjectSubmissionRepoUrl('');
-        setSelectedSlotIds([]);
-        setAvailableSlots([]);
+        setProjectSubmissionGithubPagesUrl(''); // Réinitialiser l'URL GitHub Pages
         loadData(getAuthToken()); // Recharger les données pour refléter le changement de statut.
       } else {
         setErrorPopupMessage(data.error || 'Échec de la soumission du projet.');
@@ -687,20 +663,13 @@ function ProjectsPage() {
     setShowSubmitProjectModal(false);
     setCurrentProjectToSubmit(null);
     setProjectSubmissionRepoUrl('');
-    setSelectedSlotIds([]);
-    setAvailableSlots([]);
+    setProjectSubmissionGithubPagesUrl(''); // Réinitialiser l'URL GitHub Pages
     setError(null);
     setSuccess(null);
     setShowErrorPopup(false);
     setErrorPopupMessage('');
     setPopupType('error');
   };
-
-  // Détermine si l'URL du dépôt est optionnelle pour le projet en cours de soumission.
-  const isRepoUrlOptional = [
-    "CLI (Command Line Interface)",
-    "Pratique guidée Git / GitHub"
-  ].includes(currentProjectToSubmit?.title);
 
   // Affiche un écran de chargement si les données sont en cours de chargement.
   if (loading) return (
@@ -1152,6 +1121,16 @@ function ProjectsPage() {
                       </div>
                     )}
 
+                    {/* URL GitHub Pages */}
+                    {selectedProject.githubPagesUrl && (
+                      <div className="card mb-3 shadow-sm">
+                        <div className="card-body d-flex align-items-center">
+                          <h6 className="mb-0 me-2 text-primary"><i className="bi bi-globe me-2"></i> GitHub Pages:</h6> 
+                          <a href={selectedProject.githubPagesUrl} target="_blank" rel="noopener noreferrer" className="text-info text-decoration-none">{selectedProject.githubPagesUrl}</a>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                   
                   
@@ -1536,78 +1515,32 @@ function ProjectsPage() {
                     <div className="form-text text-muted">Assurez-vous que votre dépôt est public et contient le code source du projet.</div>
                   </div>
 
+                  {/* Champ pour l'URL GitHub Pages (conditionnel) */}
+                  {requiresGithubPages && (
+                    <div className="mb-3">
+                      <label htmlFor="githubPagesUrl" className="form-label">
+                        <i className="bi bi-globe me-1"></i>
+                        URL GitHub Pages <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="url"
+                        className="form-control form-control-lg"
+                        id="githubPagesUrl"
+                        value={projectSubmissionGithubPagesUrl}
+                        onChange={(e) => setProjectSubmissionGithubPagesUrl(e.target.value)}
+                        placeholder="https://username.github.io/repo-name/"
+                        required
+                      />
+                      <div className="form-text text-muted">L'URL de la page GitHub Pages de votre projet (pour les modules HTML/CSS et Framework).</div>
+                    </div>
+                  )}
+
+                  {/* Message informant l'utilisateur que les créneaux seront choisis automatiquement */}
                   <div className="mb-4 p-3 bg-light border rounded">
-                    <label className="form-label d-block mb-3">
-                      <i className="bi bi-calendar-check me-1"></i>
-                      Sélectionner 2 Créneaux d'Évaluation (Obligatoire) <span className="text-danger">*</span>
-                    </label>
-                    <div className="alert alert-info py-2">
+                    <p className="mb-0 text-muted">
                       <i className="bi bi-info-circle me-2"></i>
-                      <strong>Important :</strong> Vous devez sélectionner exactement 2 créneaux d'évaluateurs différents pour que votre projet soit évalué.
-                    </div>
-                    {availableSlots.length > 0 ? (
-                      <div className="row">
-                        {availableSlots.map((slot) => (
-                          <div key={slot._id} className="col-md-6 mb-3">
-                            <div className="form-check form-check-inline border rounded p-3 w-100 bg-white shadow-sm">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id={`slot-${slot._id}`}
-                                value={slot._id}
-                                checked={selectedSlotIds.includes(slot._id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    if (selectedSlotIds.length < 2) {
-                                      setSelectedSlotIds([...selectedSlotIds, slot._id]);
-                                      setError(null); // Clear any previous inline error
-                                    } else {
-                                      // Afficher le popup d'avertissement
-                                      setErrorPopupMessage('Vous ne pouvez sélectionner que 2 créneaux maximum.');
-                                      setShowErrorPopup(true);
-                                      setPopupType('warning');
-                                    }
-                                  } else {
-                                    setSelectedSlotIds(selectedSlotIds.filter(id => id !== slot._id));
-                                    setError(null);
-                                    // Si l'utilisateur décoche et qu'il n'y a plus de créneaux sélectionnés ou si c'est une erreur résolue, on peut cacher le popup d'avertissement
-                                    if (selectedSlotIds.length <= 2 && popupType === 'warning') {
-                                      setShowErrorPopup(false);
-                                      setErrorPopupMessage('');
-                                      setPopupType('error');
-                                    }
-                                  }
-                                }}
-                              />
-                              <label className="form-check-label" htmlFor={`slot-${slot._id}`}>
-                                <div className="d-flex flex-column align-items-start ms-2">
-                                  <strong className="text-dark">Le {new Date(slot.startTime).toLocaleDateString('fr-FR')}</strong>
-                                  <small className="text-muted">
-                                    de {new Date(slot.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} à 
-                                    {new Date(slot.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                  </small>
-                                  <small className="text-info mt-1 d-flex align-items-center"><i className="bi bi-calendar-check me-1"></i> Créneau d'évaluation disponible</small>
-                                </div>
-                              </label>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="alert alert-warning py-2">
-                        <i className="bi bi-exclamation-triangle me-2"></i>
-                        Aucun créneau d'évaluation disponible pour le moment. Veuillez réessayer plus tard.
-                      </div>
-                    )}
-                    <div className="form-text mt-3 text-dark">
-                      <i className="bi bi-clipboard-check me-1"></i> Créneaux sélectionnés: <strong>{selectedSlotIds.length}</strong>/2
-                      {selectedSlotIds.length === 2 && (
-                        <span className="text-success ms-2 d-inline-flex align-items-center">
-                          <i className="bi bi-check-circle me-1"></i>
-                          Parfait ! Vous avez sélectionné 2 créneaux.
-                        </span>
-                      )}
-                    </div>
+                      Les deux créneaux d'évaluation seront automatiquement et aléatoirement sélectionnés pour vous après la soumission.
+                    </p>
                   </div>
                 </form>
               </div>
@@ -1619,7 +1552,10 @@ function ProjectsPage() {
                   type="submit"
                   className="btn btn-primary"
                   onClick={handleSubmitProject}
-                  disabled={loading || !projectSubmissionRepoUrl || selectedSlotIds.length !== 2}
+                  disabled={loading || 
+                    (!isRepoUrlOptional && !projectSubmissionRepoUrl) || 
+                    (requiresGithubPages && !projectSubmissionGithubPagesUrl)
+                  }
                 >
                   {loading ? (
                     <>
