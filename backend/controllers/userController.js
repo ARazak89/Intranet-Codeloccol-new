@@ -435,7 +435,7 @@ export async function createUser(req, res) {
 export async function updateUser(req, res) {
   try {
     const { id } = req.params; // ID de l'utilisateur à modifier
-    const { name, email, password, role, status, level } = req.body;
+    const { name, email, password, role, status, level, daysRemaining } = req.body;
 
     // Vérifier l'autorisation (seuls staff/admin peuvent modifier les utilisateurs)
     if (req.user.role !== 'staff' && req.user.role !== 'admin') {
@@ -464,6 +464,9 @@ export async function updateUser(req, res) {
     }
     if (level !== undefined) {
       user.level = level;
+    }
+    if (daysRemaining !== undefined) {
+      user.daysRemaining = daysRemaining;
     }
 
     // Hacher le nouveau mot de passe si fourni
