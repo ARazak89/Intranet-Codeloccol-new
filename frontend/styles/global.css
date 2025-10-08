@@ -1,13 +1,135 @@
-body {
-  font-family: "Inter", sans-serif; /* Une police plus moderne */
+/*---------------The Theming--------------------------------*/
+:root {
+  --ff: "Manrope", sans-serif;
+  --h1: 700 1.5rem/1.2em var(--ff);
+  --h2: 700 1.25rem/1.4em var(--ff);
+  --h3: 700 1.125rem/1.4em var(--ff);
+  --p: 400 1rem/1.6em var(--ff);
+  --small: 400 0.75rem/1.6em var(--ff);
+  --transition: 0.2s ease-in-out;
 }
+:root {
+  --primary: hsl(28, 100%, 60%);
+  /* bg-colors */
+  --bg-dark: hsl(120, 40%, 15%);
+  --bg: hsl(120, 40%, 20%);
+  --bg-light: hsl(120, 40%, 30%);
+  /* text-colors */
+  --text: hsl(0, 0%, 95%);
+  --text-muted: hsl(0, 0%, 69%);
+  /* shadows */
+  --shadow-s: inset 0 1px 2px #ffffff30, /* top highlight */ 0 1px 2px #00000030,
+    /* dark shadow */ 0 2px 4px #00000015; /* soft shadow */
+  --shadow-m: inset 0 1px 2px #ffffff50, /* top highlight */ 0 2px 4px #00000030,
+    /* dark shadow */ 0 4px 8px #00000015; /* soft shadow */
+  --shadow-l: inset 0 1px 2px #ffffff70, /* top highlight */ 0 4px 6px #00000030,
+    /* dark shadow */ 0 6px 10px #00000015; /* soft shadow */
+}
+.themed.light {
+  --primary: hsl(120, 40%, 30%);
+  /* bg-colors */
+  --bg-dark: hsl(28, 100%, 60%);
+  --bg: hsl(28, 100%, 65%);
+  --bg-light: hsl(28, 100%, 70%);
+  /* text-colors */
+  --text: hsl(0, 0%, 4%);
+  --text-muted: hsl(0, 0%, 28%);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+button {
+  color: var(--text) !important;
+}
+
+.btn:hover {
+  padding-left: 1em;
+}
+
+p,
+i,
+small,
+span {
+  color: var(--text-muted);
+}
+.themed {
+  /*A remplacer par body*/
+  background: var(--bg-dark);
+  color: var(--text-muted);
+}
+
+.thm-card {
+  border-radius: 16px;
+}
+
+/* Shadows colors*/
+.thm-shadow-s {
+  box-shadow: var(--shadow-s);
+}
+.thm-shadow-m {
+  box-shadow: var(--shadow-m);
+}
+.thm-shadow-l {
+  box-shadow: var(--shadow-l);
+}
+
+/* Background colors*/
+.thm-bg-dark {
+  background-color: var(--bg-dark) !important;
+}
+.thm-bg {
+  background-color: var(--bg) !important;
+}
+.thm-bg-light {
+  background-color: var(--bg-light) !important;
+}
+
+.thm-bg-primary {
+  background-color: var(--primary) !important;
+}
+
+.thm-link {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.thm-nav-link {
+  color: var(--text);
+  text-decoration: none;
+
+  margin-left: 9px;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.thm-nav-link.active {
+  color: var(--text);
+  background-color: var(--bg-light);
+  box-shadow: var(--shadow-s);
+  margin-left: 5px;
+}
+
+.thm-nav-link:hover {
+  color: var(--text);
+  background-color: var(--bg-dark);
+  margin-left: 7px;
+  box-shadow: 0 0 2px 0px black inset;
+}
+
+.transform-hover:hover {
+  background-color: var(--bg) !important;
+}
+/*--------------------------------------Sidebar Stufff-------------------------------------*/
 
 /* Styles pour la sidebar mobile */
 .sidebar {
   transform: translateX(-100%);
   transition: transform 0.3s ease-in-out;
-  z-index: 1040; /* Au-dessus du contenu principal et de l'overlay */
-  width: 250px; /* Largeur de la sidebar sur mobile */
+  z-index: 100; /* Au-dessus du contenu principal et de l'overlay */
+  width: 300px; /* Largeur de la sidebar sur mobile */
 }
 
 .sidebar.sidebar-open {
@@ -28,110 +150,5 @@ body {
   /* S'assurer que le bouton hamburger est caché sur desktop */
   .navbar .d-md-none {
     display: none !important;
-  }
-}
-
-/* Styles pour le contenu Markdown généré par ReactMarkdown */
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3 {
-  color: #333; /* Header Text Dark Grey */
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.markdown-content p,
-.markdown-content li {
-  font-size: 16px;
-  color: #666; /* Header Paragraph Grey */
-  line-height: 1.6;
-}
-
-.markdown-content ul {
-  list-style-type: disc;
-  padding-left: 20px;
-}
-
-.markdown-content ol {
-  list-style-type: decimal;
-  padding-left: 20px;
-}
-
-.markdown-content strong {
-  font-weight: bold;
-}
-
-/* Styles spécifiques au guide pour les couleurs */
-.markdown-content .cta-green {
-  color: #1eb8a8;
-}
-.markdown-content .why-us-green {
-  color: #43d6c7;
-}
-.markdown-content .highlight-yellow {
-  color: hsl(71, 73%, 54%);
-}
-.markdown-content .button-green {
-  background-color: #c4f13b;
-  color: #333;
-  padding: 0.5em 1em;
-  border-radius: 0.25rem;
-}
-.markdown-content .button-green:hover {
-  background-color: #b3df2f;
-}
-
-/* Couleurs Neutres */
-.markdown-content .bg-background {
-  background-color: #eaf3f7;
-}
-.markdown-content .bg-card {
-  background-color: #fff;
-} /* Cela pourrait être inutile si ReactMarkdown génère un div sans class */
-.markdown-content .text-dark-grey {
-  color: #333;
-}
-.markdown-content .text-paragraph-grey {
-  color: #666;
-}
-.markdown-content .text-white {
-  color: #fff;
-}
-
-/* Typographie */
-.markdown-content {
-  font-family: "Arial", sans-serif;
-}
-
-.markdown-content .price {
-  font-size: 2rem;
-  font-weight: bold;
-}
-
-.markdown-content .per-month-text {
-  font-size: 1rem;
-  display: inline-block; /* Pour le positionnement inline */
-}
-
-/* Bouton Sign Up (exemple pour le hover) */
-.markdown-content .btn-signup {
-  background-color: #c4f13b;
-  color: #333;
-  padding: 10px 20px;
-  border: none;
-  cursor: pointer;
-  border-radius: 5px;
-  font-size: 1rem;
-  transition: background-color 0.3s ease;
-}
-
-.markdown-content .btn-signup:hover {
-  background-color: #b3df2f; /* Button Hover Green */
-}
-
-/* Mise en page responsive pour les écrans plus petits */
-@media (max-width: 768px) {
-  .markdown-content {
-    /* Ajoutez ici les styles pour les écrans mobiles si nécessaire */
   }
 }
