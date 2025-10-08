@@ -37,45 +37,13 @@ function validateGithubUrl(url) {
 }
 
 /**
- * Valide et réserve des créneaux d'évaluation pour une soumission de projet.
- * Assure qu'au moins 2 évaluateurs différents sont sélectionnés et que les créneaux sont disponibles.
- * @param {Array<string>} selectedSlotIds - Les IDs des créneaux sélectionnés.
- * @param {string} studentId - L'ID de l'étudiant soumettant le projet.
- * @param {string} projectId - L'ID du projet maître.
- * @param {string} assignmentId - L'ID de l'assignation du projet.
- * @returns {Promise<object>} Un objet contenant les créneaux réservés ou une erreur.
+ * Valide une URL GitHub Pages pour s'assurer qu'elle correspond au format attendu.
+ * @param {string} url - L'URL GitHub Pages à valider.
+ * @returns {boolean} `true` si l'URL est valide, `false` sinon.
  */
-async function _validateAndBookSlots(selectedSlotIds, studentId, projectId, assignmentId) {
-  if (!selectedSlotIds || selectedSlotIds.length === 0) {
-    return { error: 'Aucun créneau sélectionné.' };
-  }
-
-  const now = new Date();
-
-  const slots = await AvailabilitySlot.find({
-    _id: { $in: selectedSlotIds },
-    isBooked: false,
-    startTime: { $gt: now },
-    evaluator: { $ne: studentId } // L'étudiant ne peut pas s'évaluer lui-même.
-  }).populate('evaluator', 'name');
-
-  if (slots.length !== selectedSlotIds.length) {
-    return { error: 'Un ou plusieurs créneaux sélectionnés sont invalides ou déjà réservés.' };
-  }
-
-  const uniqueEvaluators = new Set(slots.map(slot => slot.evaluator._id.toString()));
-  if (uniqueEvaluators.size < 2) {
-    return { error: 'Au moins 2 évaluateurs différents sont nécessaires.' };
-  }
-
-  for (const slot of slots) {
-    slot.isBooked = true;
-    slot.bookedByStudent = studentId;
-    slot.bookedForProject = projectId;
-    await slot.save();
-  }
-
-  return { slots };
+function validateGithubPagesUrl(url) {
+  // Regex pour les URLs GitHub Pages (username.github.io/repo/ ou docs/index.html)
+  return /^(https?:\/\/)?([a-zA-Z0-9-]+(?=\.github\.io)|[a-zA-Z0-9-]+(?:-[a-zA-Z0-9-]+)*)\.github\.io(\/[^\s\\]*)?$/i.test(url);
 }
 
 /**
@@ -93,15 +61,32 @@ async function _assignProjectByLevel(studentId, level) {
       return { error: 'Apprenant non trouvé.' };
     }
 
-    const projectTemplate = await Project.findOne({
+    // 1) Essayer correspondance stricte: order + module
+    let projectTemplate = await Project.findOne({
       status: 'template',
       order: level,
-      module: levelToModuleMap[level], // Filtrer par module correspondant au niveau.
+      module: levelToModuleMap[level],
     });
 
+    // 2) Fallback: essayer par order seulement (ne pas bloquer si module ne matche pas)
     if (!projectTemplate) {
-      console.warn(`Aucun projet template trouvé pour l'ordre: ${level}`);
-      return { error: `Aucun projet template trouvé pour le niveau ${level}.` };
+      projectTemplate = await Project.findOne({
+        status: 'template',
+        order: level,
+      });
+    }
+
+    // 3) Fallback: prendre le plus petit order supérieur disponible
+    if (!projectTemplate) {
+      projectTemplate = await Project.findOne({
+        status: 'template',
+        order: { $gt: level },
+      }).sort({ order: 1 });
+    }
+
+    if (!projectTemplate) {
+      console.warn(`Aucun projet template disponible pour le niveau ${level} ni pour un ordre supérieur.`);
+      return { error: `Aucun projet suivant disponible après le niveau ${level}.` };
     }
 
     // Vérifier si l'apprenant est déjà assigné à ce projet template.
@@ -198,7 +183,7 @@ export async function updateProject(req, res) {
             "assignments.$.status": status,
           }
         },
-        { new: true }
+        { new: true, runValidators: true }
       );
 
       if (!project) {
@@ -213,16 +198,47 @@ export async function updateProject(req, res) {
         return res.status(404).json({ error: 'Projet maître non trouvé.' });
       }
 
+      // Utilitaire local: rendre le parsing tolérant aux formats (Array direct, JSON string, CSV, simple string)
+      const safelyParseArrayField = (raw) => {
+        if (raw === undefined || raw === null) return [];
+        if (Array.isArray(raw)) return raw.filter(v => v !== undefined && v !== null && String(v).trim() !== '').map(v => String(v).trim());
+        const text = String(raw).trim();
+        if (text === '') return [];
+        // Si la chaîne ressemble à du JSON, tenter de parser
+        if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+          try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) return parsed;
+            // objet unique => l'encapsuler pour conserver l'API
+            return [parsed];
+          } catch {
+            // Tomber plus bas sur CSV/unique string
+          }
+        }
+        // Support CSV
+        if (text.includes(',')) {
+          return text.split(',').map(s => s.trim()).filter(s => s !== '');
+        }
+        // Sinon, considérer comme un seul élément
+        return [text];
+      };
+
+      const coerceNumber = (val) => {
+        if (val === undefined || val === null || val === '') return undefined;
+        const n = Number(val);
+        return Number.isNaN(n) ? undefined : n;
+      };
+
       const updateFields = {
         title: projectTitle,
         description: projectDescription,
         demoVideoUrl: projectDemoVideoUrl,
-        specifications: req.body.projectSpecifications ? JSON.parse(req.body.projectSpecifications) : [], // Parse les tableaux JSON.
-        size: projectSize,
-        order: projectOrder,
-        objectives: req.body.projectObjectives ? JSON.parse(req.body.projectObjectives) : [],
-        exerciseStatements: req.body.projectExerciseStatements ? JSON.parse(req.body.projectExerciseStatements) : [],
-        resourceLinks: req.body.projectResourceLinks ? JSON.parse(req.body.projectResourceLinks) : [],
+        specifications: safelyParseArrayField(req.body.projectSpecifications),
+        size: coerceNumber(projectSize) ?? projectSize, // garder la valeur brute si non numérique
+        order: coerceNumber(projectOrder) ?? projectOrder,
+        objectives: safelyParseArrayField(req.body.projectObjectives),
+        exerciseStatements: safelyParseArrayField(req.body.projectExerciseStatements),
+        resourceLinks: safelyParseArrayField(req.body.projectResourceLinks),
         module: projectModule, // Met à jour le module.
       };
 
@@ -406,25 +422,21 @@ export async function assignProjectToStudent(req, res) {
 export async function submitProjectSolution(req, res) {
   try {
     const { id: projectId } = req.params; // ID du projet maître.
-    const { assignmentId, repoUrl, selectedSlotIds } = req.body; // ID de l'assignation, URL du dépôt, IDs des créneaux.
+    const { assignmentId, repoUrl, githubPagesUrl } = req.body; // ID de l'assignation, URL du dépôt, URL GitHub Pages.
     const studentId = req.user._id; // ID de l'apprenant connecté.
 
     // Vérifier que l'apprenant a au moins 2 points d'évaluation avant de soumettre.
-    try {
-      const student = await User.findById(studentId).select('evaluationPoints');
-      if (!student) {
-        return res.status(404).json({ error: 'Utilisateur non trouvé.' });
-      }
-      if ((student.evaluationPoints || 0) < 2) {
-        return res.status(400).json({ error: "Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet." });
-      }
-    } catch (pointsErr) {
-      console.error('Error checking evaluation points before submit:', pointsErr);
-      return res.status(500).json({ error: 'Erreur lors de la vérification des points d\'évaluation.' });
+    const student = await User.findById(studentId).select('evaluationPoints role');
+    if (!student) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+    }
+    // Les membres du staff/admin/évaluateurs peuvent soumettre sans points
+    if (student.role === 'apprenant' && (student.evaluationPoints || 0) < 2) {
+      return res.status(400).json({ error: "Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet." });
     }
 
     if (!assignmentId) {
-      return res.status(400).json({ error: 'ID d\'assignation manquant.' });
+      return res.status(400).json({ error: "ID d'assignation manquant." });
     }
 
     const project = await Project.findOne({
@@ -444,7 +456,7 @@ export async function submitProjectSolution(req, res) {
     if (assignment.status !== 'assigned') {
       return res.status(400).json({
         error:
-          'Cette assignation n\'est pas en statut \'assigned\' et ne peut être soumise.',
+          "Cette assignation n'est pas en statut 'assigned' et ne peut être soumise.",
       });
     }
 
@@ -452,30 +464,93 @@ export async function submitProjectSolution(req, res) {
       return res.status(400).json({ error: 'URL GitHub invalide.' });
     }
 
-    // Valider et réserver les créneaux d'évaluation sélectionnés.
-    const slotsResult = await _validateAndBookSlots(
-      selectedSlotIds,
-      studentId,
-      projectId,
-      assignmentId,
+    // Nouvelle validation conditionnelle pour GitHub Pages URL
+    const requiresGithubPages = ["HTML / CSS", "Framework"].includes(project.module);
+    if (requiresGithubPages && (!githubPagesUrl || !validateGithubPagesUrl(githubPagesUrl))) {
+      return res.status(400).json({ error: "URL GitHub Pages invalide ou manquante pour ce type de projet." });
+    }
+
+    // --- Nouvelle logique de sélection automatique des créneaux ---
+    const now = new Date();
+    // Les créneaux doivent être au moins 1 heure après l'heure de soumission
+    const minStartTime = new Date(now.getTime() + 1 * 60 * 60 * 1000);
+
+    const availableSlots = await AvailabilitySlot.find({
+      isBooked: false,
+      startTime: { $gt: minStartTime }, // Créneaux futurs et au moins 1h après la soumission
+      evaluator: { $ne: studentId } // L'étudiant ne peut pas s'évaluer lui-même
+    }).populate('evaluator', 'name role');
+
+    // Filtrer les créneaux pour s'assurer que l'évaluateur a un rôle valide (maintenant inclut 'apprenant')
+    const validSlots = availableSlots.filter(slot =>
+      ['evaluator', 'staff', 'admin', 'apprenant'].includes(slot.evaluator.role)
     );
 
-    if (slotsResult.error) {
-      return res.status(400).json(slotsResult);
+    if (validSlots.length < 2) {
+      return res.status(400).json({ error: 'Pas assez de créneaux disponibles avec des évaluateurs valides pour la double évaluation.' });
     }
-    const slots = slotsResult.slots;
+
+    let selectedSlots = [];
+    let uniqueEvaluators = new Set();
+    const minTimeDifferenceMs = 1 * 60 * 60 * 1000; // 1 heure en millisecondes
+
+    // Tenter de trouver deux créneaux respectant toutes les contraintes
+    // On mélange les créneaux pour une sélection "aléatoire"
+    const shuffledSlots = validSlots.sort(() => 0.5 - Math.random());
+
+    for (let i = 0; i < shuffledSlots.length; i++) {
+      const slot1 = shuffledSlots[i];
+      if (uniqueEvaluators.has(slot1.evaluator._id.toString())) {
+        continue; // Déjà un créneau de cet évaluateur
+      }
+
+      for (let j = i + 1; j < shuffledSlots.length; j++) {
+        const slot2 = shuffledSlots[j];
+
+        // Vérifier évaluateurs différents
+        if (slot1.evaluator._id.equals(slot2.evaluator._id)) {
+          continue;
+        }
+
+        // Vérifier le décalage horaire entre les deux créneaux
+        const timeDiff = Math.abs(slot1.startTime.getTime() - slot2.startTime.getTime());
+        if (timeDiff < minTimeDifferenceMs) {
+          continue;
+        }
+
+        selectedSlots.push(slot1, slot2);
+        uniqueEvaluators.add(slot1.evaluator._id.toString());
+        uniqueEvaluators.add(slot2.evaluator._id.toString());
+        break; // On a trouvé nos deux créneaux
+      }
+      if (selectedSlots.length === 2) break;
+    }
+
+    if (selectedSlots.length !== 2) {
+      return res.status(400).json({ error: "Impossible de trouver deux créneaux d'évaluation distincts avec des évaluateurs différents et un décalage de 2 heures." });
+    }
+    // --- Fin de la nouvelle logique ---
 
     assignment.repoUrl = repoUrl;
     assignment.submissionDate = new Date();
     assignment.status = 'submitted';
+    if (githubPagesUrl) {
+      assignment.githubPagesUrl = githubPagesUrl;
+    }
 
-  for (const slot of slots) {
-    const evaluation = await Evaluation.create({
-      project: projectId,
+    for (const slot of selectedSlots) {
+      // Marquer le créneau comme réservé
+      slot.isBooked = true;
+      slot.bookedByStudent = studentId;
+      slot.bookedForProject = projectId;
+      await slot.save();
+
+      const evaluation = await Evaluation.create({
+        project: projectId,
         assignment: assignmentId,
-        evaluator: slot.evaluator,
-      student: studentId,
-      status: 'pending',
+        evaluator: slot.evaluator._id, // Assurez-vous d'utiliser l'ID de l'évaluateur
+        student: studentId,
+        status: 'pending',
         slot: slot._id, // Référence au créneau d'évaluation.
       });
       assignment.evaluations.push(evaluation._id);
@@ -484,17 +559,13 @@ export async function submitProjectSolution(req, res) {
     await project.save();
 
     // Décrémenter les points d'évaluation de l'étudiant en fonction du nombre de slots réservés.
-    try {
-      const student = await User.findById(studentId);
-      if (student) {
-        const decrement = Array.isArray(slots) ? slots.length : 0;
-        if (decrement > 0) {
-          student.evaluationPoints = Math.max(0, Math.min(10, (student.evaluationPoints || 0) - decrement));
-          await student.save();
-        }
+    // Cette partie est pour l'apprenant, pas pour les staff/admin/evaluators
+    if (student.role === 'apprenant') {
+      const decrement = selectedSlots.length; // Pour 2 slots, on décrémente de 2 points
+      if (decrement > 0) {
+        student.evaluationPoints = Math.max(0, (student.evaluationPoints || 0) - decrement);
+        await student.save();
       }
-    } catch (decrementErr) {
-      console.error('Error decrementing evaluation points on project submit:', decrementErr);
     }
 
     // Logger la soumission de projet pour l'historique d'activité.
@@ -506,7 +577,7 @@ export async function submitProjectSolution(req, res) {
       req
     );
 
-    res.status(200).json({ message: 'Solution soumise avec succès.', project });
+    res.status(200).json({ message: 'Solution soumise avec succès avec des créneaux automatiquement assignés.', project });
   } catch (e) {
     console.error('Error submitting project solution:', e);
     res.status(500).json({ error: e.message });

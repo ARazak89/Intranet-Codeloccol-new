@@ -20,6 +20,7 @@ export default function EvaluationPage() {
   const [isLoading, setIsLoading] = useState(true); // État de chargement global
   const [token, setToken] = useState(null);
   const [cancelledProjectsForReassignment, setCancelledProjectsForReassignment] = useState([]); // Nouveau: Projets annulés pour réassignation
+  const [expandedRows, setExpandedRows] = useState({}); // id d'évaluation => bool (affichage feedbacks pairs)
 
   // Nouveaux états pour les champs de feedback détaillés
   // const [feedbackAssiduite, setFeedbackAssiduite] = useState('');
@@ -136,6 +137,10 @@ export default function EvaluationPage() {
   const handleCloseReassignModal = () => {
     setShowReassignModal(false);
     setEvaluationToReassign(null);
+  };
+
+  const toggleRowExpanded = (evaluationId) => {
+    setExpandedRows(prev => ({ ...prev, [evaluationId]: !prev[evaluationId] }));
   };
 
   // Nouvelle fonction pour récupérer TOUS les slots disponibles (sans filtre par évaluateur)
@@ -307,6 +312,7 @@ export default function EvaluationPage() {
                 <caption>Liste complète des évaluations</caption>
                 <thead className="table-light">
                   <tr>
+                    <th></th>
                     <th>Projet</th>
                     <th>Apprenant</th>
                     <th>Évaluateur</th>
@@ -322,38 +328,110 @@ export default function EvaluationPage() {
                       const isLate = evalItem.slot && new Date() > new Date(evalItem.slot.endTime);
                       const rowClass = isLate ? 'table-danger' : (evalItem.status === 'cancelled' ? 'table-warning' : '');
                       return (
-                        <tr key={evalItem._id} className={rowClass}>
-                          <td>
-                            {evalItem.project?.title || '[Projet Inconnu]'}
-                            {evalItem.assignment?.repoUrl && (
-                              <p className="mb-0"><small><a href={evalItem.assignment.repoUrl} target="_blank" rel="noopener noreferrer">Dépôt GitHub</a></small></p>
-                            )}
-                          </td>
-                          <td>{evalItem.studentName || '[Apprenant Inconnu]'}</td>
-                          <td>{evalItem.evaluator?.name || '[Évaluateur Inconnu]'}</td>
-                          <td>
-                            <span className={`badge bg-${evalItem.status === 'pending' ? 'info' : evalItem.status === 'accepted' ? 'success' : evalItem.status === 'rejected' ? 'danger' : 'secondary'}`}>
-                              {evalItem.status}
-                            </span>
-                            {isLate && evalItem.status === 'pending' && <span className="badge bg-danger ms-1">EN RETARD</span>}
-                          </td>
-                          <td>
-                            <span className={`badge bg-${evalItem.assignment?.status === 'assigned' ? 'primary' : evalItem.assignment?.status === 'submitted' ? 'warning text-dark' : evalItem.assignment?.status === 'pending_review' ? 'info' : evalItem.assignment?.status === 'approved' ? 'success' : evalItem.assignment?.status === 'rejected' ? 'danger' : 'secondary'}`}>
-                              {evalItem.assignment?.status || 'N/A'}
-                            </span>
-                          </td>
-                          <td>{evalItem.slot?.startTime ? new Date(evalItem.slot.startTime).toLocaleString() : 'N/A'}</td>
-                          <td className="text-center">
-                            { ((isLate && evalItem.status === 'pending') || evalItem.status === 'cancelled') && evalItem.status !== 'approved' && (
+                        <>
+                          <tr key={evalItem._id} className={rowClass}>
+                            <td className="text-center" style={{ width: 40 }}>
                               <button
-                                className="btn btn-sm btn-warning"
-                                onClick={() => handleOpenReassignModal(evalItem)}
+                                className="btn btn-link p-0"
+                                onClick={() => toggleRowExpanded(evalItem._id)}
+                                title="Afficher les feedbacks des pairs"
                               >
-                                <i className="bi bi-arrow-repeat me-1"></i> Réassigner
+                                <i className={`bi ${expandedRows[evalItem._id] ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
                               </button>
-                            )}
-                          </td>
-                        </tr>
+                              {Array.isArray(evalItem.peersFeedback) && (
+                                <span className={`badge ms-1 ${evalItem.peersFeedback.length > 0 ? 'bg-secondary' : 'bg-light text-muted'}`}>{evalItem.peersFeedback.length}</span>
+                              )}
+                            </td>
+                            <td>
+                              {evalItem.project?.title || '[Projet Inconnu]'}
+                              {evalItem.assignment?.repoUrl && (
+                                <p className="mb-0"><small><a href={evalItem.assignment.repoUrl} target="_blank" rel="noopener noreferrer">Dépôt GitHub</a></small></p>
+                              )}
+                            </td>
+                            <td>{evalItem.studentName || '[Apprenant Inconnu]'}</td>
+                            <td>{evalItem.evaluator?.name || '[Évaluateur Inconnu]'}</td>
+                            <td>
+                              <span className={`badge bg-${evalItem.status === 'pending' ? 'info' : evalItem.status === 'accepted' ? 'success' : evalItem.status === 'rejected' ? 'danger' : 'secondary'}`}>
+                                {evalItem.status}
+                              </span>
+                              {isLate && evalItem.status === 'pending' && <span className="badge bg-danger ms-1">EN RETARD</span>}
+                            </td>
+                            <td>
+                              <span className={`badge bg-${evalItem.assignment?.status === 'assigned' ? 'primary' : evalItem.assignment?.status === 'submitted' ? 'warning text-dark' : evalItem.assignment?.status === 'pending_review' ? 'info' : evalItem.assignment?.status === 'approved' ? 'success' : evalItem.assignment?.status === 'rejected' ? 'danger' : 'secondary'}`}>
+                                {evalItem.assignment?.status || 'N/A'}
+                              </span>
+                            </td>
+                            <td>{evalItem.slot?.startTime ? new Date(evalItem.slot.startTime).toLocaleString() : 'N/A'}</td>
+                            <td className="text-center">
+                              { ((isLate && evalItem.status === 'pending') || evalItem.status === 'cancelled') && evalItem.status !== 'approved' && (
+                                <button
+                                  className="btn btn-sm btn-warning"
+                                  onClick={() => handleOpenReassignModal(evalItem)}
+                                >
+                                  <i className="bi bi-arrow-repeat me-1"></i> Réassigner
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {expandedRows[evalItem._id] && (
+                            <tr className="table-active">
+                              <td></td>
+                              <td colSpan="7">
+                                <div className="p-3 bg-light border rounded">
+                                  <h6 className="mb-3 d-flex align-items-center"><i className="bi bi-people me-2"></i> Feedback de l'évaluation + feedbacks des pairs</h6>
+                                  {/* Feedback de l'évaluation courante (évaluateur actif: staff, admin ou apprenant) */}
+                                  {evalItem.feedback || typeof evalItem.score === 'number' || evalItem.comments ? (
+                                    <div className="mb-3 p-3 bg-white border rounded">
+                                      <h6 className="mb-2"><i className="bi bi-chat-right-quote me-2"></i> Feedback de l'évaluateur courant</h6>
+                                      <div>
+                                        {evalItem.feedback?.assiduite && <div><small><strong>Assiduité:</strong> {evalItem.feedback.assiduite}</small></div>}
+                                        {evalItem.feedback?.comprehension && <div><small><strong>Compréhension:</strong> {evalItem.feedback.comprehension}</small></div>}
+                                        {evalItem.feedback?.specifications && <div><small><strong>Spécifications:</strong> {evalItem.feedback.specifications}</small></div>}
+                                        {evalItem.feedback?.maitrise_concepts && <div><small><strong>Maîtrise des concepts:</strong> {evalItem.feedback.maitrise_concepts}</small></div>}
+                                        {evalItem.feedback?.capacite_expliquer && <div><small><strong>Capacité à expliquer:</strong> {evalItem.feedback.capacite_expliquer}</small></div>}
+                                        {typeof evalItem.score === 'number' && <div><small><strong>Score:</strong> {evalItem.score}/100</small></div>}
+                                        {evalItem.comments && <div><small><strong>Commentaires:</strong> {evalItem.comments}</small></div>}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="text-muted">Aucun feedback saisi par l'évaluateur courant.</p>
+                                  )}
+                                  {Array.isArray(evalItem.peersFeedback) && evalItem.peersFeedback.length > 0 ? (
+                                    <ul className="list-group list-group-flush">
+                                      {evalItem.peersFeedback.map((pf, idx) => (
+                                        <li key={idx} className="list-group-item">
+                                          <div className="d-flex justify-content-between align-items-start flex-wrap">
+                                            <div>
+                                              <strong>{pf.evaluator?.name || 'Apprenant'}</strong>
+                                              {pf.evaluator?.email && <small className="text-muted ms-2">{pf.evaluator.email}</small>}
+                                              <div className="mt-1">
+                                                <span className={`badge bg-${pf.status === 'accepted' ? 'success' : pf.status === 'rejected' ? 'danger' : pf.status === 'pending' ? 'info' : 'secondary'}`}>{pf.status}</span>
+                                                {pf.createdAt && <small className="text-muted ms-2">{new Date(pf.createdAt).toLocaleString()}</small>}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          {pf.feedback && (
+                                            <div className="mt-2">
+                                              {pf.feedback.assiduite && <div><small><strong>Assiduité:</strong> {pf.feedback.assiduite}</small></div>}
+                                              {pf.feedback.comprehension && <div><small><strong>Compréhension:</strong> {pf.feedback.comprehension}</small></div>}
+                                              {pf.feedback.specifications && <div><small><strong>Spécifications:</strong> {pf.feedback.specifications}</small></div>}
+                                              {pf.feedback.maitrise_concepts && <div><small><strong>Maîtrise des concepts:</strong> {pf.feedback.maitrise_concepts}</small></div>}
+                                              {pf.feedback.capacite_expliquer && <div><small><strong>Capacité à expliquer:</strong> {pf.feedback.capacite_expliquer}</small></div>}
+                                              {typeof pf.score === 'number' && <div><small><strong>Score:</strong> {pf.score}/100</small></div>}
+                                              {pf.comments && <div><small><strong>Commentaires:</strong> {pf.comments}</small></div>}
+                                            </div>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p className="text-muted mb-0">Aucun feedback pair pour cette évaluation.</p>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       );
                     })
                   ) : (

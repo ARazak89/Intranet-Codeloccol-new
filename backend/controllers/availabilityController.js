@@ -34,6 +34,27 @@ export async function createAvailabilitySlot(req, res) {
         .json({ error: "Vous ne pouvez pas créer un slot plus de 48 heures à l'avance." });
     }
 
+    // Vérifier si l'utilisateur est un apprenant pour appliquer la limite
+    const user = await User.findById(evaluatorId).select('role');
+    if (user && user.role === 'apprenant') {
+      // Début et fin de la journée du slot créé
+      const startOfDay = new Date(start);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setUTCDate(startOfDay.getUTCDate() + 1);
+
+      const slotsCreatedToday = await AvailabilitySlot.countDocuments({
+        evaluator: evaluatorId,
+        startTime: { $gte: startOfDay, $lt: endOfDay },
+      });
+
+      if (slotsCreatedToday >= 3) {
+        return res.status(400).json({
+          error: "Vous avez déjà créé 3 slots de disponibilité aujourd'hui. Vous ne pouvez pas en créer davantage.",
+        });
+      }
+    }
+
     // Vérifier les contraintes horaires (9h-17h) — Week-end désormais autorisé
     const startHour = start.getUTCHours();
     const endHour = end.getUTCHours();

@@ -27,6 +27,10 @@ export async function login(req, res) {
         error: "Votre compte est bloqué pour cause d'inactivité (plus de 4 jours sans connexion). Veuillez contacter le personnel pour le réactiver.",
       });
     }
+    // Mettre à jour la date de dernière connexion
+    user.lastLogin = new Date();
+    await user.save();
+
     // Logger la connexion réussie
     await ActivityLogger.logLogin(user._id, req);
     

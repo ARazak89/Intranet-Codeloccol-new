@@ -151,10 +151,29 @@ export async function getAllEvaluationsForStaff(req, res) {
           select: "name email",
         },
       })
-      .populate("evaluator", "name email")
+      .populate("evaluator", "name email role")
       .populate("slot", "startTime endTime bookedByStudent bookedForProject bookedForAssignment")
-      .select("project assignment student evaluator slot status submissionDate createdAt") // Ajouter createdAt
+      .select("project assignment student evaluator slot status submissionDate createdAt feedback comments score") // Inclure feedback, comments, score
       .sort("-createdAt"); // Trier par date de création la plus récente
+
+    // Construire un index par assignation pour récupérer les feedbacks des pairs
+    const assignmentIdToPeerFeedbacks = new Map();
+    for (const ev of evaluations) {
+      const aId = String(ev.assignment);
+      if (!assignmentIdToPeerFeedbacks.has(aId)) assignmentIdToPeerFeedbacks.set(aId, []);
+      // Considérer comme "pair" un évaluateur dont le rôle est 'apprenant'
+      const isPeer = ev.evaluator && ev.evaluator.role === 'apprenant';
+      if (isPeer && ev.feedback) {
+        assignmentIdToPeerFeedbacks.get(aId).push({
+          evaluator: ev.evaluator ? { _id: ev.evaluator._id, name: ev.evaluator.name, email: ev.evaluator.email } : null,
+          feedback: ev.feedback,
+          comments: ev.comments || '',
+          score: typeof ev.score === 'number' ? ev.score : null,
+          status: ev.status,
+          createdAt: ev.createdAt,
+        });
+      }
+    }
 
     // Nous n'avons plus besoin de filtrer ici, car nous voulons toutes les évaluations.
     // Nous allons juste formater les données.
@@ -165,6 +184,8 @@ export async function getAllEvaluationsForStaff(req, res) {
       const assignment = project.assignments.id(evalItem.assignment);
 
       if (!assignment) return null; // Ignorer les évaluations sans assignation correspondante
+
+      const peersFeedback = assignmentIdToPeerFeedbacks.get(String(evalItem.assignment)) || [];
 
       return {
         ...evalItem.toObject(),
@@ -185,6 +206,7 @@ export async function getAllEvaluationsForStaff(req, res) {
         },
         studentName: assignment.student ? assignment.student.name : 'N/A', // Pour compatibilité frontend
         studentEmail: assignment.student ? assignment.student.email : 'N/A', // Ajouter l'email de l'étudiant
+        peersFeedback, // Feedbacks des pairs liés à cette assignation
       };
     }).filter(Boolean); // Supprimer les entrées nulles si des projets ou assignations étaient manquants
 

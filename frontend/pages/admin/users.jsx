@@ -25,6 +25,7 @@ function AdminUsersPage() {
   const [userRole, setUserRole] = useState('apprenant');
   const [userLevel, setUserLevel] = useState(1);
   const [userStatus, setUserStatus] = useState('active');
+  const [userDaysRemaining, setUserDaysRemaining] = useState(30);
   const [confirmUserName, setConfirmUserName] = useState(''); // Pour la confirmation de suppression
   const [availableProjects, setAvailableProjects] = useState([]); // Nouveau: liste des projets templates disponibles
   const [selectedProjectToAssignId, setSelectedProjectToAssignId] = useState(''); // Nouveau: projet sélectionné pour assignation
@@ -98,6 +99,7 @@ function AdminUsersPage() {
     setUserRole('apprenant');
     setUserLevel(1);
     setUserStatus('active');
+    setUserDaysRemaining(30); // Reset days remaining
     setCurrentUser(null);
     setError(null);
     setShowAddUserModal(true);
@@ -115,6 +117,7 @@ function AdminUsersPage() {
     setUserRole(user.role);
     setUserLevel(user.level || 1);
     setUserStatus(user.status || 'active');
+    setUserDaysRemaining(user.daysRemaining || 30); // Set days remaining
     setUserPassword(''); // Laisser vide pour ne pas modifier si non renseigné
     setError(null);
     setShowEditUserModal(true);
@@ -177,7 +180,7 @@ function AdminUsersPage() {
       const res = await fetch(`${API}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: userName, email: userEmail, password: userPassword, role: userRole, level: userLevel, status: userStatus }),
+        body: JSON.stringify({ name: userName, email: userEmail, password: userPassword, role: userRole, level: userLevel, status: userStatus, daysRemaining: userDaysRemaining }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -201,7 +204,7 @@ function AdminUsersPage() {
     setLoading(true);
     try {
       const token = getAuthToken();
-      const body = { name: userName, email: userEmail, role: userRole, level: userLevel, status: userStatus };
+      const body = { name: userName, email: userEmail, role: userRole, level: userLevel, status: userStatus, daysRemaining: userDaysRemaining };
       if (userPassword) { // N'envoyer le mot de passe que s'il est renseigné
         body.password = userPassword;
       }
@@ -378,13 +381,17 @@ function AdminUsersPage() {
                       <button className="btn btn-outline-info" onClick={() => handleShowEditUserModal(user)} title="Modifier Utilisateur">
                         <i className="bi bi-pencil-square"></i>
                       </button>
-                      <button className="btn btn-outline-warning text-dark" onClick={() => handleShowToggleStatusModal(user)} title="Changer Statut">
-                        <i className={`bi bi-${user.status === 'active' ? 'person-x' : 'person-check'}`}></i>
-                      </button>
-                      <button className="btn btn-outline-danger" onClick={() => handleShowDeleteUserModal(user)} title="Supprimer Utilisateur">
-                        <i className="bi bi-trash"></i>
-                      </button>
-                      {user.role === 'apprenant' && (
+                      {me && me.role === 'admin' && (
+                        <button className="btn btn-outline-warning text-dark" onClick={() => handleShowToggleStatusModal(user)} title="Changer Statut">
+                          <i className={`bi bi-${user.status === 'active' ? 'person-x' : 'person-check'}`}></i>
+                        </button>
+                      )}
+                      {me && me.role === 'admin' && (
+                        <button className="btn btn-outline-danger" onClick={() => handleShowDeleteUserModal(user)} title="Supprimer Utilisateur">
+                          <i className="bi bi-trash"></i>
+                        </button>
+                      )}
+                      {user.role === 'apprenant' && me && me.role === 'admin' && (
                         <button className="btn btn-outline-success" onClick={() => handleShowAssignProjectModal(user)} title="Assigner Projet">
                           <i className="bi bi-folder-plus"></i>
                         </button>
@@ -435,6 +442,12 @@ function AdminUsersPage() {
                     <label htmlFor="userLevel" className="form-label">Niveau</label>
                     <input type="number" className="form-control" id="userLevel" value={userLevel} onChange={(e) => setUserLevel(parseInt(e.target.value))} min="1" />
                   </div>
+                  {me && me.role === 'admin' && (
+                    <div className="mb-3">
+                      <label htmlFor="userDaysRemaining" className="form-label">Jours Restants</label>
+                      <input type="number" className="form-control" id="userDaysRemaining" value={userDaysRemaining} onChange={(e) => setUserDaysRemaining(parseInt(e.target.value))} min="0" />
+                    </div>
+                  )}
                   <div className="mb-3">
                     <label htmlFor="userStatus" className="form-label">Statut</label>
                     <select className="form-select" id="userStatus" value={userStatus} onChange={(e) => setUserStatus(e.target.value)}>
