@@ -11,9 +11,9 @@
 :root {
   --primary: hsl(28, 100%, 60%);
   /* bg-colors */
-  --bg-dark: hsl(120, 40%, 15%);
-  --bg: hsl(120, 40%, 20%);
-  --bg-light: hsl(120, 40%, 30%);
+  --bg-dark: hsl(0, 0%, 10%);
+  --bg: hsl(0, 0%, 15%);
+  --bg-light: hsl(0, 0%, 20%);
   /* text-colors */
   --text: hsl(0, 0%, 95%);
   --text-muted: hsl(0, 0%, 69%);
@@ -28,9 +28,9 @@
 .themed.light {
   --primary: hsl(120, 40%, 30%);
   /* bg-colors */
-  --bg-dark: hsl(28, 100%, 60%);
-  --bg: hsl(28, 100%, 65%);
-  --bg-light: hsl(28, 100%, 70%);
+  --bg-dark: hsl(0, 0%, 90%);
+  --bg: hsl(0, 0%, 95%);
+  --bg-light: hsl(0, 0%, 100%);
   /* text-colors */
   --text: hsl(0, 0%, 4%);
   --text-muted: hsl(0, 0%, 28%);
