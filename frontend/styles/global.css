@@ -41,6 +41,7 @@ h2,
 h3,
 h4,
 h5,
+h6,
 button {
   color: var(--text) !important;
 }
@@ -122,6 +123,7 @@ span {
 .transform-hover:hover {
   background-color: var(--bg) !important;
 }
+
 /*--------------------------------------Sidebar Stufff-------------------------------------*/
 
 /* Styles pour la sidebar mobile */
@@ -150,5 +152,74 @@ span {
   /* S'assurer que le bouton hamburger est caché sur desktop */
   .navbar .d-md-none {
     display: none !important;
+  }
+}
+
+/*------------------------Background Login and Landing pages stuff-------------*/
+.bg_img-zoom {
+  background-image: linear-gradient(rgba(51, 33, 4, 0.5), rgba(4, 68, 4, 0.5)),
+    url("../public/Login_background_stylized.jpg");
+  background-size: cover;
+  background-position: center;
+  color: white;
+  animation: zoomBackground 1s ease-in-out forwards;
+}
+
+.blur-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  animation: blurBackground 1s ease-in-out forwards;
+}
+
+.bg_img-deZoom {
+  background-image: linear-gradient(rgba(51, 33, 4, 0.5), rgba(4, 68, 4, 0.5)),
+    url("../public/Login_background_stylized.jpg");
+  background-size: cover;
+  background-position: center;
+  color: white;
+  animation: deZoomBackground 1s ease-in-out forwards;
+}
+
+.unblur-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  animation: unblurBackground 1s ease-in-out forwards;
+}
+
+@keyframes zoomBackground {
+  0% {
+    background-size: 100% auto; /* Start at original size */
+  }
+  100% {
+    background-size: 110% auto; /* Zoom in to 120% */
+  }
+}
+
+@keyframes deZoomBackground {
+  0% {
+    background-size: 110% auto; /* Start at original size */
+  }
+  100% {
+    background-size: 100% auto; /* Zoom in to 120% */
+  }
+}
+
+@keyframes unblurBackground {
+  0% {
+    backdrop-filter: blur(10px);
+  }
+  100% {
+    backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes blurBackground {
+  0% {
+    backdrop-filter: blur(px);
+  }
+  100% {
+    backdrop-filter: blur(10px);
   }
 }

@@ -465,10 +465,10 @@ const Layout = ({ children }) => {
               )}
               <li className="mt-5 mx-auto">
                 <button
-                  className="btn thm-shadow-s btn-primary"
+                  className="btn thm-shadow-s thm-bg-light"
                   onClick={toggleTheme}
                 >
-                  Toggle Theme
+                  Changer le Thème
                 </button>
               </li>
             </ul>

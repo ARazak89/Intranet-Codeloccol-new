@@ -28,14 +28,9 @@ export default function App({ Component, pageProps }) {
   if (publicPaths.includes(router.pathname)) {
     return (
       <>
-        <div className="container-fluid py-3">
+        <div>
           <Component {...pageProps} />
         </div>
-        <footer className="footer mt-auto py-3 bg-light text-center">
-          <div className="container">
-            <span className="text-muted">Copyright &copy; CodeLoccol 2025</span>
-          </div>
-        </footer>
       </>
     );
   }

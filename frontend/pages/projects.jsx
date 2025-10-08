@@ -907,7 +907,7 @@ function ProjectsPage() {
                             <tr key={assignedProject._id}>
                               <td></td> {/* Cellule vide pour l'alignement */}
                               <td>
-                                <i className="bi bi-arrow-return-right me-2 text-muted"></i>{" "}
+                                <i className="bi bi-arrow-return-right me-2"></i>{" "}
                                 {assignedProject.title}
                               </td>
                               <td>
@@ -1007,10 +1007,7 @@ function ProjectsPage() {
                         ) : (
                           <tr>
                             <td></td>
-                            <td
-                              colSpan="5"
-                              className="text-center text-muted py-2"
-                            >
+                            <td colSpan="5" className="text-center py-2">
                               Aucun projet assigné pour ce projet maître.
                             </td>
                             <td></td>
@@ -1033,31 +1030,31 @@ function ProjectsPage() {
               // Afficher les projets individuels pour le module sélectionné.
               <div className="mb-3">
                 <button
-                  className="btn btn-secondary mb-3"
+                  className="btn thm-bg thm-shadow-s mb-3"
                   onClick={() => setSelectedModule(null)}
                 >
                   <i className="bi bi-arrow-left me-2"></i> Retour aux Modules
                 </button>
                 <h4>Projets du module : {selectedModule}</h4>
-                <div className="row">
+                <div className="row mt-3">
                   {groupedProjectsByModule[selectedModule] &&
                   groupedProjectsByModule[selectedModule].length > 0 ? (
                     groupedProjectsByModule[selectedModule].map((project) => (
                       <div key={project._id} className="col-md-6 col-lg-4 mb-4">
                         <div
-                          className="card h-100 shadow-hover-3d border-0"
+                          className="thm-bg thm-shadow-s rounded-3 p-3 h-100 shadow-hover-3d border-0"
                           onClick={() => handleCardClick(project)}
                           style={{ cursor: "pointer" }}
                         >
-                          <div className="card-body d-flex flex-column">
-                            <div>
-                              <h5 className="card-title text-primary mb-2">
+                          <div className="d-flex flex-column">
+                            <div className="">
+                              <h5 className="card-title mb-2">
                                 <i className="bi bi-folder-check me-2"></i>{" "}
                                 {project.title}
                               </h5>
                               {project.templateProject &&
                                 project.templateProject.order && (
-                                  <p className="card-text text-muted">
+                                  <p className="card-text">
                                     <small>
                                       (Projet {project.templateProject.order})
                                     </small>
@@ -1151,16 +1148,16 @@ function ProjectsPage() {
                   ([moduleName, projectsInModule]) => (
                     <div key={moduleName} className="col-md-6 col-lg-4 mb-4">
                       <div
-                        className="card h-100 shadow-hover-3d border-0 module-card"
+                        className="thm-bg thm-shadow-s card h-100 shadow-hover-3d border-0 module-card"
                         onClick={() => setSelectedModule(moduleName)}
                         style={{ cursor: "pointer" }}
                       >
                         <div className="card-body d-flex flex-column justify-content-center align-items-center">
-                          <i className="bi bi-folder-fill fs-1 text-primary mb-3"></i>
-                          <h5 className="card-title text-center text-primary">
+                          <i className="bi bi-folder-fill fs-1 mb-3"></i>
+                          <h5 className="card-title text-center">
                             {moduleName}
                           </h5>
-                          <p className="card-text text-muted">
+                          <p className="card-text">
                             {projectsInModule.length} projet(s)
                           </p>
                         </div>
@@ -1186,7 +1183,7 @@ function ProjectsPage() {
         <div className="modal" tabIndex="-1" style={{ display: "block" }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
-              <div className="modal-header bg-gradient bg-primary text-white">
+              <div className="modal-header bg-gradient thm-bg text-white">
                 <h5 className="modal-title d-flex align-items-center">
                   <i className="bi bi-folder-check me-2"></i> Détails du Projet:{" "}
                   {selectedProject.title}
@@ -1197,7 +1194,7 @@ function ProjectsPage() {
                   onClick={handleCloseModal}
                 ></button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body thm-bg">
                 {/* Bannière de félicitations pour les projets approuvés */}
                 {selectedProject.status === "approved" &&
                   selectedProject.type === "my_project" && (
@@ -1234,16 +1231,14 @@ function ProjectsPage() {
 
                 <div className="row">
                   <div className="">
-                    <h6 className="text-primary mb-3">
-                      Informations du Projet
-                    </h6>
+                    <h6 className=" mb-3">Informations du Projet</h6>
 
                     {/* Lecteur Vidéo de Démonstration */}
                     {selectedProject.demoVideoUrl &&
                       getEmbedUrl(selectedProject.demoVideoUrl) && (
-                        <div className="card mb-3 shadow-sm">
+                        <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
                           <div className="card-body">
-                            <h6 className="card-title d-flex align-items-center text-primary">
+                            <h6 className="d-flex align-items-center">
                               <i className="bi bi-play-circle me-2"></i> Vidéo
                               de Démonstration
                             </h6>
@@ -1261,9 +1256,9 @@ function ProjectsPage() {
                       )}
 
                     {/* Section Description */}
-                    <div className="card mb-3 shadow-sm">
-                      <div className="card-body">
-                        <h6 className="card-title d-flex align-items-center text-primary">
+                    <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
+                      <div className="">
+                        <h6 className="d-flex align-items-center">
                           <i className="bi bi-journal-text me-2"></i>{" "}
                           Description
                         </h6>
@@ -1276,20 +1271,22 @@ function ProjectsPage() {
                     {/* Objectives */}
                     {selectedProject.objectives &&
                       (selectedProject.objectives || []).length > 0 && (
-                        <div className="card mb-3 shadow-sm">
-                          <div className="card-body">
-                            <h6 className="card-title d-flex align-items-center text-primary">
+                        <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
+                          <div className="">
+                            <h6 className="d-flex align-items-center ">
                               <i className="bi bi-bullseye me-2"></i> Objectifs
                             </h6>
-                            <ul className="list-group list-group-flush">
+                            <ul>
                               {(selectedProject.objectives || []).map(
                                 (objective, index) => (
                                   <li
                                     key={index}
-                                    className="list-group-item d-flex align-items-start border-0 py-1 px-0"
+                                    className="d-flex align-items-start border-0 py-1 px-0"
                                   >
-                                    <i className="bi bi-check-lg text-success me-2 mt-1"></i>{" "}
-                                    {objective}
+                                    <p>
+                                      <i className="bi bi-check-lg text-success me-2 mt-1"></i>{" "}
+                                      {objective}
+                                    </p>
                                   </li>
                                 )
                               )}
@@ -1301,21 +1298,23 @@ function ProjectsPage() {
                     {/* Spécifications */}
                     {selectedProject.specifications &&
                       (selectedProject.specifications || []).length > 0 && (
-                        <div className="card mb-3 shadow-sm">
-                          <div className="card-body">
-                            <h6 className="card-title d-flex align-items-center text-primary">
+                        <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
+                          <div className="">
+                            <h6 className=" d-flex align-items-center ">
                               <i className="bi bi-file-earmark-text me-2"></i>{" "}
                               Spécifications
                             </h6>
-                            <ul className="list-group list-group-flush">
+                            <ul className="">
                               {(selectedProject.specifications || []).map(
                                 (spec, index) => (
                                   <li
                                     key={index}
-                                    className="list-group-item d-flex align-items-start border-0 py-1 px-0"
+                                    className="d-flex align-items-start border-0 py-1 px-0"
                                   >
-                                    <i className="bi bi-check-lg text-success me-2 mt-1"></i>{" "}
-                                    {spec}
+                                    <p>
+                                      <i className="bi bi-check-lg text-success me-2 mt-1"></i>{" "}
+                                      {spec}
+                                    </p>
                                   </li>
                                 )
                               )}
@@ -1326,9 +1325,9 @@ function ProjectsPage() {
 
                     {/* Section Style-Guide (Markdown) */}
                     {projectMarkdownContent && (
-                      <div className="card mb-3 shadow-sm">
-                        <div className="card-body">
-                          <h6 className="card-title d-flex align-items-center text-primary">
+                      <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
+                        <div className="">
+                          <h6 className="d-flex align-items-center">
                             <i className="bi bi-book me-2"></i> Style-Guide
                           </h6>
                           <div
@@ -1343,9 +1342,9 @@ function ProjectsPage() {
 
                     {/* Statut avec icône */}
                     {selectedProject.assignmentStatus && (
-                      <div className="card mb-3 shadow-sm">
-                        <div className="card-body d-flex align-items-center">
-                          <h6 className="mb-0 me-2 text-primary">
+                      <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
+                        <div className="d-flex align-items-center">
+                          <h6 className="mb-0 me-2">
                             <i className="bi bi-info-circle me-2"></i> Statut:
                           </h6>
                           <span
@@ -1441,7 +1440,7 @@ function ProjectsPage() {
                             <i className="bi bi-calendar-event me-2"></i> Date
                             de Soumission:
                           </h6>
-                          <span className="text-muted">
+                          <span>
                             {new Date(
                               selectedProject.submissionDate
                             ).toLocaleDateString("fr-FR", {
@@ -1478,18 +1477,18 @@ function ProjectsPage() {
                     {/* Resource Links */}
                     {selectedProject.resourceLinks &&
                       (selectedProject.resourceLinks || []).length > 0 && (
-                        <div className="card mb-3 shadow-sm">
-                          <div className="card-body">
-                            <h6 className="card-title d-flex align-items-center text-primary">
+                        <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
+                          <div className="">
+                            <h6 className="d-flex align-items-center">
                               <i className="bi bi-link-45deg me-2"></i>{" "}
                               Ressources Supplémentaires
                             </h6>
-                            <ul className="list-group list-group-flush">
+                            <ul className="">
                               {(selectedProject.resourceLinks || []).map(
                                 (link, index) => (
                                   <li
                                     key={index}
-                                    className="list-group-item d-flex align-items-start border-0 py-1 px-0"
+                                    className="d-flex align-items-start border-0 py-1 px-0"
                                   >
                                     <i className="bi bi-box-arrow-up-right text-info me-2 mt-1"></i>
                                     <a
@@ -1510,18 +1509,18 @@ function ProjectsPage() {
 
                     {selectedProject.exerciseStatements &&
                       (selectedProject.exerciseStatements || []).length > 0 && (
-                        <div className="mb-3 shadow-sm">
+                        <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
                           <div className="container pt-3">
-                            <h6 className="card-title d-flex align-items-center text-primary mb-4 mt-3">
+                            <h6 className="card-title d-flex align-items-center mb-4 mt-3">
                               <i className="bi bi-list-task me-2"></i> Énoncés
                               d'Exercice
                             </h6>
-                            <ul className="list-group list-group-flush">
+                            <ul className="">
                               {(selectedProject.exerciseStatements || []).map(
                                 (statement, index) => (
                                   <li
                                     key={index}
-                                    className="list-group-item align-items-start border-0 py-1 px-0"
+                                    className="align-items-start border-0 py-1 px-0"
                                   >
                                     <h5>Exercice N°{index + 1}</h5>
                                     <div>
@@ -1537,9 +1536,9 @@ function ProjectsPage() {
 
                     {/* URL GitHub Pages */}
                     {selectedProject.githubPagesUrl && (
-                      <div className="card mb-3 shadow-sm">
-                        <div className="card-body d-flex align-items-center">
-                          <h6 className="mb-0 me-2 text-primary">
+                      <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
+                        <div className=" d-flex align-items-center">
+                          <h6 className="mb-0 me-2">
                             <i className="bi bi-globe me-2"></i> GitHub Pages:
                           </h6>
                           <a
@@ -1556,7 +1555,7 @@ function ProjectsPage() {
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="modal-footer thm-bg">
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -1669,9 +1668,11 @@ function ProjectsPage() {
                         <i className="bi bi-plus-circle me-2"></i> Ajouter un
                         objectif
                       </button>
-                      <div className="form-text text-muted">
-                        Décrivez les principaux objectifs que l'apprenant doit
-                        atteindre.
+                      <div className="form-text ">
+                        <p>
+                          Décrivez les principaux objectifs que l'apprenant doit
+                          atteindre.
+                        </p>
                       </div>
                     </div>
 
@@ -1731,9 +1732,11 @@ function ProjectsPage() {
                           </button>
                         </div>
                       )}
-                      <div className="form-text text-muted">
-                        Téléchargez un fichier Markdown pour la description
-                        détaillée du projet.
+                      <div className="form-text">
+                        <p>
+                          Téléchargez un fichier Markdown pour la description
+                          détaillée du projet.
+                        </p>
                       </div>
                     </div>
 
@@ -1832,9 +1835,11 @@ function ProjectsPage() {
                         <i className="bi bi-plus-circle me-2"></i> Ajouter un
                         lien
                       </button>
-                      <div className="form-text text-muted">
-                        Fournissez des liens vers des documentations, tutoriels,
-                        ou autres ressources utiles.
+                      <div className="form-text">
+                        <p>
+                          Fournissez des liens vers des documentations,
+                          tutoriels, ou autres ressources utiles.
+                        </p>
                       </div>
                     </div>
 
@@ -1907,9 +1912,11 @@ function ProjectsPage() {
                         <i className="bi bi-plus-circle me-2"></i> Ajouter un
                         énoncé d'exercice
                       </button>
-                      <div className="form-text text-muted">
-                        Ajoutez les étapes ou les consignes de l'exercice, une
-                        par ligne.
+                      <div className="form-text">
+                        <p>
+                          Ajoutez les étapes ou les consignes de l'exercice, une
+                          par ligne.
+                        </p>
                       </div>
                     </div>
 
@@ -1928,9 +1935,11 @@ function ProjectsPage() {
                         }
                         required
                       />
-                      <div className="form-text text-muted">
-                        Définissez un numéro d'ordre pour ce projet (ex: 1, 2,
-                        3...).
+                      <div className="form-text">
+                        <p>
+                          Définissez un numéro d'ordre pour ce projet (ex: 1, 2,
+                          3...).
+                        </p>
                       </div>
                     </div>
 
@@ -1979,8 +1988,10 @@ function ProjectsPage() {
                         <option value="Full Stack">Full Stack</option>
                         <option value="Soft Skills">Soft Skills</option>
                       </select>
-                      <div className="form-text text-muted">
-                        Sélectionnez le module auquel appartient le projet.
+                      <div className="form-text">
+                        <p>
+                          Sélectionnez le module auquel appartient le projet.
+                        </p>
                       </div>
                     </div>
 
@@ -2126,9 +2137,11 @@ function ProjectsPage() {
                         placeholder="https://github.com/votre-username/votre-projet"
                         required={!isRepoUrlOptional}
                       />
-                      <div className="form-text text-muted">
-                        Assurez-vous que votre dépôt est public et contient le
-                        code source du projet.
+                      <div className="form-text">
+                        <p>
+                          Assurez-vous que votre dépôt est public et contient le
+                          code source du projet.
+                        </p>
                       </div>
                     </div>
 
@@ -2151,16 +2164,18 @@ function ProjectsPage() {
                           placeholder="https://username.github.io/repo-name/"
                           required
                         />
-                        <div className="form-text text-muted">
-                          L'URL de la page GitHub Pages de votre projet (pour
-                          les modules HTML/CSS et Framework).
+                        <div className="form-text">
+                          <p>
+                            L'URL de la page GitHub Pages de votre projet (pour
+                            les modules HTML/CSS et Framework).
+                          </p>
                         </div>
                       </div>
                     )}
 
                     {/* Message informant l'utilisateur que les créneaux seront choisis automatiquement */}
                     <div className="mb-4 p-3 bg-light border rounded">
-                      <p className="mb-0 text-muted">
+                      <p className="mb-0 ">
                         <i className="bi bi-info-circle me-2"></i>
                         Les deux créneaux d'évaluation seront automatiquement et
                         aléatoirement sélectionnés pour vous après la
