@@ -1990,8 +1990,8 @@ export default function Dashboard() {
                 </div>
 
                 <div className="table-responsive">
-                  <table className="table table-hover table-dark table-striped  table-sm caption-top align-middle">
-                    <thead className="table-dark">
+                  <table className="table">
+                    <thead>
                       <tr>
                         <th>Nom</th>
                         <th>Email</th>
@@ -2154,8 +2154,8 @@ export default function Dashboard() {
                                   className="collapse show"
                                   id={`learner-details-${learner._id}`}
                                 >
-                                  <div className="bg-light p-3 border-start border-primary border-3 ms-3 mb-2 me-3 shadow-sm rounded">
-                                    <h6 className="text-primary mb-2">
+                                  <div className="thm-bg-light p-3 border-start border-primary border-3 ms-3 mb-2 me-3 shadow-sm rounded">
+                                    <h6 className="mb-2">
                                       Détails du Projet Assigné:
                                     </h6>
                                     {learner.assignedProject ? (
@@ -2258,7 +2258,7 @@ export default function Dashboard() {
                                         )}
                                       </>
                                     ) : (
-                                      <p className="text-muted d-flex align-items-center">
+                                      <p className="d-flex align-items-center">
                                         <i className="bi bi-x-circle me-2"></i>{" "}
                                         Aucun projet actuellement assigné.
                                       </p>

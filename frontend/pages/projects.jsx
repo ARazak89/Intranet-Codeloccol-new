@@ -747,6 +747,7 @@ function ProjectsPage() {
         }
       );
       const data = await res.json();
+
       if (res.ok) {
         setSuccess("Projet soumis avec succès ! Il sera évalué par vos pairs.");
         setShowSubmitProjectModal(false);
@@ -2094,7 +2095,7 @@ function ProjectsPage() {
           <div className="modal" tabIndex="-1" style={{ display: "block" }}>
             <div className="modal-dialog modal-lg">
               <div className="modal-content">
-                <div className="modal-header bg-gradient bg-primary text-white">
+                <div className="modal-header bg-gradient thm-bg">
                   <h5 className="modal-title">
                     <i className="bi bi-upload me-2"></i>
                     Soumettre le Projet: {currentProjectToSubmit.title}
@@ -2105,7 +2106,7 @@ function ProjectsPage() {
                     onClick={handleCloseSubmitProjectModal}
                   ></button>
                 </div>
-                <div className="modal-body">
+                <div className="modal-body thm-bg-light">
                   {error && (
                     <div className="alert alert-danger mb-3" role="alert">
                       {error}
@@ -2184,7 +2185,7 @@ function ProjectsPage() {
                     </div>
                   </form>
                 </div>
-                <div className="modal-footer">
+                <div className="modal-footer thm-bg">
                   <button
                     type="button"
                     className="btn btn-secondary"

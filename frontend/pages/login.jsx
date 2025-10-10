@@ -37,12 +37,13 @@ export default function Login() {
   };
 
   return (
-    <div className="row justify-content-center mt-5">
-      <div className="col-md-6 col-lg-4">
-        <h1 className="text-center text-muted mb-4">Connexion</h1>
+    <div className="row justify-content-center pt-5 ">
+      <div className="col-md-6 col-lg-4 ">
+        <h1 className="text-center mb-4">Connexion</h1>
+
         <form
           onSubmit={submit}
-          className="p-4 border rounded shadow-sm bg-light"
+          className="p-4 thm-shadow-m thm-bg-light rounded"
         >
           <div className="mb-3">
             <label htmlFor="emailInput" className="form-label">

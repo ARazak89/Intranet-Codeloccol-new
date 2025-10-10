@@ -1,11 +1,11 @@
-import Project from '../models/Project.js';
-import AvailabilitySlot from '../models/AvailabilitySlot.js';
-import User from '../models/User.js';
-import Evaluation from '../models/Evaluation.js';
-import ActivityLogger from '../utils/activityLogger.js';
-import uploadMarkdown from '../middlewares/markdownUploadMiddleware.js'; // Import du nouveau middleware
-import fs from 'fs'; // Nécessaire pour lire les fichiers Markdown
-import path from 'path'; // Nécessaire pour gérer les chemins de fichiers
+import Project from "../models/Project.js";
+import AvailabilitySlot from "../models/AvailabilitySlot.js";
+import User from "../models/User.js";
+import Evaluation from "../models/Evaluation.js";
+import ActivityLogger from "../utils/activityLogger.js";
+import uploadMarkdown from "../middlewares/markdownUploadMiddleware.js"; // Import du nouveau middleware
+import fs from "fs"; // Nécessaire pour lire les fichiers Markdown
+import path from "path"; // Nécessaire pour gérer les chemins de fichiers
 import { fileURLToPath } from "url";
 // import Assignment from '../models/Assignment.js'; // Supprimer cette ligne car Assignment.js n'existe pas
 
@@ -14,17 +14,17 @@ const __dirname = path.dirname(__filename);
 
 // Mappage des niveaux aux modules correspondants. Utilisé pour l'assignation automatique de projets.
 const levelToModuleMap = {
-  1: 'CLI/Git & GIt Hub',
-  2: 'HTML / CSS',
-  3: 'Framework',
-  4: 'WordPress',
-  5: 'JavaScript',
-  6: 'Node Js (API)',
-  7: 'React JS',
-  8: 'Electron JS',
-  9: 'Mobile',
-  10: 'Full Stack',
-  11: 'Soft Skills',
+  1: "CLI/Git & GIt Hub",
+  2: "HTML / CSS",
+  3: "Framework",
+  4: "WordPress",
+  5: "JavaScript",
+  6: "Node Js (API)",
+  7: "React JS",
+  8: "Electron JS",
+  9: "Mobile",
+  10: "Full Stack",
+  11: "Soft Skills",
 };
 
 /**
@@ -43,7 +43,9 @@ function validateGithubUrl(url) {
  */
 function validateGithubPagesUrl(url) {
   // Regex pour les URLs GitHub Pages (username.github.io/repo/ ou docs/index.html)
-  return /^(https?:\/\/)?([a-zA-Z0-9-]+(?=\.github\.io)|[a-zA-Z0-9-]+(?:-[a-zA-Z0-9-]+)*)\.github\.io(\/[^\s\\]*)?$/i.test(url);
+  return /^(https?:\/\/)?([a-zA-Z0-9-]+(?=\.github\.io)|[a-zA-Z0-9-]+(?:-[a-zA-Z0-9-]+)*)\.github\.io(\/[^\s\\]*)?$/i.test(
+    url
+  );
 }
 
 /**
@@ -58,12 +60,12 @@ async function _assignProjectByLevel(studentId, level) {
     const student = await User.findById(studentId);
     if (!student) {
       console.error(`Apprenant non trouvé pour l'ID: ${studentId}`);
-      return { error: 'Apprenant non trouvé.' };
+      return { error: "Apprenant non trouvé." };
     }
 
     // 1) Essayer correspondance stricte: order + module
     let projectTemplate = await Project.findOne({
-      status: 'template',
+      status: "template",
       order: level,
       module: levelToModuleMap[level],
     });
@@ -71,7 +73,7 @@ async function _assignProjectByLevel(studentId, level) {
     // 2) Fallback: essayer par order seulement (ne pas bloquer si module ne matche pas)
     if (!projectTemplate) {
       projectTemplate = await Project.findOne({
-        status: 'template',
+        status: "template",
         order: level,
       });
     }
@@ -79,28 +81,38 @@ async function _assignProjectByLevel(studentId, level) {
     // 3) Fallback: prendre le plus petit order supérieur disponible
     if (!projectTemplate) {
       projectTemplate = await Project.findOne({
-        status: 'template',
+        status: "template",
         order: { $gt: level },
       }).sort({ order: 1 });
     }
 
     if (!projectTemplate) {
-      console.warn(`Aucun projet template disponible pour le niveau ${level} ni pour un ordre supérieur.`);
-      return { error: `Aucun projet suivant disponible après le niveau ${level}.` };
+      console.warn(
+        `Aucun projet template disponible pour le niveau ${level} ni pour un ordre supérieur.`
+      );
+      return {
+        error: `Aucun projet suivant disponible après le niveau ${level}.`,
+      };
     }
 
     // Vérifier si l'apprenant est déjà assigné à ce projet template.
-    const existingAssignment = projectTemplate.assignments.some(assign => assign.student.equals(studentId));
+    const existingAssignment = projectTemplate.assignments.some((assign) =>
+      assign.student.equals(studentId)
+    );
     if (existingAssignment) {
-      console.log(`L'apprenant ${studentId} est déjà assigné au projet ${projectTemplate.title}.`);
-      return { message: `L'apprenant est déjà assigné au projet ${projectTemplate.title}.` };
+      console.log(
+        `L'apprenant ${studentId} est déjà assigné au projet ${projectTemplate.title}.`
+      );
+      return {
+        message: `L'apprenant est déjà assigné au projet ${projectTemplate.title}.`,
+      };
     }
 
     // Ajouter une nouvelle assignation au projet template.
     projectTemplate.assignments.push({
       student: studentId,
-      status: 'assigned',
-      repoUrl: '',
+      status: "assigned",
+      repoUrl: "",
       evaluations: [],
       peerEvaluators: [],
       staffValidator: null,
@@ -113,11 +125,18 @@ async function _assignProjectByLevel(studentId, level) {
       await student.save();
     }
 
-    console.log(`Projet '${projectTemplate.title}' (ordre ${level}) assigné avec succès à l'apprenant ${student.name}.`);
-    return { message: 'Projet assigné avec succès.', project: projectTemplate };
+    console.log(
+      `Projet '${projectTemplate.title}' (ordre ${level}) assigné avec succès à l'apprenant ${student.name}.`
+    );
+    return { message: "Projet assigné avec succès.", project: projectTemplate };
   } catch (e) {
-    console.error(`Error assigning project by level to student ${studentId} for level ${level}:`, e);
-    return { error: 'Erreur interne du serveur lors de l\'assignation du projet.' };
+    console.error(
+      `Error assigning project by level to student ${studentId} for level ${level}:`,
+      e
+    );
+    return {
+      error: "Erreur interne du serveur lors de l'assignation du projet.",
+    };
   }
 }
 
@@ -131,10 +150,22 @@ async function _assignProjectByLevel(studentId, level) {
 export async function createProject(req, res) {
   try {
     const markdownFile = req.file; // Fichier Markdown uploadé par Multer (si présent).
-    const { title, description, specifications, objectives, exerciseStatements, resourceLinks, demoVideoUrl, size, module } = req.body;
+    const {
+      title,
+      description,
+      specifications,
+      objectives,
+      exerciseStatements,
+      resourceLinks,
+      demoVideoUrl,
+      size,
+      module,
+    } = req.body;
 
     // Calculer le prochain numéro d'ordre disponible pour le nouveau projet template.
-    const latestProject = await Project.findOne({ status: 'template' }).sort({ order: -1 });
+    const latestProject = await Project.findOne({ status: "template" }).sort({
+      order: -1,
+    });
     const newOrder = latestProject ? latestProject.order + 1 : 1;
     console.log(`Calculated new project order: ${newOrder}`);
 
@@ -147,16 +178,21 @@ export async function createProject(req, res) {
       resourceLinks,
       demoVideoUrl,
       size,
-      status: 'template',
+      status: "template",
       order: newOrder, // Assigner l'ordre calculé.
       module, // Assigner le module.
-      markdownFilePath: markdownFile ? `/uploads/project_markdowns/${markdownFile.filename}` : undefined, // Sauvegarder le chemin du fichier Markdown.
+      markdownFilePath: markdownFile
+        ? `/uploads/project_markdowns/${markdownFile.filename}`
+        : undefined, // Sauvegarder le chemin du fichier Markdown.
     });
     console.log("New project created:", newProject);
 
-    res.status(201).json({ message: 'Projet template créé avec succès.', project: newProject });
+    res.status(201).json({
+      message: "Projet template créé avec succès.",
+      project: newProject,
+    });
   } catch (e) {
-    console.error('Error creating project template:', e);
+    console.error("Error creating project template:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -171,7 +207,22 @@ export async function updateProject(req, res) {
   try {
     const { id: projectId } = req.params; // ID du projet à modifier.
     const markdownFile = req.file; // Fichier Markdown uploadé par Multer (si présent).
-    const { assignmentId, projectTitle, projectDescription, projectDemoVideoUrl, projectSpecifications, projectSize, projectOrder, projectObjectives, projectExerciseStatements, projectResourceLinks, repoUrl, status, projectModule, clearMarkdown } = req.body; // Ajouter clearMarkdown ici
+    const {
+      assignmentId,
+      projectTitle,
+      projectDescription,
+      projectDemoVideoUrl,
+      projectSpecifications,
+      projectSize,
+      projectOrder,
+      projectObjectives,
+      projectExerciseStatements,
+      projectResourceLinks,
+      repoUrl,
+      status,
+      projectModule,
+      clearMarkdown,
+    } = req.body; // Ajouter clearMarkdown ici
 
     if (assignmentId) {
       // Logique pour la mise à jour d'une assignation spécifique.
@@ -181,31 +232,43 @@ export async function updateProject(req, res) {
           $set: {
             "assignments.$.repoUrl": repoUrl,
             "assignments.$.status": status,
-          }
+          },
         },
         { new: true, runValidators: true }
       );
 
       if (!project) {
-        return res.status(404).json({ error: 'Projet maître ou assignation non trouvée.' });
+        return res
+          .status(404)
+          .json({ error: "Projet maître ou assignation non trouvée." });
       }
-      return res.status(200).json({ message: 'Assignation de projet mise à jour avec succès.', project });
-
+      return res.status(200).json({
+        message: "Assignation de projet mise à jour avec succès.",
+        project,
+      });
     } else {
       // Logique pour la mise à jour du projet maître.
       const existingProject = await Project.findById(projectId); // Récupère le projet existant une seule fois.
       if (!existingProject) {
-        return res.status(404).json({ error: 'Projet maître non trouvé.' });
+        return res.status(404).json({ error: "Projet maître non trouvé." });
       }
 
       // Utilitaire local: rendre le parsing tolérant aux formats (Array direct, JSON string, CSV, simple string)
       const safelyParseArrayField = (raw) => {
         if (raw === undefined || raw === null) return [];
-        if (Array.isArray(raw)) return raw.filter(v => v !== undefined && v !== null && String(v).trim() !== '').map(v => String(v).trim());
+        if (Array.isArray(raw))
+          return raw
+            .filter(
+              (v) => v !== undefined && v !== null && String(v).trim() !== ""
+            )
+            .map((v) => String(v).trim());
         const text = String(raw).trim();
-        if (text === '') return [];
+        if (text === "") return [];
         // Si la chaîne ressemble à du JSON, tenter de parser
-        if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+        if (
+          (text.startsWith("[") && text.endsWith("]")) ||
+          (text.startsWith("{") && text.endsWith("}"))
+        ) {
           try {
             const parsed = JSON.parse(text);
             if (Array.isArray(parsed)) return parsed;
@@ -216,15 +279,18 @@ export async function updateProject(req, res) {
           }
         }
         // Support CSV
-        if (text.includes(',')) {
-          return text.split(',').map(s => s.trim()).filter(s => s !== '');
+        if (text.includes(",")) {
+          return text
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s !== "");
         }
         // Sinon, considérer comme un seul élément
         return [text];
       };
 
       const coerceNumber = (val) => {
-        if (val === undefined || val === null || val === '') return undefined;
+        if (val === undefined || val === null || val === "") return undefined;
         const n = Number(val);
         return Number.isNaN(n) ? undefined : n;
       };
@@ -237,7 +303,9 @@ export async function updateProject(req, res) {
         size: coerceNumber(projectSize) ?? projectSize, // garder la valeur brute si non numérique
         order: coerceNumber(projectOrder) ?? projectOrder,
         objectives: safelyParseArrayField(req.body.projectObjectives),
-        exerciseStatements: safelyParseArrayField(req.body.projectExerciseStatements),
+        exerciseStatements: safelyParseArrayField(
+          req.body.projectExerciseStatements
+        ),
         resourceLinks: safelyParseArrayField(req.body.projectResourceLinks),
         module: projectModule, // Met à jour le module.
       };
@@ -245,21 +313,34 @@ export async function updateProject(req, res) {
       // Logique pour la suppression de l'ancien fichier Markdown si un nouveau est téléchargé.
       if (markdownFile) {
         if (existingProject.markdownFilePath) {
-          const oldMarkdownPath = path.join(__dirname, "../public", existingProject.markdownFilePath);
+          const oldMarkdownPath = path.join(
+            __dirname,
+            "../public",
+            existingProject.markdownFilePath
+          );
           if (fs.existsSync(oldMarkdownPath)) {
             fs.unlinkSync(oldMarkdownPath);
-            console.log(`Ancien fichier Markdown supprimé : ${oldMarkdownPath}`);
+            console.log(
+              `Ancien fichier Markdown supprimé : ${oldMarkdownPath}`
+            );
           }
         }
         updateFields.markdownFilePath = `/uploads/project_markdowns/${markdownFile.filename}`;
       }
       // Logique pour la suppression du fichier Markdown si `clearMarkdown` est vrai et qu'aucun nouveau fichier n'est uploadé.
-      else if (clearMarkdown === 'true') { // `clearMarkdown` est une chaîne 'true' si envoyé par FormData.
+      else if (clearMarkdown === "true") {
+        // `clearMarkdown` est une chaîne 'true' si envoyé par FormData.
         if (existingProject.markdownFilePath) {
-          const oldMarkdownPath = path.join(__dirname, "../public", existingProject.markdownFilePath);
+          const oldMarkdownPath = path.join(
+            __dirname,
+            "../public",
+            existingProject.markdownFilePath
+          );
           if (fs.existsSync(oldMarkdownPath)) {
             fs.unlinkSync(oldMarkdownPath);
-            console.log(`Fichier Markdown existant supprimé suite à clearMarkdown : ${oldMarkdownPath}`);
+            console.log(
+              `Fichier Markdown existant supprimé suite à clearMarkdown : ${oldMarkdownPath}`
+            );
           }
         }
         updateFields.markdownFilePath = undefined; // Efface le chemin du fichier dans la base de données.
@@ -268,18 +349,20 @@ export async function updateProject(req, res) {
       const project = await Project.findByIdAndUpdate(
         projectId,
         {
-          $set: updateFields // Utilise $set pour remplacer les tableaux correctement.
+          $set: updateFields, // Utilise $set pour remplacer les tableaux correctement.
         },
         { new: true, runValidators: true }
       );
 
       if (!project) {
-        return res.status(404).json({ error: 'Projet maître non trouvé.' });
+        return res.status(404).json({ error: "Projet maître non trouvé." });
       }
-      return res.status(200).json({ message: 'Projet maître mis à jour avec succès.', project });
+      return res
+        .status(200)
+        .json({ message: "Projet maître mis à jour avec succès.", project });
     }
   } catch (e) {
-    console.error('Error updating project:', e);
+    console.error("Error updating project:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -291,10 +374,10 @@ export async function updateProject(req, res) {
  */
 export async function getProjects(req, res) {
   try {
-    const projects = await Project.find({ status: 'template' });
+    const projects = await Project.find({ status: "template" });
     res.status(200).json(projects);
   } catch (e) {
-    console.error('Error fetching projects:', e);
+    console.error("Error fetching projects:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -307,54 +390,63 @@ export async function getProjects(req, res) {
  */
 export async function getStudentProjects(req, res) {
   try {
-  const studentId = req.user._id;
+    const studentId = req.user._id;
 
     const query = {
       "assignments.student": studentId,
     };
 
     const projects = await Project.find(query).populate({
-      path: 'assignments.student',
-      select: 'name'
+      path: "assignments.student",
+      select: "name",
     });
-  console.log(`Found ${projects.length} projects for student ${studentId}.`);
+    console.log(`Found ${projects.length} projects for student ${studentId}.`);
 
-    const studentProjects = projects.map(project => {
-      if (!project) {
-        console.warn("Encountered null or undefined project in map. Skipping.");
+    const studentProjects = projects
+      .map((project) => {
+        if (!project) {
+          console.warn(
+            "Encountered null or undefined project in map. Skipping."
+          );
+          return null;
+        }
+        const studentAssignment = project.assignments.find(
+          (assignment) =>
+            assignment.student && assignment.student._id.equals(studentId)
+        );
+        if (studentAssignment) {
+          console.log(
+            `Found assignment for project ${project.title}: ${studentAssignment._id}`
+          );
+          return {
+            _id: studentAssignment._id, // L'ID de l'assignation devient l'ID principal pour le frontend.
+            projectId: project._id, // Ajout de l'ID du projet maître.
+            title: project.title,
+            description: project.description,
+            objectives: project.objectives,
+            specifications: project.specifications,
+            exerciseStatements: project.exerciseStatements,
+            resourceLinks: project.resourceLinks,
+            demoVideoUrl: project.demoVideoUrl,
+            status: project.status, // Statut du projet maître.
+            module: project.module, // Inclure le module du projet maître.
+            assignmentId: studentAssignment._id,
+            assignmentStatus: studentAssignment.status,
+            repoUrl: studentAssignment.repoUrl,
+            submissionDate: studentAssignment.submissionDate,
+            evaluations: studentAssignment.evaluations,
+            peerEvaluators: studentAssignment.peerEvaluators,
+            staffValidator: studentAssignment.staffValidator,
+            markdownFilePath: project.markdownFilePath, // Chemin du fichier Markdown.
+          };
+        }
         return null;
-      }
-      const studentAssignment = project.assignments.find(assignment => assignment.student && assignment.student._id.equals(studentId));
-      if (studentAssignment) {
-        console.log(`Found assignment for project ${project.title}: ${studentAssignment._id}`);
-        return {
-          _id: studentAssignment._id, // L'ID de l'assignation devient l'ID principal pour le frontend.
-          projectId: project._id, // Ajout de l'ID du projet maître.
-          title: project.title,
-          description: project.description,
-          objectives: project.objectives,
-          specifications: project.specifications,
-          exerciseStatements: project.exerciseStatements,
-          resourceLinks: project.resourceLinks,
-          demoVideoUrl: project.demoVideoUrl,
-          status: project.status, // Statut du projet maître.
-          module: project.module, // Inclure le module du projet maître.
-          assignmentId: studentAssignment._id,
-          assignmentStatus: studentAssignment.status,
-          repoUrl: studentAssignment.repoUrl,
-          submissionDate: studentAssignment.submissionDate,
-          evaluations: studentAssignment.evaluations,
-          peerEvaluators: studentAssignment.peerEvaluators,
-          staffValidator: studentAssignment.staffValidator,
-          markdownFilePath: project.markdownFilePath, // Chemin du fichier Markdown.
-        };
-      }
-      return null;
-    }).filter(p => p !== null);
+      })
+      .filter((p) => p !== null);
 
     res.status(200).json(studentProjects);
   } catch (e) {
-    console.error('Error fetching student projects:', e.message, e.stack);
+    console.error("Error fetching student projects:", e.message, e.stack);
     res.status(500).json({ error: e.message });
   }
 }
@@ -367,33 +459,43 @@ export async function getStudentProjects(req, res) {
 export async function assignProjectToStudent(req, res) {
   try {
     // Seuls les administrateurs peuvent assigner manuellement un projet.
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Non autorisé à assigner manuellement un projet.' });
+    if (req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ error: "Non autorisé à assigner manuellement un projet." });
     }
 
     const { studentId, projectId } = req.body; // Récupère l'ID de l'étudiant et du projet.
 
     const student = await User.findById(studentId);
-    if (!student || student.role !== 'apprenant') {
-      return res.status(404).json({ error: 'Apprenant non trouvé ou n\'est pas un apprenant.' });
+    if (!student || student.role !== "apprenant") {
+      return res
+        .status(404)
+        .json({ error: "Apprenant non trouvé ou n'est pas un apprenant." });
     }
 
     const project = await Project.findById(projectId); // Trouve le projet template par son ID.
-    if (!project || project.status !== 'template') {
-      return res.status(404).json({ error: 'Projet non trouvé ou non un template.' });
+    if (!project || project.status !== "template") {
+      return res
+        .status(404)
+        .json({ error: "Projet non trouvé ou non un template." });
     }
 
     // Vérifie si l'étudiant est déjà assigné à ce projet.
-    const existingAssignment = project.assignments.some(assign => assign.student.equals(studentId));
+    const existingAssignment = project.assignments.some((assign) =>
+      assign.student.equals(studentId)
+    );
     if (existingAssignment) {
-      return res.status(400).json({ error: `L'apprenant est déjà assigné au projet ${project.title}.` });
+      return res.status(400).json({
+        error: `L'apprenant est déjà assigné au projet ${project.title}.`,
+      });
     }
 
     // Ajoute une nouvelle assignation au projet.
     project.assignments.push({
       student: studentId,
-      status: 'assigned',
-      repoUrl: '',
+      status: "assigned",
+      repoUrl: "",
       evaluations: [],
       peerEvaluators: [],
       staffValidator: null,
@@ -406,9 +508,12 @@ export async function assignProjectToStudent(req, res) {
       await student.save(); // Sauvegarde l'étudiant avec la nouvelle référence de projet.
     }
 
-    res.status(201).json({ message: `Projet '${project.title}' assigné avec succès à ${student.name}.`, project });
+    res.status(201).json({
+      message: `Projet '${project.title}' assigné avec succès à ${student.name}.`,
+      project,
+    });
   } catch (e) {
-    console.error('Error assigning project:', e);
+    console.error("Error assigning project:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -426,13 +531,18 @@ export async function submitProjectSolution(req, res) {
     const studentId = req.user._id; // ID de l'apprenant connecté.
 
     // Vérifier que l'apprenant a au moins 2 points d'évaluation avant de soumettre.
-    const student = await User.findById(studentId).select('evaluationPoints role');
+    const student = await User.findById(studentId).select(
+      "evaluationPoints role"
+    );
     if (!student) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+      return res.status(404).json({ error: "Utilisateur non trouvé." });
     }
     // Les membres du staff/admin/évaluateurs peuvent soumettre sans points
-    if (student.role === 'apprenant' && (student.evaluationPoints || 0) < 2) {
-      return res.status(400).json({ error: "Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet." });
+    if (student.role === "apprenant" && (student.evaluationPoints || 0) < 2) {
+      return res.status(400).json({
+        error:
+          "Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet.",
+      });
     }
 
     if (!assignmentId) {
@@ -446,14 +556,14 @@ export async function submitProjectSolution(req, res) {
     });
 
     if (!project) {
-      return res
-        .status(404)
-        .json({ error: 'Projet ou assignation non trouvé(e) pour cet étudiant.' });
+      return res.status(404).json({
+        error: "Projet ou assignation non trouvé(e) pour cet étudiant.",
+      });
     }
 
     const assignment = project.assignments.id(assignmentId);
 
-    if (assignment.status !== 'assigned') {
+    if (assignment.status !== "assigned") {
       return res.status(400).json({
         error:
           "Cette assignation n'est pas en statut 'assigned' et ne peut être soumise.",
@@ -461,13 +571,20 @@ export async function submitProjectSolution(req, res) {
     }
 
     if (!repoUrl || !validateGithubUrl(repoUrl)) {
-      return res.status(400).json({ error: 'URL GitHub invalide.' });
+      return res.status(400).json({ error: "URL GitHub invalide." });
     }
 
     // Nouvelle validation conditionnelle pour GitHub Pages URL
-    const requiresGithubPages = ["HTML / CSS", "Framework"].includes(project.module);
-    if (requiresGithubPages && (!githubPagesUrl || !validateGithubPagesUrl(githubPagesUrl))) {
-      return res.status(400).json({ error: "URL GitHub Pages invalide ou manquante pour ce type de projet." });
+    const requiresGithubPages = ["HTML / CSS", "Framework"].includes(
+      project.module
+    );
+    if (
+      requiresGithubPages &&
+      (!githubPagesUrl || !validateGithubPagesUrl(githubPagesUrl))
+    ) {
+      return res.status(400).json({
+        error: "URL GitHub Pages invalide ou manquante pour ce type de projet.",
+      });
     }
 
     // --- Nouvelle logique de sélection automatique des créneaux ---
@@ -478,16 +595,19 @@ export async function submitProjectSolution(req, res) {
     const availableSlots = await AvailabilitySlot.find({
       isBooked: false,
       startTime: { $gt: minStartTime }, // Créneaux futurs et au moins 1h après la soumission
-      evaluator: { $ne: studentId } // L'étudiant ne peut pas s'évaluer lui-même
-    }).populate('evaluator', 'name role');
+      evaluator: { $ne: studentId }, // L'étudiant ne peut pas s'évaluer lui-même
+    }).populate("evaluator", "name role");
 
     // Filtrer les créneaux pour s'assurer que l'évaluateur a un rôle valide (maintenant inclut 'apprenant')
-    const validSlots = availableSlots.filter(slot =>
-      ['evaluator', 'staff', 'admin', 'apprenant'].includes(slot.evaluator.role)
+    const validSlots = availableSlots.filter((slot) =>
+      ["evaluator", "staff", "admin", "apprenant"].includes(slot.evaluator.role)
     );
 
     if (validSlots.length < 2) {
-      return res.status(400).json({ error: 'Pas assez de créneaux disponibles avec des évaluateurs valides pour la double évaluation.' });
+      return res.status(400).json({
+        error:
+          "Pas assez de créneaux disponibles avec des évaluateurs valides pour la double évaluation slot valide.",
+      });
     }
 
     let selectedSlots = [];
@@ -513,7 +633,9 @@ export async function submitProjectSolution(req, res) {
         }
 
         // Vérifier le décalage horaire entre les deux créneaux
-        const timeDiff = Math.abs(slot1.startTime.getTime() - slot2.startTime.getTime());
+        const timeDiff = Math.abs(
+          slot1.startTime.getTime() - slot2.startTime.getTime()
+        );
         if (timeDiff < minTimeDifferenceMs) {
           continue;
         }
@@ -527,13 +649,16 @@ export async function submitProjectSolution(req, res) {
     }
 
     if (selectedSlots.length !== 2) {
-      return res.status(400).json({ error: "Impossible de trouver deux créneaux d'évaluation distincts avec des évaluateurs différents et un décalage de 2 heures." });
+      return res.status(400).json({
+        error:
+          "Impossible de trouver deux créneaux d'évaluation distincts avec des évaluateurs différents et un décalage de 2 heures.",
+      });
     }
     // --- Fin de la nouvelle logique ---
 
     assignment.repoUrl = repoUrl;
     assignment.submissionDate = new Date();
-    assignment.status = 'submitted';
+    assignment.status = "submitted";
     if (githubPagesUrl) {
       assignment.githubPagesUrl = githubPagesUrl;
     }
@@ -550,7 +675,7 @@ export async function submitProjectSolution(req, res) {
         assignment: assignmentId,
         evaluator: slot.evaluator._id, // Assurez-vous d'utiliser l'ID de l'évaluateur
         student: studentId,
-        status: 'pending',
+        status: "pending",
         slot: slot._id, // Référence au créneau d'évaluation.
       });
       assignment.evaluations.push(evaluation._id);
@@ -560,10 +685,13 @@ export async function submitProjectSolution(req, res) {
 
     // Décrémenter les points d'évaluation de l'étudiant en fonction du nombre de slots réservés.
     // Cette partie est pour l'apprenant, pas pour les staff/admin/evaluators
-    if (student.role === 'apprenant') {
+    if (student.role === "apprenant") {
       const decrement = selectedSlots.length; // Pour 2 slots, on décrémente de 2 points
       if (decrement > 0) {
-        student.evaluationPoints = Math.max(0, (student.evaluationPoints || 0) - decrement);
+        student.evaluationPoints = Math.max(
+          0,
+          (student.evaluationPoints || 0) - decrement
+        );
         await student.save();
       }
     }
@@ -577,9 +705,13 @@ export async function submitProjectSolution(req, res) {
       req
     );
 
-    res.status(200).json({ message: 'Solution soumise avec succès avec des créneaux automatiquement assignés.', project });
+    res.status(200).json({
+      message:
+        "Solution soumise avec succès avec des créneaux automatiquement assignés.",
+      project,
+    });
   } catch (e) {
-    console.error('Error submitting project solution:', e);
+    console.error("Error submitting project solution:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -590,44 +722,50 @@ export async function submitProjectSolution(req, res) {
  * @param {object} req - L'objet requête Express (contient l'ID du projet, l'assignation et le statut de révision).
  * @param {object} res - L'objet réponse Express.
  */
-export async function finalReviewProject(req, res) { // Renommé de approveProject
+export async function finalReviewProject(req, res) {
+  // Renommé de approveProject
   try {
     const { id: projectId } = req.params; // ID du projet maître.
     const { assignmentId, status } = req.body; // ID de l'assignation et le nouveau statut (approved/rejected).
 
     if (!assignmentId || !status) {
-      return res.status(400).json({ error: 'ID d\'assignation ou statut manquant.' });
+      return res
+        .status(400)
+        .json({ error: "ID d'assignation ou statut manquant." });
     }
 
     // Vérifier que l'utilisateur est un membre du personnel/admin.
-    if (req.user.role !== 'staff' && req.user.role !== 'admin') {
+    if (req.user.role !== "staff" && req.user.role !== "admin") {
       return res.status(403).json({
-        error: 'Non autorisé à évaluer des projets.',
+        error: "Non autorisé à évaluer des projets.",
       });
     }
 
     const project = await Project.findById(projectId);
-    if (!project) return res.status(404).json({ error: 'Projet maître non trouvé.' });
+    if (!project)
+      return res.status(404).json({ error: "Projet maître non trouvé." });
 
     const assignment = project.assignments.id(assignmentId);
     if (!assignment) {
-      return res.status(404).json({ error: 'Assignation non trouvée dans ce projet.' });
+      return res
+        .status(404)
+        .json({ error: "Assignation non trouvée dans ce projet." });
     }
 
-    if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ error: 'Statut d\'évaluation invalide.' });
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ error: "Statut d'évaluation invalide." });
     }
 
-    let message = '';
-    let notificationMessage = '';
+    let message = "";
+    let notificationMessage = "";
 
-    if (status === 'approved') {
-      if (assignment.status === 'approved') {
-        return res.json({ message: 'Projet déjà approuvé.', project });
+    if (status === "approved") {
+      if (assignment.status === "approved") {
+        return res.json({ message: "Projet déjà approuvé.", project });
       }
-      assignment.status = 'approved';
+      assignment.status = "approved";
       // assignment.staffValidator = req.user._id; // Optionnel: enregistrer le validateur staff.
-      message = 'Projet approuvé avec succès et projet suivant assigné.';
+      message = "Projet approuvé avec succès et projet suivant assigné.";
       notificationMessage = `Votre projet \'${project.title}\' a été approuvé par le personnel. Félicitations ! Un nouveau projet vous a été assigné.`;
 
       const student = await User.findById(assignment.student);
@@ -644,11 +782,11 @@ export async function finalReviewProject(req, res) { // Renommé de approveProje
 
         await student.save();
       }
-    } else if (status === 'rejected') {
-      if (assignment.status === 'rejected') {
-        return res.json({ message: 'Projet déjà rejeté.', project });
+    } else if (status === "rejected") {
+      if (assignment.status === "rejected") {
+        return res.json({ message: "Projet déjà rejeté.", project });
       }
-      assignment.status = 'assigned'; // Rejette le projet et le remet à 'assigned' pour resoumission.
+      assignment.status = "assigned"; // Rejette le projet et le remet à 'assigned' pour resoumission.
       assignment.repoUrl = undefined; // Efface l'URL du dépôt.
       assignment.submissionDate = undefined; // Efface la date de soumission.
       // TODO: Optionnel: effacer les évaluations existantes liées à cette assignation pour forcer de nouvelles évaluations.
@@ -659,18 +797,18 @@ export async function finalReviewProject(req, res) { // Renommé de approveProje
 
     // Notifier l'étudiant du résultat de l'évaluation finale.
     const student = await User.findById(assignment.student); // Récupère l'étudiant pour la notification.
-      if (student) {
-        // Notification.create() n'est pas défini, il faudrait l'importer
-        // await Notification.create({
-        //   user: student._id,
-        // type: "project_status_update",
-        // message: notificationMessage,
-        // });
+    if (student) {
+      // Notification.create() n'est pas défini, il faudrait l'importer
+      // await Notification.create({
+      //   user: student._id,
+      // type: "project_status_update",
+      // message: notificationMessage,
+      // });
     }
 
     res.json({ message: message, project });
   } catch (e) {
-    console.error('Error during final staff review:', e);
+    console.error("Error during final staff review:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -683,40 +821,40 @@ export async function finalReviewProject(req, res) { // Renommé de approveProje
 export async function getProjectsAwaitingStaffReview(req, res) {
   try {
     // Vérifier que l'utilisateur est un membre du personnel/admin.
-    if (req.user.role !== 'staff' && req.user.role !== 'admin') {
+    if (req.user.role !== "staff" && req.user.role !== "admin") {
       return res.status(403).json({
-        error: 'Non autorisé à consulter cette ressource.',
+        error: "Non autorisé à consulter cette ressource.",
       });
     }
 
     // Trouver les projets maîtres où au moins une assignation est en attente de révision du personnel.
     const projects = await Project.find({
       "assignments.status": "awaiting_staff_review",
-    })
-      .populate({
-        path: 'assignments.student',
-        select: 'name email',
+    }).populate({
+      path: "assignments.student",
+      select: "name email",
     });
 
     // Formater les résultats pour ne retourner que les assignations pertinentes.
-    const formattedProjects = projects.flatMap(project => {
-      return project.assignments.filter(assignment => assignment.status === "awaiting_staff_review")
-        .map(assignment => ({
+    const formattedProjects = projects.flatMap((project) => {
+      return project.assignments
+        .filter((assignment) => assignment.status === "awaiting_staff_review")
+        .map((assignment) => ({
           _id: project._id, // ID du projet maître.
-            projectId: project._id,
+          projectId: project._id,
           title: project.title,
           description: project.description,
-            assignmentId: assignment._id,
+          assignmentId: assignment._id,
           assignmentStatus: assignment.status,
-            repoUrl: assignment.repoUrl,
-            submissionDate: assignment.submissionDate,
+          repoUrl: assignment.repoUrl,
+          submissionDate: assignment.submissionDate,
           student: assignment.student, // L'objet étudiant peuplé.
         }));
     });
 
     res.status(200).json(formattedProjects);
   } catch (e) {
-    console.error('Error fetching projects awaiting staff review:', e);
+    console.error("Error fetching projects awaiting staff review:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -730,22 +868,23 @@ export async function getProjectsAwaitingStaffReview(req, res) {
 export async function getAllProjects(req, res) {
   try {
     // Vérifier que l'utilisateur est un membre du personnel/admin.
-    if (req.user.role !== 'staff' && req.user.role !== 'admin') {
+    if (req.user.role !== "staff" && req.user.role !== "admin") {
       return res.status(403).json({
-        error: 'Non autorisé à consulter cette ressource.',
+        error: "Non autorisé à consulter cette ressource.",
       });
     }
 
     // Récupérer tous les projets, en peuplant les étudiants associés aux assignations.
     const projects = await Project.find({})
       .populate({
-        path: 'assignments.student',
-        select: 'name email',
-      }).lean(); // Ajouter .lean() pour de meilleures performances si seule la lecture est nécessaire.
+        path: "assignments.student",
+        select: "name email",
+      })
+      .lean(); // Ajouter .lean() pour de meilleures performances si seule la lecture est nécessaire.
 
     res.status(200).json(projects);
   } catch (e) {
-    console.error('Error fetching all projects:', e);
+    console.error("Error fetching all projects:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -758,9 +897,9 @@ export async function getAllProjects(req, res) {
  */
 export async function getCancelledProjects(req, res) {
   try {
-    if (req.user.role !== 'staff' && req.user.role !== 'admin') {
+    if (req.user.role !== "staff" && req.user.role !== "admin") {
       return res.status(403).json({
-        error: 'Non autorisé à consulter cette ressource.',
+        error: "Non autorisé à consulter cette ressource.",
       });
     }
 
@@ -768,30 +907,33 @@ export async function getCancelledProjects(req, res) {
       "assignments.status": "cancelled",
     })
       .populate({
-        path: 'assignments.student',
-        select: 'name email',
+        path: "assignments.student",
+        select: "name email",
       })
       .populate({
-        path: 'assignments.evaluations',
+        path: "assignments.evaluations",
         populate: {
-          path: 'slot evaluator',
-          select: 'startTime endTime name email',
+          path: "slot evaluator",
+          select: "startTime endTime name email",
         },
       });
 
-    const formattedProjects = projects.flatMap(project => {
-      return project.assignments.filter(assignment => {
-        // Un projet est annulé et a besoin de réassignation si:
-        // 1. Son statut d'assignation est "cancelled"
-        // 2. Il n'a AUCUNE évaluation en cours (pending) associée à cette assignation.
-        const hasPendingEvaluation = assignment.evaluations.some(evalItem => evalItem.status === "pending");
-        return assignment.status === "cancelled" && !hasPendingEvaluation;
-      })
-        .map(assignment => ({
+    const formattedProjects = projects.flatMap((project) => {
+      return project.assignments
+        .filter((assignment) => {
+          // Un projet est annulé et a besoin de réassignation si:
+          // 1. Son statut d'assignation est "cancelled"
+          // 2. Il n'a AUCUNE évaluation en cours (pending) associée à cette assignation.
+          const hasPendingEvaluation = assignment.evaluations.some(
+            (evalItem) => evalItem.status === "pending"
+          );
+          return assignment.status === "cancelled" && !hasPendingEvaluation;
+        })
+        .map((assignment) => ({
           _id: project._id, // ID du projet maître.
           title: project.title,
           description: project.description,
-          studentName: assignment.student?.name || 'N/A',
+          studentName: assignment.student?.name || "N/A",
           assignmentId: assignment._id,
           assignmentStatus: assignment.status,
           // Vous pouvez ajouter d'autres champs si nécessaire ici.
@@ -800,7 +942,7 @@ export async function getCancelledProjects(req, res) {
 
     res.status(200).json(formattedProjects);
   } catch (e) {
-    console.error('Error fetching cancelled projects:', e);
+    console.error("Error fetching cancelled projects:", e);
     res.status(500).json({ error: e.message });
   }
 }
@@ -817,21 +959,28 @@ export async function getProjectMarkdownContent(req, res) {
     const project = await Project.findById(projectId); // Trouve le projet par son ID.
 
     if (!project || !project.markdownFilePath) {
-      return res.status(404).json({ error: 'Fichier Markdown non trouvé pour ce projet.' });
+      return res
+        .status(404)
+        .json({ error: "Fichier Markdown non trouvé pour ce projet." });
     }
 
     // Construit le chemin absolu du fichier Markdown sur le système de fichiers.
-    const filePath = path.join(__dirname, "../public", project.markdownFilePath);
+    const filePath = path.join(
+      __dirname,
+      "../public",
+      project.markdownFilePath
+    );
 
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Fichier Markdown non trouvé sur le serveur.' });
+      return res
+        .status(404)
+        .json({ error: "Fichier Markdown non trouvé sur le serveur." });
     }
 
-    const markdownContent = fs.readFileSync(filePath, 'utf8'); // Lit le contenu du fichier.
+    const markdownContent = fs.readFileSync(filePath, "utf8"); // Lit le contenu du fichier.
     res.status(200).send(markdownContent); // Envoie le contenu en tant que réponse texte.
-
   } catch (e) {
-    console.error('Error fetching project markdown content:', e);
+    console.error("Error fetching project markdown content:", e);
     res.status(500).json({ error: e.message });
   }
 }

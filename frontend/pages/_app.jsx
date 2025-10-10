@@ -28,7 +28,7 @@ export default function App({ Component, pageProps }) {
   if (publicPaths.includes(router.pathname)) {
     return (
       <>
-        <div>
+        <div className="thm-bg min-vh-100">
           <Component {...pageProps} />
         </div>
       </>

@@ -28,8 +28,8 @@
 .themed.light {
   --primary: hsl(120, 40%, 30%);
   /* bg-colors */
-  --bg-dark: hsl(0, 0%, 90%);
-  --bg: hsl(0, 0%, 95%);
+  --bg-dark: hsl(0, 0%, 85%);
+  --bg: hsl(0, 0%, 90%);
   --bg-light: hsl(0, 0%, 100%);
   /* text-colors */
   --text: hsl(0, 0%, 4%);
@@ -46,6 +46,12 @@ button {
   color: var(--text) !important;
 }
 
+td,
+th {
+  color: var(--text) !important;
+  background-color: var(--bg) !important;
+}
+
 .btn:hover {
   padding-left: 1em;
 }
@@ -53,7 +59,11 @@ button {
 p,
 i,
 small,
-span {
+span,
+label,
+pre,
+li,
+caption {
   color: var(--text-muted);
 }
 .themed {
