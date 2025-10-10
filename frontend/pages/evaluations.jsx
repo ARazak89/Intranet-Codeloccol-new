@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from "react"; // Ajout de useCallbac
 import { useRouter } from "next/router";
 import { getAuthToken } from "../utils/auth"; // Assurez-vous d'importer getAuthToken
 
+import HtmlRenderer from "../utils/HtmlRenderer";
+
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 export default function EvaluationPage() {
@@ -380,11 +382,11 @@ export default function EvaluationPage() {
         )}
 
         <div className="card shadow-sm mb-4">
-          <div className="card-header bg-gradient bg-primary text-white d-flex align-items-center">
+          <div className="card-header bg-gradient thm-bg d-flex align-items-center">
             <i className="bi bi-list-check me-2"></i>
             <h2 className="h5 mb-0">Toutes les Évaluations</h2>
           </div>
-          <div className="card-body">
+          <div className="card-body thm-bg">
             <div className="table-responsive">
               <table className="table table-sm caption-top align-middle">
                 <caption>Liste complète des évaluations</caption>
@@ -948,12 +950,21 @@ export default function EvaluationPage() {
                       return (
                         <tr key={evalItem._id}>
                           <td>
-                            <strong>
+                            {/*<strong>
                               {evalItem.project?.title || "[Projet Inconnu]"}
-                            </strong>
+                            </strong> commenter parceque dans la description des projets il y'a déja le titre*/}
                             {evalItem.project?.description && (
                               <p className="text-muted mb-0">
-                                <small>{evalItem.project.description}</small>
+                                <small>
+                                  <HtmlRenderer
+                                    htmlContent={
+                                      evalItem.project.description.substring(
+                                        0,
+                                        70
+                                      ) + " ..."
+                                    }
+                                  />
+                                </small>
                               </p>
                             )}
                             {evalItem.project?.repoUrl && (

@@ -207,8 +207,7 @@ export default function Profile() {
               )}
               <p className="d-flex align-items-center mb-1">
                 <strong className="me-2">
-                  <i className="bi bi-clock me-2 text-muted"></i>Dernière
-                  Connexion:
+                  <i className="bi bi-clock me-2"></i>Dernière Connexion:
                 </strong>{" "}
                 {new Date(user.lastLogin).toLocaleDateString()}
               </p>

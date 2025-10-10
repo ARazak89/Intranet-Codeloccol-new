@@ -1,8 +1,5 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
-import Head from "next/head";
-
-import HtmlRenderer from "../utils/HtmlRenderer";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 

@@ -1496,7 +1496,7 @@ export default function Dashboard() {
                   </h2>
                 </div>
 
-                <ul className="list-group list-group-flush">
+                <ul className="thm-bg-light rounded-3 p-3">
                   {me.role === "apprenant" ? (
                     // Affichage pour l'apprenant
                     upcomingEvaluations.map((evaluation) => {
@@ -1529,6 +1529,7 @@ export default function Dashboard() {
                                 <i className="bi bi-exclamation-triangle me-1"></i>{" "}
                                 Erreur: Créneau horaire manquant
                               </small>
+                              <hr />
                             </div>
                           </li>
                         );
@@ -1763,7 +1764,7 @@ export default function Dashboard() {
                             className="collapse show mt-3 w-100 ps-3 border-start border-info border-2"
                           >
                             <strong>Évaluations des pairs :</strong>
-                            <ul className="list-group mt-2">
+                            <ul className=" mt-2">
                               {projectGroup.evaluations.map((evalItem) => {
                                 const now = new Date(); // Ajouter cette ligne
                                 // Vérifier si evalItem.slot existe avant d'accéder à ses propriétés
@@ -1776,7 +1777,7 @@ export default function Dashboard() {
                                   return (
                                     <li
                                       key={evalItem._id}
-                                      className="list-group-item d-flex justify-content-between align-items-center flex-wrap"
+                                      className="d-flex justify-content-between align-items-center flex-wrap border"
                                     >
                                       <span className="d-flex align-items-center">
                                         <i className="bi bi-person-check me-2"></i>{" "}
@@ -2282,26 +2283,26 @@ export default function Dashboard() {
       {me && (me.role === "staff" || me.role === "admin") && (
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-header bg-gradient bg-success text-white d-flex justify-content-between align-items-center">
+            <div className="thm-shadow-s thm-bg  p-3 rounded-3">
+              <div className="d-flex justify-content-between align-items-center">
                 <i className="bi bi-journals me-2"></i>
                 <h2 className="h5 mb-0">Gestion des Projets</h2>
                 <div className="d-flex">
                   <button
-                    className="btn btn-light btn-sm me-2"
+                    className="btn thm-bg-light thm-shadow-s btn-sm me-2"
                     onClick={() => router.push("/hackathons")}
                   >
                     <i className="bi bi-lightbulb me-1"></i> Gérer les
                     Hackathons
                   </button>
                   <button
-                    className="btn btn-light btn-sm me-2"
+                    className="btn thm-bg-light thm-shadow-s btn-sm me-2"
                     onClick={() => router.push("/admin/users")}
                   >
                     <i className="bi bi-people me-1"></i> Gérer les Utilisateurs
                   </button>
                   <button
-                    className="btn btn-light btn-sm"
+                    className="btn thm-bg-light thm-shadow-s btn-sm"
                     onClick={() => router.push("/projects?openAddProject=true")}
                   >
                     <i className="bi bi-plus-circle me-1"></i> Ajouter un Projet

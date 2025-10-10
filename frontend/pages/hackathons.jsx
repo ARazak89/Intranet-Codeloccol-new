@@ -347,14 +347,14 @@ export default function Hackathons() {
       {me && (me.role === "staff" || me.role === "admin") && (
         <div className="d-flex justify-content-end mb-3">
           <button
-            className="btn btn-primary me-2"
+            className="btn btn-primary me-2 thm-shadow-m"
             onClick={() => setShowCreateHackathonModal(true)}
           >
             <i className="bi bi-plus-circle me-2"></i> Créer un nouveau
             Hackathon
           </button>
           <button
-            className="btn btn-success"
+            className="btn btn-success thm-shadow-m"
             onClick={() => setShowConstituteTeamsModal(true)}
           >
             <i className="bi bi-people me-2"></i> Constituer Équipes
@@ -602,7 +602,7 @@ export default function Hackathons() {
         <div className="modal" tabIndex="-1" style={{ display: "block" }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
-              <div className="modal-header bg-gradient bg-primary text-white">
+              <div className="modal-header bg-gradient thm-bg">
                 <h5 className="modal-title">Créer un nouveau Hackathon</h5>
                 <button
                   type="button"
@@ -610,7 +610,7 @@ export default function Hackathons() {
                   onClick={() => setShowCreateHackathonModal(false)}
                 ></button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body thm-bg">
                 <form onSubmit={handleCreateHackathon}>
                   <div className="mb-3">
                     <label htmlFor="newHackathonTitle" className="form-label">
@@ -736,7 +736,7 @@ export default function Hackathons() {
         <div className="modal" tabIndex="-1" style={{ display: "block" }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
-              <div className="modal-header bg-gradient bg-success text-white">
+              <div className="modal-header bg-gradient thm-bg">
                 <h5 className="modal-title">
                   Constituer les Équipes pour{" "}
                   {selectedHackathonForTeams?.title || ""}
@@ -747,7 +747,7 @@ export default function Hackathons() {
                   onClick={() => setShowConstituteTeamsModal(false)}
                 ></button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body thm-bg">
                 <form onSubmit={handleConstituteTeams}>
                   <div className="mb-3">
                     <label htmlFor="constituteHackathon" className="form-label">

@@ -53,7 +53,13 @@ th {
 }
 
 .btn:hover {
-  padding-left: 1em;
+  background-color: var(--bg-dark) !important;
+}
+
+a {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis !important;
 }
 
 p,

@@ -1435,7 +1435,7 @@ function ProjectsPage() {
 
                     {/* Date de Soumission */}
                     {selectedProject.submissionDate && (
-                      <div className="card mb-3 shadow-sm">
+                      <div className="card thm-bg-light mb-3 shadow-sm">
                         <div className="card-body d-flex align-items-center">
                           <h6 className="mb-0 me-2 text-primary">
                             <i className="bi bi-calendar-event me-2"></i> Date
@@ -1457,7 +1457,7 @@ function ProjectsPage() {
                     )}
 
                     {selectedProject.repoUrl && (
-                      <div className="card mb-3 shadow-sm">
+                      <div className="card thm-bg-light mb-3 shadow-sm">
                         <div className="card-body d-flex align-items-center">
                           <h6 className="mb-0 me-2 text-primary">
                             <i className="bi bi-github me-2"></i> Dépôt du
@@ -1580,7 +1580,7 @@ function ProjectsPage() {
           <div className="modal" tabIndex="-1" style={{ display: "block" }}>
             <div className="modal-dialog modal-lg">
               <div className="modal-content">
-                <div className="modal-header bg-gradient bg-success text-white">
+                <div className="modal-header bg-gradient thm-bg text-white">
                   <h5 className="modal-title">
                     {currentProjectToEdit
                       ? "Modifier le Projet"
@@ -1596,7 +1596,7 @@ function ProjectsPage() {
                     }}
                   ></button>
                 </div>
-                <div className="modal-body">
+                <div className="modal-body thm-bg">
                   {error && (
                     <div className="alert alert-danger mb-3" role="alert">
                       {error}
@@ -1612,7 +1612,7 @@ function ProjectsPage() {
                     {/* Titre */}
                     <div className="mb-3">
                       <label htmlFor="projectTitle" className="form-label">
-                        Titre du Projet <span className="text-danger">*</span>
+                        Titre du Projet
                       </label>
                       <input
                         type="text"
@@ -1661,7 +1661,7 @@ function ProjectsPage() {
                       ))}
                       <button
                         type="button"
-                        className="btn btn-sm btn-outline-primary mt-2"
+                        className="btn btn-sm thm-bg-light thm-shadow-s mt-2"
                         onClick={() =>
                           setProjectObjectives([...projectObjectives, ""])
                         }
