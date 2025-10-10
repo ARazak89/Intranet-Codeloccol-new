@@ -7,7 +7,7 @@ import uploadMarkdown from "../middlewares/markdownUploadMiddleware.js"; // Impo
 import fs from "fs"; // Nécessaire pour lire les fichiers Markdown
 import path from "path"; // Nécessaire pour gérer les chemins de fichiers
 import { fileURLToPath } from "url";
-// import Assignment from '../models/Assignment.js'; // Supprimer cette ligne car Assignment.js n'existe pas
+import Notification from "../models/Notification.js"; // Import du nouveau modèle Notification
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -798,12 +798,25 @@ export async function finalReviewProject(req, res) {
     // Notifier l'étudiant du résultat de l'évaluation finale.
     const student = await User.findById(assignment.student); // Récupère l'étudiant pour la notification.
     if (student) {
-      // Notification.create() n'est pas défini, il faudrait l'importer
-      // await Notification.create({
-      //   user: student._id,
-      // type: "project_status_update",
-      // message: notificationMessage,
-      // });
+      await Notification.create({
+        user: student._id,
+        type: "project_status_update",
+        message: notificationMessage,
+      });
+
+      // Si le projet est approuvé, notifier également le staff/admin du passage au projet suivant.
+      if (status === "approved") {
+        const staffAdminUsers = await User.find({
+          role: { $in: ["staff", "admin"] },
+        });
+        for (const staffAdmin of staffAdminUsers) {
+          await Notification.create({
+            user: staffAdmin._id,
+            type: "student_project_progression",
+            message: `L'apprenant ${student.name} a complété le projet \'${project.title}\' et est passé au projet suivant.`,
+          });
+        }
+      }
     }
 
     res.json({ message: message, project });

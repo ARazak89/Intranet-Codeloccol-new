@@ -536,8 +536,7 @@ export default function EvaluationPage() {
                                 <div className="p-3 bg-light border rounded">
                                   <h6 className="mb-3 d-flex align-items-center">
                                     <i className="bi bi-people me-2"></i>{" "}
-                                    Feedback de l'évaluation + feedbacks des
-                                    pairs
+                                    Feedback de l'évaluation
                                   </h6>
                                   {/* Feedback de l'évaluation courante (évaluateur actif: staff, admin ou apprenant) */}
                                   {evalItem.feedback ||
@@ -605,7 +604,9 @@ export default function EvaluationPage() {
                                           <div>
                                             <small>
                                               <strong>Score:</strong>{" "}
-                                              {evalItem.score}/100
+                                              <span className="badge bg-primary">
+                                                {evalItem.score}/100
+                                              </span>
                                             </small>
                                           </div>
                                         )}
@@ -623,135 +624,6 @@ export default function EvaluationPage() {
                                     <p className="text-muted">
                                       Aucun feedback saisi par l'évaluateur
                                       courant.
-                                    </p>
-                                  )}
-                                  {Array.isArray(evalItem.peersFeedback) &&
-                                  evalItem.peersFeedback.length > 0 ? (
-                                    <ul className="list-group list-group-flush">
-                                      {evalItem.peersFeedback.map((pf, idx) => (
-                                        <li
-                                          key={idx}
-                                          className="list-group-item"
-                                        >
-                                          <div className="d-flex justify-content-between align-items-start flex-wrap">
-                                            <div>
-                                              <strong>
-                                                {pf.evaluator?.name ||
-                                                  "Apprenant"}
-                                              </strong>
-                                              {pf.evaluator?.email && (
-                                                <small className="text-muted ms-2">
-                                                  {pf.evaluator.email}
-                                                </small>
-                                              )}
-                                              <div className="mt-1">
-                                                <span
-                                                  className={`badge bg-${
-                                                    pf.status === "accepted"
-                                                      ? "success"
-                                                      : pf.status === "rejected"
-                                                      ? "danger"
-                                                      : pf.status === "pending"
-                                                      ? "info"
-                                                      : "secondary"
-                                                  }`}
-                                                >
-                                                  {pf.status}
-                                                </span>
-                                                {pf.createdAt && (
-                                                  <small className="text-muted ms-2">
-                                                    {new Date(
-                                                      pf.createdAt
-                                                    ).toLocaleString()}
-                                                  </small>
-                                                )}
-                                              </div>
-                                            </div>
-                                          </div>
-                                          {pf.feedback && (
-                                            <div className="mt-2">
-                                              {pf.feedback.assiduite && (
-                                                <div>
-                                                  <small>
-                                                    <strong>Assiduité:</strong>{" "}
-                                                    {pf.feedback.assiduite}
-                                                  </small>
-                                                </div>
-                                              )}
-                                              {pf.feedback.comprehension && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Compréhension:
-                                                    </strong>{" "}
-                                                    {pf.feedback.comprehension}
-                                                  </small>
-                                                </div>
-                                              )}
-                                              {pf.feedback.specifications && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Spécifications:
-                                                    </strong>{" "}
-                                                    {pf.feedback.specifications}
-                                                  </small>
-                                                </div>
-                                              )}
-                                              {pf.feedback
-                                                .maitrise_concepts && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Maîtrise des concepts:
-                                                    </strong>{" "}
-                                                    {
-                                                      pf.feedback
-                                                        .maitrise_concepts
-                                                    }
-                                                  </small>
-                                                </div>
-                                              )}
-                                              {pf.feedback
-                                                .capacite_expliquer && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Capacité à expliquer:
-                                                    </strong>{" "}
-                                                    {
-                                                      pf.feedback
-                                                        .capacite_expliquer
-                                                    }
-                                                  </small>
-                                                </div>
-                                              )}
-                                              {typeof pf.score === "number" && (
-                                                <div>
-                                                  <small>
-                                                    <strong>Score:</strong>{" "}
-                                                    {pf.score}/100
-                                                  </small>
-                                                </div>
-                                              )}
-                                              {pf.comments && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Commentaires:
-                                                    </strong>{" "}
-                                                    {pf.comments}
-                                                  </small>
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-muted mb-0">
-                                      Aucun feedback pair pour cette évaluation.
                                     </p>
                                   )}
                                 </div>
