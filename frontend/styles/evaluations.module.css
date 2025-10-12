@@ -422,7 +422,7 @@
 .peerHeader {
   display: flex;
   justify-content: space-between;
-  align-items: start;
+  align-items: flex-start;
   flex-wrap: wrap;
   margin-bottom: 12px;
 }

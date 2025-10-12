@@ -3,6 +3,7 @@ import {
   me,
   updateUserPassword,
   updateUserProfilePicture,
+  updateOwnPersonalInfo,
   listUsers,
   getUserById,
   deleteUser,
@@ -18,13 +19,12 @@ const r = Router();
 
 r.get("/me", requireAuth, me);
 // Routes pour la modification du profil par l'utilisateur
+r.put("/me/info", requireAuth, updateOwnPersonalInfo); // Modifier le nom et l'email
 r.put("/me/password", requireAuth, updateUserPassword); // Modifier le mot de passe
-r.put(
-  "/me/profile-picture",
-  requireAuth,
-  upload.single("profilePicture"),
-  updateUserProfilePicture,
-); // Modifier la photo de profil avec upload de fichier
+
+// Deux routes pour la photo de profil
+r.put("/me/profile-picture/upload", requireAuth, upload.single("profilePicture"), updateUserProfilePicture); // Upload fichier
+r.put("/me/profile-picture", requireAuth, updateUserProfilePicture); // Avatar prédéfini (JSON)
 
 // Routes accessibles uniquement au staff/admin
 r.post("/", requireAuth, requireRole(["staff", "admin"]), createUser); // Créer un utilisateur
@@ -34,7 +34,7 @@ r.put(
   requireRole(["staff", "admin"]),
   updateUser, // Utiliser la fonction updateUser unifiée
 );
-r.get("/", requireAuth, requireRole(["staff", "admin"]), listUsers);
+r.get("/", requireAuth, listUsers); // Accessible à tous les utilisateurs authentifiés (pour sélection des responsables d'événements)
 console.log('Registering /api/users/evaluators route...'); // Log avant la définition de la route
 r.get(
   "/evaluators",
