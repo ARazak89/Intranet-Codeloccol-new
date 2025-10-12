@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react"; // Ajout de useCallback
 import { useRouter } from "next/router";
 import { getAuthToken } from "../utils/auth"; // Assurez-vous d'importer getAuthToken
-
+import Loader from "../components/Loader";
 import HtmlRenderer from "../utils/HtmlRenderer";
+import styles from "../styles/evaluations.module.css";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -299,11 +300,7 @@ export default function EvaluationPage() {
   // };
 
   if (isLoading) {
-    return (
-      <div className="text-center mt-5">
-        <p className="lead">Chargement des évaluations...</p>
-      </div>
-    );
+    return <Loader message="Chargement des évaluations..." />;
   }
 
   if (!me) {
@@ -317,28 +314,36 @@ export default function EvaluationPage() {
   // Rendu pour le rôle staff/admin
   if (me.role === "staff" || me.role === "admin") {
     return (
-      <div className="container-fluid mt-4 pt-5 px-4">
-        <h1 className="mb-4">Gestion des Évaluations</h1>
+      <div className={styles.container}>
+        <div className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>
+            <i className="bi bi-clipboard-check"></i>
+            Gestion des Évaluations
+          </h1>
+        </div>
+
         {error && (
-          <div className="alert alert-danger mt-3" role="alert">
+          <div className={`${styles.alert} ${styles.alertDanger}`}>
+            <i className="bi bi-exclamation-triangle-fill"></i>
             {error}
           </div>
         )}
         {success && (
-          <div className="alert alert-success mt-3" role="alert">
+          <div className={`${styles.alert} ${styles.alertSuccess}`}>
+            <i className="bi bi-check-circle-fill"></i>
             {success}
           </div>
         )}
 
         {cancelledProjectsForReassignment.length > 0 && (
-          <div className="card shadow-sm mb-4 border-warning">
-            <div className="card-header bg-gradient bg-warning text-dark d-flex align-items-center">
-              <i className="bi bi-arrow-repeat me-2"></i>
-              <h2 className="h5 mb-0">
+          <div className={`${styles.card} ${styles.cardWarning}`}>
+            <div className={`${styles.cardHeader} ${styles.cardHeaderWarning}`}>
+              <h2 className={styles.cardTitle}>
+                <i className="bi bi-arrow-repeat"></i>
                 Projets Annulés Nécessitant Réassignation
               </h2>
             </div>
-            <div className="card-body">
+            <div className={styles.cardBody}>
               <p className="text-muted">
                 Les projets ci-dessous ont été annulés et peuvent être
                 réassignés à un autre évaluateur.
@@ -363,7 +368,7 @@ export default function EvaluationPage() {
                       </small>
                     </div>
                     <button
-                      className="btn btn-sm btn-warning"
+                      className={styles.btnReassign}
                       onClick={() =>
                         handleOpenReassignModal({
                           _id: project._id,
@@ -372,7 +377,8 @@ export default function EvaluationPage() {
                         })
                       }
                     >
-                      <i className="bi bi-arrow-repeat me-1"></i> Réassigner
+                      <i className="bi bi-arrow-repeat"></i>
+                      Réassigner
                     </button>
                   </li>
                 ))}
@@ -381,16 +387,17 @@ export default function EvaluationPage() {
           </div>
         )}
 
-        <div className="card shadow-sm mb-4">
-          <div className="card-header bg-gradient thm-bg d-flex align-items-center">
-            <i className="bi bi-list-check me-2"></i>
-            <h2 className="h5 mb-0">Toutes les Évaluations</h2>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>
+              <i className="bi bi-list-check"></i>
+              Toutes les Évaluations
+            </h2>
           </div>
-          <div className="card-body thm-bg">
-            <div className="table-responsive">
-              <table className="table table-sm caption-top align-middle">
-                <caption>Liste complète des évaluations</caption>
-                <thead className="table-light">
+          <div className={styles.cardBody}>
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
                   <tr>
                     <th></th>
                     <th>Projet</th>
@@ -409,16 +416,16 @@ export default function EvaluationPage() {
                         evalItem.slot &&
                         new Date() > new Date(evalItem.slot.endTime);
                       const rowClass = isLate
-                        ? "table-danger"
+                        ? styles.rowDanger
                         : evalItem.status === "cancelled"
-                        ? "table-warning"
+                        ? styles.rowWarning
                         : "";
                       return (
                         <>
                           <tr key={evalItem._id} className={rowClass}>
                             <td className="text-center" style={{ width: 40 }}>
                               <button
-                                className="btn btn-link p-0"
+                                className={styles.expandBtn}
                                 onClick={() => toggleRowExpanded(evalItem._id)}
                                 title="Afficher les feedbacks des pairs"
                               >
@@ -467,42 +474,58 @@ export default function EvaluationPage() {
                             </td>
                             <td>
                               <span
-                                className={`badge bg-${
+                                className={`${styles.badge} ${
                                   evalItem.status === "pending"
-                                    ? "info"
+                                    ? styles.badgePending
                                     : evalItem.status === "accepted"
-                                    ? "success"
+                                    ? styles.badgeAccepted
                                     : evalItem.status === "rejected"
-                                    ? "danger"
-                                    : "secondary"
+                                    ? styles.badgeRejected
+                                    : evalItem.status === "cancelled"
+                                    ? styles.badgeCancelled
+                                    : styles.badge
                                 }`}
                               >
+                                <i className={`bi bi-${
+                                  evalItem.status === "pending" ? "hourglass-split" :
+                                  evalItem.status === "accepted" ? "check-circle" :
+                                  evalItem.status === "rejected" ? "x-circle" :
+                                  evalItem.status === "cancelled" ? "x-octagon" :
+                                  "question-circle"
+                                }`}></i>
                                 {evalItem.status}
                               </span>
                               {isLate && evalItem.status === "pending" && (
-                                <span className="badge bg-danger ms-1">
+                                <span className={`${styles.badge} ${styles.badgeLate}`}>
+                                  <i className="bi bi-clock-fill"></i>
                                   EN RETARD
                                 </span>
                               )}
                             </td>
                             <td>
                               <span
-                                className={`badge bg-${
+                                className={`${styles.badge} ${
                                   evalItem.assignment?.status === "assigned"
-                                    ? "primary"
-                                    : evalItem.assignment?.status ===
-                                      "submitted"
-                                    ? "warning text-dark"
-                                    : evalItem.assignment?.status ===
-                                      "pending_review"
-                                    ? "info"
+                                    ? styles.badgeAssigned
+                                    : evalItem.assignment?.status === "submitted"
+                                    ? styles.badgeSubmitted
+                                    : evalItem.assignment?.status === "pending_review"
+                                    ? styles.badgePendingReview
                                     : evalItem.assignment?.status === "approved"
-                                    ? "success"
+                                    ? styles.badgeApproved
                                     : evalItem.assignment?.status === "rejected"
-                                    ? "danger"
-                                    : "secondary"
+                                    ? styles.badgeRejected
+                                    : styles.badge
                                 }`}
                               >
+                                <i className={`bi bi-${
+                                  evalItem.assignment?.status === "assigned" ? "clock" :
+                                  evalItem.assignment?.status === "submitted" ? "hourglass-split" :
+                                  evalItem.assignment?.status === "pending_review" ? "person-workspace" :
+                                  evalItem.assignment?.status === "approved" ? "check-circle" :
+                                  evalItem.assignment?.status === "rejected" ? "x-circle" :
+                                  "question-circle"
+                                }`}></i>
                                 {evalItem.assignment?.status || "N/A"}
                               </span>
                             </td>
@@ -518,103 +541,69 @@ export default function EvaluationPage() {
                                 evalItem.status === "cancelled") &&
                                 evalItem.status !== "approved" && (
                                   <button
-                                    className="btn btn-sm btn-warning"
+                                    className={styles.btnReassign}
                                     onClick={() =>
                                       handleOpenReassignModal(evalItem)
                                     }
                                   >
-                                    <i className="bi bi-arrow-repeat me-1"></i>{" "}
+                                    <i className="bi bi-arrow-repeat"></i>
                                     Réassigner
                                   </button>
                                 )}
                             </td>
                           </tr>
                           {expandedRows[evalItem._id] && (
-                            <tr className="table-active">
+                            <tr className={styles.rowExpanded}>
                               <td></td>
                               <td colSpan="7">
-                                <div className="p-3 bg-light border rounded">
-                                  <h6 className="mb-3 d-flex align-items-center">
-                                    <i className="bi bi-people me-2"></i>{" "}
-                                    Feedback de l'évaluation + feedbacks des
-                                    pairs
+                                <div className={styles.feedbackSection}>
+                                  <h6 className={styles.feedbackHeader}>
+                                    <i className="bi bi-people"></i>
+                                    Feedback de l'évaluation + feedbacks des pairs
                                   </h6>
                                   {/* Feedback de l'évaluation courante (évaluateur actif: staff, admin ou apprenant) */}
                                   {evalItem.feedback ||
                                   typeof evalItem.score === "number" ||
                                   evalItem.comments ? (
-                                    <div className="mb-3 p-3 bg-white border rounded">
-                                      <h6 className="mb-2">
-                                        <i className="bi bi-chat-right-quote me-2"></i>{" "}
+                                    <div className={styles.feedbackCard}>
+                                      <h6 className={styles.feedbackCardTitle}>
+                                        <i className="bi bi-chat-right-quote"></i>
                                         Feedback de l'évaluateur courant
                                       </h6>
                                       <div>
                                         {evalItem.feedback?.assiduite && (
-                                          <div>
-                                            <small>
-                                              <strong>Assiduité:</strong>{" "}
-                                              {evalItem.feedback.assiduite}
-                                            </small>
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Assiduité:</strong> {evalItem.feedback.assiduite}
                                           </div>
                                         )}
                                         {evalItem.feedback?.comprehension && (
-                                          <div>
-                                            <small>
-                                              <strong>Compréhension:</strong>{" "}
-                                              {evalItem.feedback.comprehension}
-                                            </small>
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Compréhension:</strong> {evalItem.feedback.comprehension}
                                           </div>
                                         )}
                                         {evalItem.feedback?.specifications && (
-                                          <div>
-                                            <small>
-                                              <strong>Spécifications:</strong>{" "}
-                                              {evalItem.feedback.specifications}
-                                            </small>
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Spécifications:</strong> {evalItem.feedback.specifications}
                                           </div>
                                         )}
-                                        {evalItem.feedback
-                                          ?.maitrise_concepts && (
-                                          <div>
-                                            <small>
-                                              <strong>
-                                                Maîtrise des concepts:
-                                              </strong>{" "}
-                                              {
-                                                evalItem.feedback
-                                                  .maitrise_concepts
-                                              }
-                                            </small>
+                                        {evalItem.feedback?.maitrise_concepts && (
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Maîtrise des concepts:</strong> {evalItem.feedback.maitrise_concepts}
                                           </div>
                                         )}
-                                        {evalItem.feedback
-                                          ?.capacite_expliquer && (
-                                          <div>
-                                            <small>
-                                              <strong>
-                                                Capacité à expliquer:
-                                              </strong>{" "}
-                                              {
-                                                evalItem.feedback
-                                                  .capacite_expliquer
-                                              }
-                                            </small>
+                                        {evalItem.feedback?.capacite_expliquer && (
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Capacité à expliquer:</strong> {evalItem.feedback.capacite_expliquer}
                                           </div>
                                         )}
                                         {typeof evalItem.score === "number" && (
-                                          <div>
-                                            <small>
-                                              <strong>Score:</strong>{" "}
-                                              {evalItem.score}/100
-                                            </small>
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Score:</strong> {evalItem.score}/100
                                           </div>
                                         )}
                                         {evalItem.comments && (
-                                          <div>
-                                            <small>
-                                              <strong>Commentaires:</strong>{" "}
-                                              {evalItem.comments}
-                                            </small>
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Commentaires:</strong> {evalItem.comments}
                                           </div>
                                         )}
                                       </div>
@@ -627,121 +616,85 @@ export default function EvaluationPage() {
                                   )}
                                   {Array.isArray(evalItem.peersFeedback) &&
                                   evalItem.peersFeedback.length > 0 ? (
-                                    <ul className="list-group list-group-flush">
+                                    <ul className={styles.peerFeedbackList}>
                                       {evalItem.peersFeedback.map((pf, idx) => (
                                         <li
                                           key={idx}
-                                          className="list-group-item"
+                                          className={styles.peerFeedbackItem}
                                         >
-                                          <div className="d-flex justify-content-between align-items-start flex-wrap">
-                                            <div>
+                                          <div className={styles.peerHeader}>
+                                            <div className={styles.peerInfo}>
                                               <strong>
-                                                {pf.evaluator?.name ||
-                                                  "Apprenant"}
+                                                {pf.evaluator?.name || "Apprenant"}
                                               </strong>
                                               {pf.evaluator?.email && (
-                                                <small className="text-muted ms-2">
+                                                <span className={styles.peerEmail}>
                                                   {pf.evaluator.email}
-                                                </small>
+                                                </span>
                                               )}
-                                              <div className="mt-1">
+                                              <div className={styles.peerMeta}>
                                                 <span
-                                                  className={`badge bg-${
+                                                  className={`${styles.badge} ${
                                                     pf.status === "accepted"
-                                                      ? "success"
+                                                      ? styles.badgeAccepted
                                                       : pf.status === "rejected"
-                                                      ? "danger"
+                                                      ? styles.badgeRejected
                                                       : pf.status === "pending"
-                                                      ? "info"
-                                                      : "secondary"
+                                                      ? styles.badgePending
+                                                      : styles.badge
                                                   }`}
                                                 >
+                                                  <i className={`bi bi-${
+                                                    pf.status === "accepted" ? "check-circle" :
+                                                    pf.status === "rejected" ? "x-circle" :
+                                                    pf.status === "pending" ? "hourglass-split" :
+                                                    "question-circle"
+                                                  }`}></i>
                                                   {pf.status}
                                                 </span>
                                                 {pf.createdAt && (
-                                                  <small className="text-muted ms-2">
-                                                    {new Date(
-                                                      pf.createdAt
-                                                    ).toLocaleString()}
+                                                  <small style={{ color: '#999', fontSize: '12px' }}>
+                                                    {new Date(pf.createdAt).toLocaleString()}
                                                   </small>
                                                 )}
                                               </div>
                                             </div>
                                           </div>
                                           {pf.feedback && (
-                                            <div className="mt-2">
+                                            <div style={{ marginTop: '12px' }}>
                                               {pf.feedback.assiduite && (
-                                                <div>
-                                                  <small>
-                                                    <strong>Assiduité:</strong>{" "}
-                                                    {pf.feedback.assiduite}
-                                                  </small>
+                                                <div className={styles.feedbackItem}>
+                                                  <strong>Assiduité:</strong> {pf.feedback.assiduite}
                                                 </div>
                                               )}
                                               {pf.feedback.comprehension && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Compréhension:
-                                                    </strong>{" "}
-                                                    {pf.feedback.comprehension}
-                                                  </small>
+                                                <div className={styles.feedbackItem}>
+                                                  <strong>Compréhension:</strong> {pf.feedback.comprehension}
                                                 </div>
                                               )}
                                               {pf.feedback.specifications && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Spécifications:
-                                                    </strong>{" "}
-                                                    {pf.feedback.specifications}
-                                                  </small>
+                                                <div className={styles.feedbackItem}>
+                                                  <strong>Spécifications:</strong> {pf.feedback.specifications}
                                                 </div>
                                               )}
-                                              {pf.feedback
-                                                .maitrise_concepts && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Maîtrise des concepts:
-                                                    </strong>{" "}
-                                                    {
-                                                      pf.feedback
-                                                        .maitrise_concepts
-                                                    }
-                                                  </small>
+                                              {pf.feedback.maitrise_concepts && (
+                                                <div className={styles.feedbackItem}>
+                                                  <strong>Maîtrise des concepts:</strong> {pf.feedback.maitrise_concepts}
                                                 </div>
                                               )}
-                                              {pf.feedback
-                                                .capacite_expliquer && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Capacité à expliquer:
-                                                    </strong>{" "}
-                                                    {
-                                                      pf.feedback
-                                                        .capacite_expliquer
-                                                    }
-                                                  </small>
+                                              {pf.feedback.capacite_expliquer && (
+                                                <div className={styles.feedbackItem}>
+                                                  <strong>Capacité à expliquer:</strong> {pf.feedback.capacite_expliquer}
                                                 </div>
                                               )}
                                               {typeof pf.score === "number" && (
-                                                <div>
-                                                  <small>
-                                                    <strong>Score:</strong>{" "}
-                                                    {pf.score}/100
-                                                  </small>
+                                                <div className={styles.feedbackItem}>
+                                                  <strong>Score:</strong> {pf.score}/100
                                                 </div>
                                               )}
                                               {pf.comments && (
-                                                <div>
-                                                  <small>
-                                                    <strong>
-                                                      Commentaires:
-                                                    </strong>{" "}
-                                                    {pf.comments}
-                                                  </small>
+                                                <div className={styles.feedbackItem}>
+                                                  <strong>Commentaires:</strong> {pf.comments}
                                                 </div>
                                               )}
                                             </div>
@@ -763,8 +716,13 @@ export default function EvaluationPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan="7" className="text-center py-3">
-                        Aucune évaluation à afficher.
+                      <td colSpan="8" style={{ border: 'none' }}>
+                        <div className={styles.emptyState}>
+                          <i className="bi bi-clipboard-x"></i>
+                          <p className={styles.emptyStateText}>
+                            Aucune évaluation à afficher.
+                          </p>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -776,56 +734,67 @@ export default function EvaluationPage() {
 
         {/* Modal de Réassignation */}
         {showReassignModal && evaluationToReassign && (
-          <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-            <div className="modal-dialog modal-lg">
-              <div className="modal-content">
-                <div className="modal-header bg-warning text-dark">
-                  <h5 className="modal-title">
-                    <i className="bi bi-arrow-repeat me-2"></i> Réassigner
-                    l'Évaluation
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={handleCloseReassignModal}
-                  ></button>
-                </div>
-                <div className="modal-body">
+          <div className={styles.modalOverlay} onClick={handleCloseReassignModal}>
+            <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h5 className={styles.modalTitle}>
+                  <i className="bi bi-arrow-repeat"></i>
+                  Réassigner l'Évaluation
+                </h5>
+                <button
+                  type="button"
+                  className={styles.closeBtn}
+                  onClick={handleCloseReassignModal}
+                >
+                  <i className="bi bi-x"></i>
+                </button>
+              </div>
+              <div className={styles.modalBody}>
                   {error && (
-                    <div className="alert alert-danger mb-3">{error}</div>
+                    <div className={`${styles.alert} ${styles.alertDanger}`}>
+                      <i className="bi bi-exclamation-triangle-fill"></i>
+                      {error}
+                    </div>
                   )}
                   {success && (
-                    <div className="alert alert-success mb-3">{success}</div>
+                    <div className={`${styles.alert} ${styles.alertSuccess}`}>
+                      <i className="bi bi-check-circle-fill"></i>
+                      {success}
+                    </div>
                   )}
+                  <div className={styles.modalInfo}>
                   <p>
-                    <strong>Projet:</strong>{" "}
-                    {evaluationToReassign.project?.title}
+                      <strong>Projet:</strong> {evaluationToReassign.project?.title}
                   </p>
                   <p>
-                    <strong>Apprenant:</strong>{" "}
-                    {evaluationToReassign.studentName}
+                      <strong>Apprenant:</strong> {evaluationToReassign.studentName}
                   </p>
                   <p>
-                    <strong>Ancien Évaluateur:</strong>{" "}
-                    {evaluationToReassign.evaluator?.name || "N/A"}
+                      <strong>Ancien Évaluateur:</strong> {evaluationToReassign.evaluator?.name || "N/A"}
                   </p>
-                  <hr />
+                  </div>
                   <form onSubmit={handleReassignEvaluation}>
-                    <div className="mb-3">
-                      <label className="form-label">
+                    <div>
+                      <label style={{ 
+                        color: '#179349', 
+                        fontWeight: '600', 
+                        fontSize: '14px', 
+                        marginBottom: '15px',
+                        display: 'block'
+                      }}>
                         Sélectionner deux Slots de Disponibilité
                       </label>
                       {availableSlots.length > 0 ? (
-                        <div className="list-group">
+                        <div className={styles.slotList}>
                           {availableSlots.map((slot) => (
                             <label
                               key={slot._id}
-                              className={`list-group-item list-group-item-action d-flex justify-content-between align-items-center ${
-                                selectedSlots.includes(slot._id) ? "active" : ""
+                              className={`${styles.slotItem} ${
+                                selectedSlots.includes(slot._id) ? styles.active : ""
                               }`}
                             >
                               <input
-                                className="form-check-input me-3"
+                                className={styles.slotCheckbox}
                                 type="checkbox"
                                 value={slot._id}
                                 checked={selectedSlots.includes(slot._id)}
@@ -848,34 +817,47 @@ export default function EvaluationPage() {
                                   });
                                 }}
                               />
-                              <div>
-                                {new Date(slot.startTime).toLocaleString()} -{" "}
-                                {new Date(slot.endTime).toLocaleString()}{" "}
-                                (Évaluateur: {slot.evaluator?.name || "N/A"})
+                              <div className={styles.slotInfo}>
+                                <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
+                                  {new Date(slot.startTime).toLocaleString()} - {new Date(slot.endTime).toLocaleString()}
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#666' }}>
+                                  <i className="bi bi-person-fill" style={{ marginRight: '5px' }}></i>
+                                  Évaluateur: {slot.evaluator?.name || "N/A"}
+                                </div>
                               </div>
                             </label>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-muted">Aucun slot disponible.</p>
+                        <div className={styles.emptyState}>
+                          <i className="bi bi-inbox"></i>
+                          <p className={styles.emptyStateText}>Aucun slot disponible.</p>
+                        </div>
                       )}
                     </div>
                     <button
                       type="submit"
-                      className="btn btn-primary"
+                      className={styles.btnSubmit}
                       disabled={isLoading || selectedSlots.length !== 2}
                     >
-                      {isLoading
-                        ? "Réassignation en cours..."
-                        : "Confirmer la Réassignation"}
+                      {isLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                          Réassignation en cours...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-check-circle"></i>
+                          Confirmer la Réassignation
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>
               </div>
             </div>
-          </div>
         )}
-        {showReassignModal && <div className="modal-backdrop fade show"></div>}
       </div>
     );
   }
@@ -883,28 +865,37 @@ export default function EvaluationPage() {
   // Rendu par défaut pour l'apprenant (vue d'une seule évaluation)
   if (me.role === "apprenant") {
     return (
-      <div className="container-fluid mt-4 pt-5 px-4">
-        <h1 className="mb-4">Mes Évaluations</h1>
+      <div className={styles.container}>
+        <div className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>
+            <i className="bi bi-clipboard-check"></i>
+            Mes Évaluations
+          </h1>
+        </div>
+
         {error && (
-          <div className="alert alert-danger mt-3" role="alert">
+          <div className={`${styles.alert} ${styles.alertDanger}`}>
+            <i className="bi bi-exclamation-triangle-fill"></i>
             {error}
           </div>
         )}
         {success && (
-          <div className="alert alert-success mt-3" role="alert">
+          <div className={`${styles.alert} ${styles.alertSuccess}`}>
+            <i className="bi bi-check-circle-fill"></i>
             {success}
           </div>
         )}
 
-        <div className="thm-shadow-s mb-4">
-          <div className="bg-gradient tmh-bg p-2 rounded-top-3 d-flex align-items-center">
-            <i className="bi bi-list-check me-2"></i>
-            <h2 className="mb-0">Toutes mes Évaluations</h2>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>
+              <i className="bi bi-list-check"></i>
+              Toutes mes Évaluations
+            </h2>
           </div>
-          <div className="thm-bg-light">
-            <h4 className="py-2 ps-3">Liste de toutes mes évaluations</h4>
-            <div className="table-responsive p-3 rounded-3">
-              <table className="table align-middle">
+          <div className={styles.cardBody}>
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
                 <thead>
                   <tr>
                     <th>Projet</th>
@@ -994,7 +985,26 @@ export default function EvaluationPage() {
                               : "N/A"}
                           </td>
                           <td>
-                            <span className={`badge ${statusBadgeClass}`}>
+                            <span
+                              className={`${styles.badge} ${
+                                evalItem.status === "pending"
+                                  ? styles.badgePending
+                                  : evalItem.status === "accepted"
+                                  ? styles.badgeAccepted
+                                  : evalItem.status === "rejected"
+                                  ? styles.badgeRejected
+                                  : evalItem.status === "cancelled"
+                                  ? styles.badgeCancelled
+                                  : styles.badge
+                              }`}
+                            >
+                              <i className={`bi bi-${
+                                evalItem.status === "pending" ? "hourglass-split" :
+                                evalItem.status === "accepted" ? "check-circle" :
+                                evalItem.status === "rejected" ? "x-circle" :
+                                evalItem.status === "cancelled" ? "x-octagon" :
+                                "question-circle"
+                              }`}></i>
                               {evalItem.status}
                             </span>
                           </td>
@@ -1003,8 +1013,13 @@ export default function EvaluationPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan="4" className="text-center py-3">
-                        Aucune évaluation à afficher.
+                      <td colSpan="4" style={{ border: 'none' }}>
+                        <div className={styles.emptyState}>
+                          <i className="bi bi-clipboard-x"></i>
+                          <p className={styles.emptyStateText}>
+                            Aucune évaluation à afficher.
+                          </p>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -1019,8 +1034,13 @@ export default function EvaluationPage() {
 
   // Si ni staff/admin ni apprenant avec toutes les évals, et pas d'évaluation sélectionnée
   return (
-    <div className="text-center mt-5">
-      <p className="lead">Aucune évaluation à afficher ou non autorisé.</p>
+    <div className={styles.container}>
+      <div className={styles.emptyState} style={{ minHeight: '60vh' }}>
+        <i className="bi bi-clipboard-x"></i>
+        <p className={styles.emptyStateText}>
+          Aucune évaluation à afficher ou non autorisé.
+        </p>
+      </div>
     </div>
   );
 }

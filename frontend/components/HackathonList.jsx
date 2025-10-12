@@ -1,12 +1,22 @@
 import React from "react";
+import styles from "../styles/hackathonList.module.css";
 
 const HackathonList = ({ hackathons, me, onShowSubmitHackathonModal }) => {
   if (!hackathons || hackathons.length === 0) {
     return (
-      <div className="p-3 thm-shadow-s mb-4 thm-bg rounded-3">
-        <h2 className="h5 mb-0">Mes Hackathons</h2>
-        <hr />
-        <p className="card-text">Aucun hackathon en cours.</p>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <h2 className={styles.title}>
+            <i className="bi bi-trophy" style={{ color: '#F36F35', fontSize: '24px' }}></i>
+            Mes Hackathons
+          </h2>
+        </div>
+        <div className={styles.emptyState}>
+          <i className={`bi bi-inbox ${styles.emptyIcon}`}></i>
+          <p className={styles.emptyText}>
+            Aucun hackathon en cours.
+          </p>
+        </div>
       </div>
     );
   }

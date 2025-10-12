@@ -1,0 +1,80 @@
+/* HackathonList Styles */
+
+.card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 4px 12px rgba(243, 111, 53, 0.15);
+  border-left: 4px solid #F36F35;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 6px 20px rgba(243, 111, 53, 0.25);
+  transform: translateY(-3px);
+}
+
+:global(.themed:not(.light)) .card {
+  background: var(--bg);
+  box-shadow: 0 4px 12px rgba(243, 111, 53, 0.3);
+  border-left-color: #ff8556;
+}
+
+:global(.themed:not(.light)) .card:hover {
+  box-shadow: 0 6px 20px rgba(243, 111, 53, 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+:global(.themed:not(.light)) .header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.title {
+  color: #179349;
+  font-weight: 700;
+  font-size: 22px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+:global(.themed:not(.light)) .title {
+  color: #1db558;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  color: #ddd;
+  margin-bottom: 15px;
+  display: block;
+}
+
+:global(.themed:not(.light)) .emptyIcon {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.emptyText {
+  font-size: 15px;
+  color: #666;
+  margin: 0;
+}
+
+:global(.themed:not(.light)) .emptyText {
+  color: rgba(255, 255, 255, 0.6);
+}
+

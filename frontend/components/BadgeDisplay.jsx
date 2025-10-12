@@ -1,12 +1,22 @@
 import React from "react";
+import styles from "../styles/badgeDisplay.module.css";
 
 const BadgeDisplay = ({ badges }) => {
   if (!badges || badges.length === 0) {
     return (
-      <div className="thm-shadow-s p-3 rounded-3 thm-bg mb-4">
-        <h2 className="h5 mb-0">Mes Badges</h2>
-        <hr />
-        <p className="card-text">Aucun badge obtenu pour l'instant.</p>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <h2 className={styles.title}>
+            <i className="bi bi-award" style={{ color: '#F36F35', fontSize: '24px' }}></i>
+            Mes Badges
+          </h2>
+        </div>
+        <div className={styles.emptyState}>
+          <i className={`bi bi-award ${styles.emptyIcon}`}></i>
+          <p className={styles.emptyText}>
+            Aucun badge obtenu pour l'instant.
+          </p>
+        </div>
       </div>
     );
   }
