@@ -7,6 +7,8 @@ import ProgressTracker from "../components/ProgressTracker";
 import React from "react"; // Added for React.Fragment
 import { getAuthToken } from "../utils/auth";
 import UserSummaryCard from "../components/UserSummaryCard"; // Importation du nouveau composant
+import Loader from "../components/Loader";
+import styles from "../styles/dashboard.module.css";
 
 // Fonction utilitaire pour s'assurer que les propriétés sont des tableaux
 const sanitizeProjectArrays = (project) => ({
@@ -953,46 +955,53 @@ export default function Dashboard() {
     );
 
   if (isLoading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Chargement...</span>
-        </div>
-        <p className="ms-2">Chargement du tableau de bord...</p>
-      </div>
-    );
+    return <Loader message="Chargement du tableau de bord..." />;
   }
 
   return (
-    <div className="container-fluid mt-4 pt-5 px-4">
-      <h1 className="mb-4">Tableau de bord</h1>
+    <div className={`${styles.dashboardContainer} container-fluid pt-5`}>
       {error && (
-        <div className="alert alert-danger mt-3" role="alert">
+        <div className={`${styles.alert} ${styles.alertDanger}`}>
+          <i className="bi bi-exclamation-triangle-fill"></i>
           {error}
         </div>
       )}
       {success && (
-        <div className="alert alert-success mt-3" role="alert">
+        <div className={`${styles.alert} ${styles.alertSuccess}`}>
+          <i className="bi bi-check-circle-fill"></i>
           {success}
         </div>
       )}
+      
       {me && (
-        <div className="row mb-4">
-          <div className="col-md-6 col-lg-5 mb-3">
+        <div className={styles.headerFlexContainer}>
+          <div className={styles.pageHeader}>
+            <div>
+              <h1 className={styles.pageTitle}>
+                <i className="bi bi-speedometer2"></i>
+                Tableau de bord
+              </h1>
+              <p>
+                Bienvenue sur votre espace personnel CodeLoccol. Consultez vos projets en cours, suivez vos évaluations, gérez vos disponibilités et accédez à toutes vos activités pédagogiques. Restez à jour avec vos notifications et progressez dans votre parcours de formation.
+              </p>
+            </div>
+          </div>
             <UserSummaryCard
               me={me}
               onShowCreateSlotModal={() => setShowCreateSlotModal(true)}
               onShowAddUserModal={() => setShowAddUserModal(true)}
             />
           </div>
-          <div className="col-md-6 col-lg-7 mb-3">
-            {me.role === "apprenant" && progress && (
+      )}
+
+      {me && me.role === "apprenant" && progress && (
+        <div className="row mb-4">
+          <div className="col-12">
               <ProgressTracker
                 level={me.level}
                 daysRemaining={me.daysRemaining}
                 progress={progress}
               />
-            )}
           </div>
         </div>
       )}
@@ -1001,12 +1010,18 @@ export default function Dashboard() {
       {me && me.role === "apprenant" && myCreatedSlots.length > 0 && (
         <div className="row mb-4">
           <div className="col-12">
-            <div className="thm-bg p-3 rounded-3 shadow-sm">
-              <div className="text-white d-flex align-items-center">
-                <i className="bi bi-calendar-check me-2"></i>
-                <h2 className="h5 mb-">Mes Slots de Disponibilité</h2>
+            <div className={styles.cardGreen}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>
+                  <i className="bi bi-calendar-check"></i>
+                  Mes Slots de Disponibilité
+                </h2>
+                <span className={styles.sectionCount}>{myCreatedSlots.filter((slot) => {
+                    const slotEndTime = new Date(slot.endTime);
+                    const oneHourAfterEndTime = new Date(slotEndTime.getTime() + 60 * 60 * 1000);
+                    return new Date() < oneHourAfterEndTime;
+                  }).length}</span>
               </div>
-              <hr />
               <div className="list-group list-group-flush">
                 {myCreatedSlots
                   .filter((slot) => {
@@ -1018,46 +1033,26 @@ export default function Dashboard() {
                     return currentTime < oneHourAfterEndTime;
                   })
                   .map((slot) => (
-                    <div>
-                      <div
-                        key={slot._id}
-                        className="d-flex justify-content-between pb-2"
-                      >
-                        <div>
-                          <h5 className="mb-1 text-primary d-flex align-items-center">
-                            <i className="bi bi-calendar-event me-2"></i>
-                            <span>
-                              {new Date(slot.startTime).toLocaleDateString()} de{" "}
-                              {new Date(slot.startTime)
-                                .getUTCHours()
-                                .toString()
-                                .padStart(2, "0")}
-                              :
-                              {new Date(slot.startTime)
-                                .getUTCMinutes()
-                                .toString()
-                                .padStart(2, "0")}{" "}
-                              à{" "}
-                              {new Date(slot.endTime)
-                                .getUTCHours()
-                                .toString()
-                                .padStart(2, "0")}
-                              :
-                              {new Date(slot.endTime)
-                                .getUTCMinutes()
-                                .toString()
-                                .padStart(2, "0")}
-                            </span>
+                    <div key={slot._id} className={styles.listItem}>
+                      <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                        <div className="flex-grow-1">
+                          <h5 className={styles.listItemTitle}>
+                            <i className="bi bi-calendar-event"></i>
+                            {new Date(slot.startTime).toLocaleDateString('fr-FR')} de{" "}
+                            {new Date(slot.startTime).getUTCHours().toString().padStart(2, "0")}:
+                            {new Date(slot.startTime).getUTCMinutes().toString().padStart(2, "0")} à{" "}
+                            {new Date(slot.endTime).getUTCHours().toString().padStart(2, "0")}:
+                            {new Date(slot.endTime).getUTCMinutes().toString().padStart(2, "0")}
                           </h5>
-                          <div className="d-flex align-items-center">
+                          <div className="d-flex align-items-center gap-2 mt-2">
                             {slot.isBooked ? (
-                              <span className="badge bg-success rounded-pill me-2">
-                                <i className="bi bi-person-check-fill me-1"></i>{" "}
+                              <span className={`${styles.badge} ${styles.badgeGreen}`}>
+                                <i className="bi bi-person-check-fill"></i>
                                 Réservé
                               </span>
                             ) : (
                               <button
-                                className="btn btn-sm btn-outline-danger d-flex align-items-center me-2"
+                                className={`${styles.btnSmall} ${styles.btnDanger}`}
                                 onClick={() =>
                                   setShowDeleteSlotModal({
                                     show: true,
@@ -1066,11 +1061,12 @@ export default function Dashboard() {
                                   })
                                 }
                               >
-                                <i className="bi bi-trash me-1"></i> Supprimer
+                                <i className="bi bi-trash"></i>
+                                Supprimer
                               </button>
                             )}
                             <button
-                              className="btn btn-sm btn-outline-secondary"
+                              className={styles.expandButton}
                               onClick={() =>
                                 setExpandedSlots((prev) => ({
                                   ...prev,
@@ -1080,54 +1076,36 @@ export default function Dashboard() {
                               aria-expanded={!!expandedSlots[slot._id]}
                               aria-controls={`slot-details-${slot._id}`}
                             >
-                              <i
-                                className={`bi bi-chevron-${
-                                  expandedSlots[slot._id] ? "up" : "down"
-                                }`}
-                              ></i>
+                              <i className={`bi bi-chevron-${expandedSlots[slot._id] ? "up" : "down"}`}></i>
                             </button>
+                          </div>
                           </div>
                         </div>
                         {expandedSlots[slot._id] && (
-                          <div
-                            id={`slot-details-${slot._id}`}
-                            className="collapse show mt-3 ps-3 border-start border-primary border-2"
-                          >
+                        <div className={styles.expandedContent} id={`slot-details-${slot._id}`}>
                             {slot.isBooked ? (
-                              <>
-                                <p className="mb-1">
-                                  <i className="bi bi-person me-2"></i> Réservé
-                                  par:{" "}
-                                  <strong>
-                                    {slot.bookedByStudent
-                                      ? slot.bookedByStudent.name
-                                      : "[Utilisateur inconnu]"}
-                                  </strong>
-                                </p>
-                                <p className="mb-1">
-                                  <i className="bi bi-journal-text me-2"></i>{" "}
-                                  Pour le projet:{" "}
-                                  <strong>
-                                    {slot.bookedForProject
-                                      ? slot.bookedForProject.title
-                                      : "[Projet inconnu]"}
-                                  </strong>
-                                </p>
-                              </>
-                            ) : (
-                              <p className="mb-1">
-                                <i className="bi bi-check-circle me-2"></i> Ce
-                                slot est actuellement disponible.
-                              </p>
-                            )}
-                            <p className="mb-1">
-                              <i className="bi bi-info-circle me-2"></i> Créé
-                              le: {new Date(slot.createdAt).toLocaleString()}
-                            </p>
+                            <div className={styles.projectInfo}>
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-person-fill"></i>
+                                Réservé par: <strong>{slot.bookedByStudent ? slot.bookedByStudent.name : "[Utilisateur inconnu]"}</strong>
+                              </div>
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-journal-text"></i>
+                                Pour le projet: <strong>{slot.bookedForProject ? slot.bookedForProject.title : "[Projet inconnu]"}</strong>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className={styles.projectInfoItem}>
+                              <i className="bi bi-check-circle"></i>
+                              Ce slot est actuellement disponible.
                           </div>
                         )}
+                          <div className={styles.projectInfoItem}>
+                            <i className="bi bi-info-circle"></i>
+                            Créé le: {new Date(slot.createdAt).toLocaleString('fr-FR')}
                       </div>
-                      <hr />
+                        </div>
+                      )}
                     </div>
                   ))}
               </div>
@@ -1146,13 +1124,18 @@ export default function Dashboard() {
         ).length > 0 && (
           <div className="row mb-4">
             <div className="col-12">
-              <div className="thm-shadow-s thm-bg rounded-3 p-3">
-                <div className="d-flex align-items-center mb-3">
-                  <i className="bi bi-hourglass-split me-2"></i>
-                  <h2 className="h5 mb-0">Projets en Cours d'Évaluation</h2>
+              <div className={styles.cardOrange}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-hourglass-split"></i>
+                    Projets en Cours d'Évaluation
+                  </h2>
+                  <span className={styles.sectionCount}>
+                    {myProjects.filter((p) => p.assignmentStatus === "submitted" || p.assignmentStatus === "pending_review").length}
+                  </span>
                 </div>
 
-                <div className="list-group list-group-flush">
+                <div>
                   {myProjects
                     .filter(
                       (p) =>
@@ -1160,96 +1143,68 @@ export default function Dashboard() {
                         p.assignmentStatus === "pending_review"
                     )
                     .map((project) => (
-                      <div
-                        key={project.assignmentId}
-                        className="mb-3 p-3 rounded-3 thm-shadow-s thm-bg-light border-info"
-                      >
-                        <div className="">
-                          <div className="d-flex justify-content-between align-items-center flex-wrap">
-                            <h5 className="card-title d-flex align-items-center mb-2">
-                              <i className="bi bi-journal-text me-2 text-info"></i>{" "}
-                              Projet: {project.title}
+                      <div key={project.assignmentId} className={styles.projectCard}>
+                        <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                          <div className="flex-grow-1">
+                            <h5 className={styles.projectTitle}>
+                              <i className="bi bi-journal-text"></i>
+                              {project.title}
                               {project.assignmentStatus === "submitted" && (
-                                <span className="badge bg-warning text-dark ms-2 rounded-pill">
-                                  <i className="bi bi-hourglass-split me-1"></i>{" "}
+                                <span className={`${styles.statusBadge} ${styles.statusSubmitted}`}>
+                                  <i className="bi bi-hourglass-split"></i>
                                   En attente d'évaluation
                                 </span>
                               )}
-                              {project.assignmentStatus ===
-                                "pending_review" && (
-                                <span className="badge bg-info ms-2 rounded-pill">
-                                  <i className="bi bi-person-workspace me-1"></i>{" "}
+                              {project.assignmentStatus === "pending_review" && (
+                                <span className={`${styles.statusBadge} ${styles.statusPendingReview}`}>
+                                  <i className="bi bi-person-workspace"></i>
                                   En Attente Staff
                                 </span>
                               )}
                             </h5>
+                          </div>
                             <button
-                              className="btn btn-sm btn-outline-secondary"
+                            className={styles.expandButton}
                               onClick={() =>
                                 setExpandedFeedback((prev) => ({
                                   ...prev,
-                                  [project.assignmentId]:
-                                    !prev[project.assignmentId],
+                                [project.assignmentId]: !prev[project.assignmentId],
                                 }))
                               }
-                              aria-expanded={
-                                !!expandedFeedback[project.assignmentId]
-                              }
+                            aria-expanded={!!expandedFeedback[project.assignmentId]}
                               aria-controls={`project-details-${project.assignmentId}`}
                             >
-                              <i
-                                className={`bi bi-chevron-${
-                                  expandedFeedback[project.assignmentId]
-                                    ? "up"
-                                    : "down"
-                                }`}
-                              ></i>
+                            <i className={`bi bi-chevron-${expandedFeedback[project.assignmentId] ? "up" : "down"}`}></i>
                             </button>
                           </div>
                           {expandedFeedback[project.assignmentId] && (
-                            <div
-                              id={`project-details-${project.assignmentId}`}
-                              className="collapse show mt-3"
-                            >
-                              <p className="card-text mb-1 d-flex align-items-center">
-                                <i className="bi bi-person-check me-2 text-muted"></i>{" "}
-                                Évaluateurs:
-                                {project.peerEvaluators &&
-                                project.peerEvaluators.length > 0
-                                  ? project.peerEvaluators
-                                      .map(
-                                        (evaluator) =>
-                                          evaluator.name || evaluator
-                                      )
-                                      .join(", ")
+                          <div className={styles.expandedContent} id={`project-details-${project.assignmentId}`}>
+                            <div className={styles.projectInfo}>
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-person-check"></i>
+                                Évaluateurs: <strong>
+                                {project.peerEvaluators && project.peerEvaluators.length > 0
+                                  ? project.peerEvaluators.map((evaluator) => evaluator.name || evaluator).join(", ")
                                   : "N/A"}
-                              </p>
+                                </strong>
+                              </div>
                               {project.repoUrl && (
-                                <p className="card-text mb-1 d-flex align-items-center">
-                                  <i className="bi bi-github me-2 text-muted"></i>{" "}
-                                  Dépôt:{" "}
-                                  <a
-                                    href={project.repoUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-primary text-decoration-none"
-                                  >
+                                <div className={styles.projectInfoItem}>
+                                  <i className="bi bi-github"></i>
+                                  Dépôt: <a href={project.repoUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
                                     {project.repoUrl}
                                   </a>
-                                </p>
+                                </div>
                               )}
                               {project.submissionDate && (
-                                <p className="card-text mb-1 d-flex align-items-center">
-                                  <i className="bi bi-calendar-event me-2 text-muted"></i>{" "}
-                                  Date de soumission:{" "}
-                                  {new Date(
-                                    project.submissionDate
-                                  ).toLocaleString()}
-                                </p>
-                              )}
+                                <div className={styles.projectInfoItem}>
+                                  <i className="bi bi-calendar-event"></i>
+                                  Date de soumission: <strong>{new Date(project.submissionDate).toLocaleString('fr-FR')}</strong>
                             </div>
                           )}
                         </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>
@@ -1262,108 +1217,57 @@ export default function Dashboard() {
       {me && me.role === "apprenant" && myProjects.length > 0 && (
         <div className="row mb-4">
           <div className="col-12">
-            <div className="thm-shadow-s thm-bg p-3 rounded-3">
-              <div className="d-flex align-items-center">
-                <i className="bi bi-folder-check me-2"></i>
-                <h2 className="h5 mb-0">
-                  Mes Projets Assignés ({myProjects.length})
+            <div className={styles.card}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>
+                  <i className="bi bi-folder-check"></i>
+                  Mes Projets Assignés
                 </h2>
+                <span className={styles.sectionCount}>{myProjects.length}</span>
               </div>
 
-              <div className="list-group list-group-flush pt-3">
+              <div className={styles.grid2}>
                 {myProjects.map((project) => (
                   <div
                     key={project.assignmentId}
-                    className="mb-3 thm-bg-light thm-shadow-s p-3 rounded-3 transform-hover"
-                  >
-                    <div className="card-body d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
-                      <div
-                        className="flex-grow-1 mb-2 mb-md-0"
+                    className={styles.projectCard}
                         onClick={() => router.push("/projects")}
                         style={{ cursor: "pointer" }}
                       >
-                        <h5 className="card-title d-flex align-items-center mb-1">
-                          <i className="bi bi-folder-open me-2 text-success"></i>{" "}
+                    <h5 className={styles.projectTitle}>
+                      <i className="bi bi-folder-open"></i>
                           {project.title}
-                          <span
-                            className={`badge rounded-pill bg-${(() => {
-                              if (project.assignmentStatus === "submitted") {
-                                return "warning text-dark";
-                              } else if (
-                                project.assignmentStatus === "pending_review"
-                              ) {
-                                return "info";
-                              } else if (
-                                project.assignmentStatus === "approved"
-                              ) {
-                                return "success";
-                              } else if (
-                                project.assignmentStatus === "rejected"
-                              ) {
-                                return "danger";
-                              } else if (
-                                project.assignmentStatus === "assigned"
-                              ) {
-                                return "primary"; // Statut assigné
-                              }
-                              return "secondary";
-                            })()} ms-2`}
-                          >
-                            <i
-                              className={`bi bi-${(() => {
-                                if (project.assignmentStatus === "submitted") {
-                                  return "hourglass-split";
-                                } else if (
-                                  project.assignmentStatus === "pending_review"
-                                ) {
-                                  return "person-workspace";
-                                } else if (
-                                  project.assignmentStatus === "approved"
-                                ) {
-                                  return "check-circle";
-                                } else if (
-                                  project.assignmentStatus === "rejected"
-                                ) {
-                                  return "x-circle";
-                                } else if (
-                                  project.assignmentStatus === "assigned"
-                                ) {
-                                  return "clock";
-                                }
-                                return "question-circle";
-                              })()} me-1`}
-                            ></i>
-                            {(() => {
-                              if (project.assignmentStatus === "submitted") {
-                                return "Soumis (en attente d'évaluation)";
-                              } else if (
-                                project.assignmentStatus === "pending_review"
-                              ) {
-                                return "En attente Staff";
-                              } else if (
-                                project.assignmentStatus === "approved"
-                              ) {
-                                return "Approuvé";
-                              } else if (
-                                project.assignmentStatus === "rejected"
-                              ) {
-                                return "Rejeté";
-                              } else if (
-                                project.assignmentStatus === "assigned"
-                              ) {
-                                return "Assigné";
-                              }
-                              return "Statut Inconnu";
-                            })()}
+                      <span className={`${styles.statusBadge} ${
+                              project.assignmentStatus === "submitted" ? styles.statusSubmitted :
+                              project.assignmentStatus === "pending_review" ? styles.statusPendingReview :
+                              project.assignmentStatus === "approved" ? styles.statusApproved :
+                              project.assignmentStatus === "rejected" ? styles.statusRejected :
+                              project.assignmentStatus === "assigned" ? styles.statusAssigned :
+                              styles.badgeGray
+                            }`}>
+                            <i className={`bi bi-${
+                              project.assignmentStatus === "submitted" ? "hourglass-split" :
+                              project.assignmentStatus === "pending_review" ? "person-workspace" :
+                              project.assignmentStatus === "approved" ? "check-circle" :
+                              project.assignmentStatus === "rejected" ? "x-circle" :
+                              project.assignmentStatus === "assigned" ? "clock" :
+                              "question-circle"
+                            }`}></i>
+                            {
+                              project.assignmentStatus === "submitted" ? "Soumis" :
+                              project.assignmentStatus === "pending_review" ? "En attente Staff" :
+                              project.assignmentStatus === "approved" ? "Approuvé" :
+                              project.assignmentStatus === "rejected" ? "Rejeté" :
+                              project.assignmentStatus === "assigned" ? "Assigné" :
+                              "Inconnu"
+                            }
                           </span>
                           {project.order && (
-                            <small className="text-muted ms-2">
-                              (Projet {project.order})
-                            </small>
+                        <span className={`${styles.badge} ${styles.badgeGray}`}>
+                          Projet #{project.order}
+                        </span>
                           )}
                         </h5>
-                      </div>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -1486,17 +1390,24 @@ export default function Dashboard() {
           me.role === "admin") && (
           <div className="row mb-4">
             <div className="col-12">
-              <div className="thm-shadow-s thm-bg p-3 rounded-3">
-                <div className="d-flex align-items-center mb-3">
-                  <i className="bi bi-list-check me-2"></i>
-                  <h2 className="h5">
-                    Corrections à Venir{" "}
-                    {me.role !== "apprenant" &&
-                      "(Toutes les évaluations en attente)"}
+              <div className={styles.cardOrange}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-list-check"></i>
+                    Corrections à Venir
+                    {me.role !== "apprenant" && " (Toutes les évaluations)"}
                   </h2>
+                  <span className={styles.sectionCount}>
+                    {me.role === "apprenant" ? upcomingEvaluations.length : allPendingEvaluationsForStaff.filter((evaluation) => {
+                      const evaluationEndTime = evaluation.slot ? new Date(evaluation.slot.endTime) : null;
+                      if (!evaluationEndTime) return false;
+                      const twoHoursAfterEndTime = new Date(evaluationEndTime.getTime() + 2 * 60 * 60 * 1000);
+                      return new Date() < twoHoursAfterEndTime;
+                    }).length}
+                  </span>
                 </div>
 
-                <ul className="thm-bg-light rounded-3 p-3">
+                <div>
                   {me.role === "apprenant" ? (
                     // Affichage pour l'apprenant
                     upcomingEvaluations.map((evaluation) => {
@@ -1872,11 +1783,14 @@ export default function Dashboard() {
                       </li>
                     ))
                   ) : (
-                    <p className="text-center py-3">
+                    <div className={styles.emptyState}>
+                      <i className="bi bi-inbox"></i>
+                      <p className={styles.emptyStateText}>
                       Aucune évaluation en attente pour le moment.
                     </p>
+                    </div>
                   )}
-                </ul>
+                </div>
               </div>
             </div>
           </div>
@@ -1888,59 +1802,49 @@ export default function Dashboard() {
         projectsAwaitingStaffReview.length > 0 && (
           <div className="row mb-4">
             <div className="col-12">
-              <div className="thm-bg p-3 rounded-3 thm-shadow-s">
-                <div className="text-white mb-3 d-flex align-items-center">
-                  <i className="bi bi-file-earmark-check me-2"></i>
-                  <h2 className="h5 mb-0">
-                    Projets en Attente de Révision Finale (Personnel)
+              <div className={styles.cardGreen}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-file-earmark-check"></i>
+                    Projets en Attente de Révision Finale
                   </h2>
+                  <span className={styles.sectionCount}>{projectsAwaitingStaffReview.length}</span>
                 </div>
-                <div className="thm-bg-light p-3 rounded-3">
-                  <ul>
-                    {projectsAwaitingStaffReview.map((project) => (
-                      <li
-                        key={project._id}
-                        className="d-flex justify-content-between align-items-center flex-wrap"
-                      >
                         <div>
-                          <h5 className="mb-1 text-danger">
-                            <i className="bi bi-exclamation-triangle me-2"></i>{" "}
-                            Projet: {project.title}
+                  {projectsAwaitingStaffReview.map((project) => (
+                    <div key={project._id} className={styles.listItem}>
+                      <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                        <div className="flex-grow-1">
+                          <h5 className={styles.listItemTitle}>
+                            <i className="bi bi-exclamation-triangle"></i>
+                            {project.title}
+                            <span className={`${styles.badge} ${styles.badgeOrange}`}>
+                              <i className="bi bi-person-workspace"></i>
+                              En Attente
+                          </span>
                           </h5>
-                          <span className="d-flex align-items-center mt-1">
-                            <i className="bi bi-person me-1"></i> Soumis par:{" "}
-                            {project.student.name}
-                          </span>
-                          <span className="d-flex align-items-center mt-1">
-                            Statut actuel:{" "}
-                            <span className="badge bg-info ms-1 rounded-pill">
-                              En Attente Staff
-                            </span>
-                          </span>
+                          <div className={styles.projectInfo}>
+                            <div className={styles.projectInfoItem}>
+                              <i className="bi bi-person"></i>
+                              Soumis par: <strong>{project.student.name}</strong>
+                            </div>
                           {project.repoUrl && (
-                            <span className="d-flex align-items-center mt-1">
-                              <i className="bi bi-github me-1"></i> Dépôt:{" "}
-                              <a
-                                href={project.repoUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary text-decoration-none"
-                              >
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-github"></i>
+                                Dépôt: <a href={project.repoUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
                                 {project.repoUrl}
                               </a>
-                            </span>
-                          )}
-                          <span className="d-flex align-items-center mt-1">
-                            <i className="bi bi-calendar-event me-1"></i> Date
-                            de soumission:{" "}
-                            {new Date(
-                              project.submissionDate
-                            ).toLocaleDateString()}
-                          </span>
+                              </div>
+                            )}
+                            <div className={styles.projectInfoItem}>
+                              <i className="bi bi-calendar-event"></i>
+                              Date de soumission: <strong>{new Date(project.submissionDate).toLocaleDateString('fr-FR')}</strong>
                         </div>
-                        <div className="d-flex flex-column flex-md-row mt-2 mt-md-0">
+                          </div>
+                        </div>
+                        <div className={styles.buttonGroup}>
                           <button
-                            className="btn btn-sm btn-success mt-2 mt-md-0 me-md-2"
+                            className={`${styles.btnSmall} ${styles.btnSuccess}`}
                             onClick={() =>
                               token &&
                               handleFinalStaffReview(
@@ -1950,11 +1854,11 @@ export default function Dashboard() {
                               )
                             }
                           >
-                            <i className="bi bi-check-circle me-1"></i>{" "}
+                            <i className="bi bi-check-circle"></i>
                             Approuver
                           </button>
                           <button
-                            className="btn btn-sm btn-danger mt-2 mt-md-0"
+                            className={`${styles.btnSmall} ${styles.btnDanger}`}
                             onClick={() =>
                               token &&
                               handleFinalStaffReview(
@@ -1964,12 +1868,13 @@ export default function Dashboard() {
                               )
                             }
                           >
-                            <i className="bi bi-x-circle me-1"></i> Rejeter
+                            <i className="bi bi-x-circle"></i>
+                            Rejeter
                           </button>
                         </div>
-                      </li>
+                      </div>
+                    </div>
                     ))}
-                  </ul>
                 </div>
               </div>
             </div>
@@ -1982,143 +1887,95 @@ export default function Dashboard() {
         learners.length > 0 && (
           <div className="row mb-4">
             <div className="col-12">
-              <div className="thm-bg rounded-3 p-3 thm-shadow-s">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <h3>
-                    <i className="bi bi-people fa-2"></i>
-                  </h3>
-                  <h2 className="h5 mb-0">Liste des Apprenants</h2>
+              <div className={styles.card}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-people"></i>
+                    Liste des Apprenants
+                  </h2>
+                  <span className={styles.sectionCount}>{learners.length}</span>
                 </div>
 
-                <div className="table-responsive">
-                  <table className="table">
+                <div className={styles.tableResponsiveWrapper}>
+                  <table className={styles.modernTable}>
                     <thead>
                       <tr>
-                        <th>Nom</th>
-                        <th>Email</th>
-                        <th className="text-center">Niveau</th>
-                        <th className="text-center">Jours Restants</th>
-                        <th>Projet Assigné</th>
-                        <th className="text-center">Actions</th>
+                        <th>
+                          <i className="bi bi-person-fill me-2"></i>
+                          Nom
+                        </th>
+                        <th>
+                          <i className="bi bi-envelope-fill me-2"></i>
+                          Email
+                        </th>
+                        <th className="text-center">
+                          <i className="bi bi-bar-chart-fill me-2"></i>
+                          Niveau
+                        </th>
+                        <th className="text-center">
+                          <i className="bi bi-hourglass-split me-2"></i>
+                          Jours
+                        </th>
+                        <th>
+                          <i className="bi bi-folder-fill me-2"></i>
+                          Projet Assigné
+                        </th>
+                        <th className="text-center">
+                          <i className="bi bi-gear-fill me-2"></i>
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {learners.map((learner) => (
                         <React.Fragment key={learner._id}>
                           <tr>
-                            <td>{learner.name}</td>
-                            <td>{learner.email}</td>
+                            <td><strong>{learner.name}</strong></td>
+                            <td style={{ fontSize: '12px' }} title={learner.email}>{learner.email}</td>
                             <td className="text-center">
-                              <span className="badge bg-primary">
+                              <span className={`${styles.badge} ${styles.badgeGreen}`}>
+                                <i className="bi bi-bar-chart"></i>
                                 {learner.level}
                               </span>
                             </td>
                             <td className="text-center">
-                              <span className="badge bg-info">
+                              <span className={`${styles.badge} ${styles.badgeOrange}`}>
+                                <i className="bi bi-hourglass-split"></i>
                                 {learner.daysRemaining}
                               </span>
                             </td>
                             <td>
                               {learner.assignedProject ? (
-                                <span
-                                  className={`badge rounded-pill bg-${(() => {
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "assigned"
-                                    )
-                                      return "primary";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "submitted"
-                                    )
-                                      return "warning text-dark";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "pending_review"
-                                    )
-                                      return "info";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "approved"
-                                    )
-                                      return "success";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "rejected"
-                                    )
-                                      return "danger";
-                                    return "secondary"; // Fallback
-                                  })()}`}
-                                >
-                                  <i
-                                    className={`bi bi-${(() => {
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "assigned"
-                                      )
-                                        return "clock";
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "submitted"
-                                      )
-                                        return "hourglass-split";
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "pending_review"
-                                      )
-                                        return "person-workspace";
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "approved"
-                                      )
-                                        return "check-circle";
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "rejected"
-                                      )
-                                        return "x-circle";
-                                      return "question-circle";
-                                    })()} me-1`}
-                                  ></i>
-                                  {(() => {
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "assigned"
-                                    )
-                                      return "Assigné";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "submitted"
-                                    )
-                                      return "Soumis (en attente)";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "pending_review"
-                                    )
-                                      return "En attente Staff";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "approved"
-                                    )
-                                      return "Approuvé";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "rejected"
-                                    )
-                                      return "Rejeté";
-                                    return "Statut Inconnu";
-                                  })()}
-                                  : {learner.assignedProject.title}
+                                <span className={`${styles.statusBadge} ${
+                                  learner.assignedProject.status === "assigned" ? styles.statusAssigned :
+                                  learner.assignedProject.status === "submitted" ? styles.statusSubmitted :
+                                  learner.assignedProject.status === "pending_review" ? styles.statusPendingReview :
+                                  learner.assignedProject.status === "approved" ? styles.statusApproved :
+                                  learner.assignedProject.status === "rejected" ? styles.statusRejected :
+                                  styles.badgeGray
+                                }`}>
+                                  <i className={`bi bi-${
+                                    learner.assignedProject.status === "assigned" ? "clock" :
+                                    learner.assignedProject.status === "submitted" ? "hourglass-split" :
+                                    learner.assignedProject.status === "pending_review" ? "person-workspace" :
+                                    learner.assignedProject.status === "approved" ? "check-circle" :
+                                    learner.assignedProject.status === "rejected" ? "x-circle" :
+                                    "question-circle"
+                                  }`}></i>
+                                  <span title={learner.assignedProject.title}>
+                                    {learner.assignedProject.title.length > 25 ? learner.assignedProject.title.substring(0, 25) + '...' : learner.assignedProject.title}
+                                  </span>
                                 </span>
                               ) : (
-                                <span className="badge rounded-pill bg-secondary">
+                                <span className={`${styles.badge} ${styles.badgeGray}`}>
+                                  <i className="bi bi-x"></i>
                                   Aucun
                                 </span>
                               )}
                             </td>
                             <td className="text-center">
                               <button
-                                className="btn btn-sm btn-outline-secondary py-0 px-1"
+                                className={styles.expandButton}
                                 onClick={() => {
                                   const newExpandedLearners = {
                                     ...expandedLearners,
@@ -2283,112 +2140,129 @@ export default function Dashboard() {
       {me && (me.role === "staff" || me.role === "admin") && (
         <div className="row mb-4">
           <div className="col-12">
-            <div className="thm-shadow-s thm-bg  p-3 rounded-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <i className="bi bi-journals me-2"></i>
-                <h2 className="h5 mb-0">Gestion des Projets</h2>
-                <div className="d-flex">
+            <div className={styles.card}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>
+                  <i className="bi bi-journals"></i>
+                  Gestion des Projets
+                </h2>
+                <div className={styles.buttonGroup}>
                   <button
-                    className="btn thm-bg-light thm-shadow-s btn-sm me-2"
+                    className={styles.actionButtonSecondary}
                     onClick={() => router.push("/hackathons")}
                   >
-                    <i className="bi bi-lightbulb me-1"></i> Gérer les
+                    <i className="bi bi-lightbulb"></i>
                     Hackathons
                   </button>
                   <button
-                    className="btn thm-bg-light thm-shadow-s btn-sm me-2"
+                    className={styles.actionButtonSecondary}
                     onClick={() => router.push("/admin/users")}
                   >
-                    <i className="bi bi-people me-1"></i> Gérer les Utilisateurs
+                    <i className="bi bi-people"></i>
+                    Utilisateurs
                   </button>
                   <button
-                    className="btn thm-bg-light thm-shadow-s btn-sm"
+                    className={styles.actionButton}
                     onClick={() => router.push("/projects?openAddProject=true")}
                   >
-                    <i className="bi bi-plus-circle me-1"></i> Ajouter un Projet
+                    <i className="bi bi-plus-circle"></i>
+                    Ajouter un Projet
                   </button>
                 </div>
               </div>
-              <div className="card-body">
                 {allProjects.length === 0 ? (
-                  <p>Aucun projet disponible.</p>
+                <div className={styles.emptyState}>
+                  <i className="bi bi-inbox"></i>
+                  <p className={styles.emptyStateText}>Aucun projet disponible.</p>
+                </div>
                 ) : (
-                  <div className="table-responsive">
-                    <table className="table table-striped table-hover align-middle">
-                      <thead className="table-light">
+                  <div className={styles.tableResponsiveWrapper}>
+                    <table className={`${styles.modernTable} ${styles.modernTableProjects}`}>
+                      <thead>
                         <tr>
-                          <th>Titre</th>
-                          <th>Description</th>
-                          <th>Étudiant</th>
-                          <th>Statut</th>
-                          <th className="text-center">Actions</th>
+                          <th>
+                            <i className="bi bi-journal-text me-2"></i>
+                            Titre
+                          </th>
+                          <th>
+                            <i className="bi bi-text-paragraph me-2"></i>
+                            Description
+                          </th>
+                          <th>
+                            <i className="bi bi-person-fill me-2"></i>
+                            Étudiant
+                          </th>
+                          <th>
+                            <i className="bi bi-check-circle-fill me-2"></i>
+                            Statut
+                          </th>
+                          <th className="text-center">
+                            <i className="bi bi-gear-fill me-2"></i>
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {allProjects.map((project) => (
                           <tr key={project._id}>
-                            <td>
-                              <i className="bi bi-journal-text me-2"></i>
-                              {project.title}
+                            <td title={project.title}>
+                              <strong>
+                                <i className="bi bi-journal-text me-2" style={{ color: '#F36F35' }}></i>
+                                {project.title.length > 30 ? project.title.substring(0, 30) + '...' : project.title}
+                              </strong>
                             </td>
-                            <td>{project.description.substring(0, 50)}...</td>
+                            <td style={{ fontSize: '12px' }} title={project.description}>
+                              {project.description.substring(0, 80)}...
+                            </td>
                             <td>
                               {project.student ? (
-                                <span className="badge bg-secondary">
-                                  <i className="bi bi-person me-1"></i>
+                                <span className={`${styles.badge} ${styles.badgeOrange}`}>
+                                  <i className="bi bi-person"></i>
                                   {project.student.name}
                                 </span>
                               ) : (
-                                <span className="badge bg-dark">Template</span>
+                                <span className={`${styles.badge} ${styles.badgeGreen}`}>
+                                  <i className="bi bi-file-earmark"></i>
+                                  Template
+                                </span>
                               )}
                             </td>
                             <td>
-                              <span
-                                className={`badge bg-${
-                                  project.status === "approved"
-                                    ? "success"
-                                    : project.status === "rejected"
-                                    ? "danger"
-                                    : project.status === "template"
-                                    ? "dark"
-                                    : "warning"
-                                } rounded-pill`}
-                              >
-                                <i
-                                  className={`bi bi-${
-                                    project.status === "approved"
-                                      ? "check-circle"
-                                      : project.status === "rejected"
-                                      ? "x-circle"
-                                      : project.status === "template"
-                                      ? "file-earmark"
-                                      : "hourglass-split"
-                                  } me-1`}
-                                ></i>
-                                {project.status === "approved"
-                                  ? "Approuvé"
-                                  : project.status === "rejected"
-                                  ? "Rejeté"
-                                  : project.status === "template"
-                                  ? "Modèle"
-                                  : "En attente"}
+                              <span className={`${styles.statusBadge} ${
+                                project.status === "approved" ? styles.statusApproved :
+                                project.status === "rejected" ? styles.statusRejected :
+                                project.status === "template" ? styles.badgeGreen :
+                                styles.statusSubmitted
+                              }`}>
+                                <i className={`bi bi-${
+                                  project.status === "approved" ? "check-circle" :
+                                  project.status === "rejected" ? "x-circle" :
+                                  project.status === "template" ? "file-earmark" :
+                                  "hourglass-split"
+                                }`}></i>
+                                {project.status === "approved" ? "Approuvé" :
+                                 project.status === "rejected" ? "Rejeté" :
+                                 project.status === "template" ? "Modèle" :
+                                 "En attente"}
                               </span>
                             </td>
                             <td className="text-center">
+                              <div className={styles.buttonGroup}>
                               <button
-                                className="btn btn-sm btn-outline-info me-2"
+                                  className={`${styles.btnSmall} ${styles.btnSuccess}`}
                                 onClick={() => handleEditProject(project)}
                                 title="Modifier le projet"
                               >
                                 <i className="bi bi-pencil-square"></i>
                               </button>
                               <button
-                                className="btn btn-sm btn-outline-danger"
+                                  className={`${styles.btnSmall} ${styles.btnDanger}`}
                                 onClick={() => handleDeleteProject(project._id)}
                                 title="Supprimer le projet"
                               >
                                 <i className="bi bi-trash"></i>
                               </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -2396,7 +2270,6 @@ export default function Dashboard() {
                     </table>
                   </div>
                 )}
-              </div>
             </div>
           </div>
         </div>
@@ -2404,59 +2277,58 @@ export default function Dashboard() {
 
       {/* Modale pour créer un slot de disponibilité */}
       {showCreateSlotModal && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog">
-            <div className="modal-content thm-bg-light">
-              <div className="modal-header thm-bg text-white">
-                <h5 className="modal-title">Créer un Slot de Disponibilité</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowCreateSlotModal(false)}
-                ></button>
+        <div className={styles.modalOverlay} onClick={() => setShowCreateSlotModal(false)}>
+          <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.modalHeader} ${styles.modalHeaderGreen}`}>
+              <h5 className={styles.modalTitle}>
+                <i className="bi bi-calendar-plus"></i>
+                Créer un Slot de Disponibilité
+              </h5>
+              <button type="button" className={styles.closeBtn} onClick={() => setShowCreateSlotModal(false)}>
+                <i className="bi bi-x"></i>
+              </button>
               </div>
-              <div className="modal-body">
+            <div className={styles.modalBody}>
                 {error && (
-                  <div className="alert alert-danger mb-3" role="alert">
+                <div className={`${styles.alert} ${styles.alertDanger}`}>
+                  <i className="bi bi-exclamation-triangle-fill"></i>
                     {error}
                   </div>
                 )}
                 {success && (
-                  <div className="alert alert-success mb-3" role="alert">
+                <div className={`${styles.alert} ${styles.alertSuccess}`}>
+                  <i className="bi bi-check-circle-fill"></i>
                     {success}
                   </div>
                 )}
                 <form onSubmit={handleCreateSlot}>
-                  <div className="mb-3">
-                    <label htmlFor="slotDate" className="form-label">
-                      <span>Date</span> <span className="text-danger">*</span>
+                <div className={styles.formGroup}>
+                  <label htmlFor="slotDate" className={styles.formLabel}>
+                    Date <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="date"
-                      className="form-control"
+                    className={styles.formControl}
                       id="slotDate"
                       value={slotDate}
                       onChange={(e) => setSlotDate(e.target.value)}
                       required
                     />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="slotStartTime" className="form-label">
-                      <span>Heure de début</span>{" "}
-                      <span className="text-danger">*</span>
+                </div>
+                <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label htmlFor="slotStartTime" className={styles.formLabel}>
+                      Heure de début <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="time"
-                      className="form-control"
+                      className={styles.formControl}
                       id="slotStartTime"
                       value={slotStartTime}
                       onChange={(e) => {
                         const newStartTime = e.target.value;
                         setSlotStartTime(newStartTime);
-                        // Calculer l'heure de fin en ajoutant 30 minutes
-                        const [hours, minutes] = newStartTime
-                          .split(":")
-                          .map(Number);
+                        const [hours, minutes] = newStartTime.split(":").map(Number);
                         const date = new Date();
                         date.setHours(hours, minutes + 30, 0, 0);
                         const newEndTime = date.toLocaleTimeString([], {
@@ -2469,73 +2341,63 @@ export default function Dashboard() {
                       required
                     />
                   </div>
-                  <div className="mb-3">
-                    <label htmlFor="slotEndTime" className="form-label">
-                      <span>Heure de fin</span>{" "}
-                      <span className="text-danger">*</span>
+                  <div style={{ flex: 1 }}>
+                    <label htmlFor="slotEndTime" className={styles.formLabel}>
+                      Heure de fin <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="time"
-                      className="form-control"
+                      className={styles.formControl}
                       id="slotEndTime"
                       value={slotEndTime}
                       onChange={(e) => setSlotEndTime(e.target.value)}
                       required
-                      readOnly // Rendre l'heure de fin non modifiable manuellement
+                      readOnly
                     />
                   </div>
-                  <button
-                    type="submit"
-                    className="btn thm-bg-primary text-white d-flex align-items-center"
-                    disabled={isLoading}
-                  >
+                </div>
+                <button type="submit" className={styles.actionButton} disabled={isLoading}>
                     {isLoading ? (
                       <>
-                        <span
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                          aria-hidden="true"
-                        ></span>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         Création...
                       </>
                     ) : (
                       <>
-                        <i className="bi bi-plus-circle me-2 text-white"></i>{" "}
+                      <i className="bi bi-plus-circle"></i>
                         Créer le slot
                       </>
                     )}
                   </button>
                 </form>
-              </div>
             </div>
           </div>
         </div>
       )}
-      {showCreateSlotModal && <div className="modal-backdrop fade show"></div>}
 
       {/* Modale pour l'évaluation de projet */}
       {showEvaluationModal && currentEvaluationToSubmit && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-warning text-dark">
-                <h5 className="modal-title">
-                  Évaluer le Projet: {currentEvaluationToSubmit.project.title}
+        <div className={styles.modalOverlay} onClick={handleCloseEvaluationModal}>
+          <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <div className={`${styles.modalHeader} ${styles.modalHeaderYellow}`}>
+              <h5 className={styles.modalTitle}>
+                <i className="bi bi-clipboard-check"></i>
+                Évaluer: {currentEvaluationToSubmit.project.title}
                 </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={handleCloseEvaluationModal}
-                ></button>
+              <button type="button" className={styles.closeBtn} onClick={handleCloseEvaluationModal}>
+                <i className="bi bi-x"></i>
+              </button>
               </div>
-              <div className="modal-body">
+            <div className={styles.modalBody}>
                 {error && (
-                  <div className="alert alert-danger mt-3" role="alert">
+                <div className={`${styles.alert} ${styles.alertDanger}`}>
+                  <i className="bi bi-exclamation-triangle-fill"></i>
                     {error}
                   </div>
                 )}
                 {success && (
-                  <div className="alert alert-success mt-3" role="alert">
+                <div className={`${styles.alert} ${styles.alertSuccess}`}>
+                  <i className="bi bi-check-circle-fill"></i>
                     {success}
                   </div>
                 )}
@@ -2568,30 +2430,26 @@ export default function Dashboard() {
                 </p>
 
                 <form>
-                  <div className="mb-3">
-                    <label htmlFor="feedbackAssiduite" className="form-label">
-                      Assiduité <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackAssiduite" className={styles.formLabel}>
+                      Assiduité <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackAssiduite"
                       name="assiduite"
                       rows="3"
                       value={feedback.assiduite}
                       onChange={handleFeedbackChange}
-                      required={true} // Rendre obligatoire si statut accepté
+                      required={true}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="feedbackComprehension"
-                      className="form-label"
-                    >
-                      Compréhension des projets{" "}
-                      <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackComprehension" className={styles.formLabel}>
+                      Compréhension des projets <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackComprehension"
                       name="comprehension"
                       rows="3"
@@ -2600,16 +2458,12 @@ export default function Dashboard() {
                       required={true}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="feedbackSpecifications"
-                      className="form-label"
-                    >
-                      Respect des spécifications{" "}
-                      <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackSpecifications" className={styles.formLabel}>
+                      Respect des spécifications <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackSpecifications"
                       name="specifications"
                       rows="3"
@@ -2618,16 +2472,12 @@ export default function Dashboard() {
                       required={true}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="feedbackMaitriseConcepts"
-                      className="form-label"
-                    >
-                      Maîtrise des concepts{" "}
-                      <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackMaitriseConcepts" className={styles.formLabel}>
+                      Maîtrise des concepts <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackMaitriseConcepts"
                       name="maitrise_concepts"
                       rows="3"
@@ -2636,16 +2486,12 @@ export default function Dashboard() {
                       required={true}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="feedbackCapaciteExpliquer"
-                      className="form-label"
-                    >
-                      Capacité à expliquer{" "}
-                      <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackCapaciteExpliquer" className={styles.formLabel}>
+                      Capacité à expliquer <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackCapaciteExpliquer"
                       name="capacite_expliquer"
                       rows="3"
@@ -2656,77 +2502,64 @@ export default function Dashboard() {
                   </div>
                 </form>
               </div>
-              <div className="modal-footer">
+              <div className={styles.modalFooter}>
                 <button
                   type="button"
-                  className="btn btn-danger d-flex align-items-center"
+                  className={`${styles.btnSmall} ${styles.btnDanger}`}
                   onClick={() => handleSubmitFeedback("rejected")}
                   disabled={isLoading}
+                  style={{ padding: '12px 24px' }}
                 >
                   {isLoading ? (
                     <>
-                      <span
-                        className="spinner-border spinner-border-sm me-2"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
-                      Rejet en cours...
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      Rejet...
                     </>
                   ) : (
                     <>
-                      <i className="bi bi-x-circle me-2"></i> Refuser le projet
+                      <i className="bi bi-x-circle"></i>
+                      Refuser
                     </>
                   )}
                 </button>
                 <button
                   type="button"
-                  className="btn btn-success d-flex align-items-center"
+                  className={`${styles.btnSmall} ${styles.btnSuccess}`}
                   onClick={() => handleSubmitFeedback("accepted")}
-                  disabled={
-                    isLoading ||
-                    Object.values(feedback).some((value) => value.trim() === "")
-                  }
+                  disabled={isLoading || Object.values(feedback).some((value) => value.trim() === "")}
+                  style={{ padding: '12px 24px' }}
                 >
                   {isLoading ? (
                     <>
-                      <span
-                        className="spinner-border spinner-border-sm me-2"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                       Acceptation...
                     </>
                   ) : (
                     <>
-                      <i className="bi bi-check-circle me-2"></i> Accepter le
-                      projet
+                      <i className="bi bi-check-circle"></i>
+                      Accepter
                     </>
                   )}
                 </button>
-              </div>
             </div>
           </div>
         </div>
       )}
-      {showEvaluationModal && <div className="modal-backdrop fade show"></div>}
 
       {/* Modale pour ajouter un utilisateur (staff/admin) */}
       {showAddUserModal && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-primary text-white">
-                <h5 className="modal-title">
-                  <i className="bi bi-person-plus me-2"></i> Ajouter un Nouvel
-                  Utilisateur
+        <div className={styles.modalOverlay} onClick={() => setShowAddUserModal(false)}>
+          <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.modalHeader} ${styles.modalHeaderGreen}`}>
+              <h5 className={styles.modalTitle}>
+                <i className="bi bi-person-plus"></i>
+                Ajouter un Nouvel Utilisateur
                 </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowAddUserModal(false)}
-                ></button>
+              <button type="button" className={styles.closeBtn} onClick={() => setShowAddUserModal(false)}>
+                <i className="bi bi-x"></i>
+              </button>
               </div>
-              <div className="modal-body">
+            <div className={styles.modalBody}>
                 {error && (
                   <div className="alert alert-danger mb-3" role="alert">
                     {error}
@@ -2795,44 +2628,41 @@ export default function Dashboard() {
                   </div>
                   <button
                     type="submit"
-                    className="btn btn-primary d-flex align-items-center"
+                    className={styles.actionButton}
                     disabled={isLoading}
+                    style={{ width: '100%', justifyContent: 'center' }}
                   >
                     {isLoading ? (
                       <>
-                        <span
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                          aria-hidden="true"
-                        ></span>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         Ajout en cours...
                       </>
                     ) : (
                       <>
-                        <i className="bi bi-person-plus me-2"></i> Ajouter
-                        l'utilisateur
+                        <i className="bi bi-person-plus"></i>
+                        Ajouter l'utilisateur
                       </>
                     )}
                   </button>
                 </form>
-              </div>
             </div>
           </div>
         </div>
       )}
-      {showAddUserModal && <div className="modal-backdrop fade show"></div>}
 
       {/* Section Hackathons et Badges (pour apprenant) */}
       {me && me.role === "apprenant" && mySubmittedEvaluations.length > 0 && (
         <div className="row mb-4">
           <div className="col-12">
-            <div className="thm-shadow-s rounded-3 thm-bg p-3">
-              <div className="d-flex align-items-center">
-                <i className="bi bi-chat-left-text me-2"></i>
-                <h2 className="h5 mb-0">Feedback sur Mes Projets Soumis</h2>
+            <div className={styles.cardGreen}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>
+                  <i className="bi bi-chat-left-text"></i>
+                  Feedback sur Mes Projets Soumis
+                </h2>
+                <span className={styles.sectionCount}>{mySubmittedEvaluations.length}</span>
               </div>
               <div>
-                <hr />
                 {mySubmittedEvaluations.map((evaluation) => (
                   <div>
                     <div key={evaluation._id} className="">
@@ -2950,27 +2780,18 @@ export default function Dashboard() {
 
       {/* Modale de confirmation de suppression de slot */}
       {showDeleteSlotModal.show && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-danger text-white">
-                <h5 className="modal-title">
-                  <i className="bi bi-exclamation-triangle me-2"></i> Confirmer
-                  la Suppression du Slot
+        <div className={styles.modalOverlay} onClick={() => setShowDeleteSlotModal({ show: false, slotId: null, slotStartTime: null })}>
+          <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.modalHeader} ${styles.modalHeaderRed}`}>
+              <h5 className={styles.modalTitle}>
+                <i className="bi bi-exclamation-triangle"></i>
+                Confirmer la Suppression du Slot
                 </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() =>
-                    setShowDeleteSlotModal({
-                      show: false,
-                      slotId: null,
-                      slotStartTime: null,
-                    })
-                  }
-                ></button>
+              <button type="button" className={styles.closeBtn} onClick={() => setShowDeleteSlotModal({ show: false, slotId: null, slotStartTime: null })}>
+                <i className="bi bi-x"></i>
+              </button>
               </div>
-              <div className="modal-body">
+            <div className={styles.modalBody}>
                 {error && (
                   <div className="alert alert-danger mb-3" role="alert">
                     {error}
@@ -2991,44 +2812,32 @@ export default function Dashboard() {
                   slot n'est pas réservé.
                 </p>
               </div>
-              <div className="modal-footer">
+              <div className={styles.modalFooter}>
                 <button
                   type="button"
-                  className="btn btn-secondary"
-                  onClick={() =>
-                    setShowDeleteSlotModal({
-                      show: false,
-                      slotId: null,
-                      slotStartTime: null,
-                    })
-                  }
+                  className={`${styles.btnSmall} ${styles.btnOutline}`}
+                  onClick={() => setShowDeleteSlotModal({ show: false, slotId: null, slotStartTime: null })}
+                  style={{ padding: '12px 24px', color: '#6c757d', borderColor: '#6c757d' }}
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
-                  className="btn btn-danger"
+                  className={`${styles.btnSmall} ${styles.btnDanger}`}
                   onClick={handleDeleteSlot}
                   disabled={isLoading}
+                  style={{ padding: '12px 24px' }}
                 >
                   {isLoading ? (
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                   ) : (
-                    <i className="bi bi-trash me-2"></i>
+                    <i className="bi bi-trash"></i>
                   )}
                   Supprimer
                 </button>
-              </div>
             </div>
           </div>
         </div>
-      )}
-      {showDeleteSlotModal.show && (
-        <div className="modal-backdrop fade show"></div>
       )}
 
       {/* Modale de réassignation d'évaluation */}

@@ -1,4 +1,5 @@
 import React from "react";
+import styles from "../styles/progressTracker.module.css";
 
 const ProgressTracker = ({ level, daysRemaining, progress }) => {
   const progressPercentage =
@@ -7,36 +8,56 @@ const ProgressTracker = ({ level, daysRemaining, progress }) => {
       : 0;
 
   return (
-    <div className="thm-shadow-s thm-bg p-3 rounded-3 h-100">
-      <h5 className="mb-0">Ma Progression</h5>
-      <hr />
-      <div className="mb-3">
-        <h6 className="mb-1">
-          Niveau actuel: <span className="fw-bold text-primary">{level}</span>
-        </h6>
-        <h6>
-          Jours restants:{" "}
-          <span className="fw-bold text-success">{daysRemaining}</span>
-        </h6>
+    <div className={styles.card}>
+      <div className={styles.header}>
+        <h2 className={styles.title}>
+          <i className="bi bi-graph-up" style={{ color: '#F36F35', fontSize: '24px' }}></i>
+          Ma Progression
+        </h2>
+      </div>
+
+      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div className={styles.statBox}>
+          <div className={styles.statLabel}>
+            Niveau actuel
+          </div>
+          <div className={styles.statValue}>
+            <i className="bi bi-bar-chart-fill"></i>
+            {level}
+          </div>
+        </div>
+
+        <div className={`${styles.statBox} ${styles.statBoxOrange}`}>
+          <div className={styles.statLabel}>
+            Jours restants
+          </div>
+          <div className={`${styles.statValue} ${styles.statValueOrange}`}>
+            <i className="bi bi-hourglass-split"></i>
+            {daysRemaining}
+          </div>
+        </div>
       </div>
 
       {progress && (
         <div>
-          <h3 className="h6">Progression des projets</h3>
-          <p className="card-text">
-            {progress.currentProject} / {progress.totalProjects} projets
-            complétés
-          </p>
-          <div className="progress" style={{ height: "20px" }}>
-            <div
-              className="progress-bar bg-success"
-              role="progressbar"
-              style={{ width: `${progressPercentage}%` }}
-              aria-valuenow={progressPercentage}
-              aria-valuemin="0"
-              aria-valuemax="100"
-            >
+          <h6 className={styles.progressLabel}>
+            <i className="bi bi-folder-check" style={{ color: '#F36F35' }}></i>
+            Progression des projets
+          </h6>
+          <div className={styles.progressInfo}>
+            <span className={styles.progressText}>
+              {progress.currentProject} / {progress.totalProjects} projets complétés
+            </span>
+            <span className={styles.progressPercent}>
               {progressPercentage}%
+            </span>
+          </div>
+          <div className={styles.progressBarContainer}>
+            <div
+              className={styles.progressBar}
+              style={{ width: `${progressPercentage}%` }}
+            >
+              {progressPercentage > 10 && `${progressPercentage}%`}
             </div>
           </div>
         </div>

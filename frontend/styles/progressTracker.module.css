@@ -1,0 +1,177 @@
+/* ProgressTracker Styles */
+
+.card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 4px 12px rgba(23, 147, 73, 0.15);
+  border-left: 4px solid #179349;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 6px 20px rgba(23, 147, 73, 0.25);
+  transform: translateY(-3px);
+}
+
+:global(.themed:not(.light)) .card {
+  background: var(--bg);
+  box-shadow: 0 4px 12px rgba(23, 147, 73, 0.3);
+  border-left-color: #1db558;
+}
+
+:global(.themed:not(.light)) .card:hover {
+  box-shadow: 0 6px 20px rgba(23, 147, 73, 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+:global(.themed:not(.light)) .header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.title {
+  color: #179349;
+  font-weight: 700;
+  font-size: 22px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+:global(.themed:not(.light)) .title {
+  color: #1db558;
+}
+
+.statBox {
+  background: rgba(23, 147, 73, 0.1);
+  padding: 12px 18px;
+  border-radius: 12px;
+  flex: 1;
+  min-width: 140px;
+  border: 2px solid rgba(23, 147, 73, 0.3);
+}
+
+.statBoxOrange {
+  background: rgba(243, 111, 53, 0.1);
+  border: 2px solid rgba(243, 111, 53, 0.3);
+}
+
+:global(.themed:not(.light)) .statBox {
+  background: rgba(23, 147, 73, 0.2);
+  border-color: rgba(29, 181, 88, 0.4);
+}
+
+:global(.themed:not(.light)) .statBoxOrange {
+  background: rgba(243, 111, 53, 0.2);
+  border-color: rgba(255, 133, 86, 0.4);
+}
+
+.statLabel {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 5px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+:global(.themed:not(.light)) .statLabel {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: #179349;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statValueOrange {
+  color: #F36F35;
+}
+
+:global(.themed:not(.light)) .statValue {
+  color: #1db558;
+}
+
+:global(.themed:not(.light)) .statValueOrange {
+  color: #ff8556;
+}
+
+.progressLabel {
+  font-size: 14px;
+  color: #179349;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:global(.themed:not(.light)) .progressLabel {
+  color: #1db558;
+}
+
+.progressInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.progressText {
+  font-size: 13px;
+  color: #666;
+}
+
+:global(.themed:not(.light)) .progressText {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.progressPercent {
+  font-size: 16px;
+  font-weight: 700;
+  color: #179349;
+}
+
+:global(.themed:not(.light)) .progressPercent {
+  color: #1db558;
+}
+
+.progressBarContainer {
+  background: #e9ecef;
+  border-radius: 10px;
+  height: 24px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+:global(.themed:not(.light)) .progressBarContainer {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.progressBar {
+  background: linear-gradient(135deg, #179349 0%, #1db558 100%);
+  height: 100%;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  transition: width 0.5s ease;
+  box-shadow: 0 2px 4px rgba(23, 147, 73, 0.3);
+}
+

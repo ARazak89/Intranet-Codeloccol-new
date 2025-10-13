@@ -52,6 +52,7 @@ export async function me(req, res) {
   res.json({
     id: u._id,
     name: u.name,
+    firstName: u.firstName,
     email: u.email,
     role: u.role,
     status: u.status,
@@ -63,6 +64,13 @@ export async function me(req, res) {
     profilePicture: u.profilePicture,
     hackathons,
     badges,
+    // Informations personnelles
+    gender: u.gender,
+    dateOfBirth: u.dateOfBirth,
+    nationality: u.nationality,
+    phoneNumber: u.phoneNumber,
+    address: u.address,
+    emergencyContact: u.emergencyContact,
     progress: {
       currentProject: completedProjects,
       totalProjects: totalProjects, // Ceci est un placeholder, à adapter selon le parcours de l'apprenant
@@ -150,29 +158,121 @@ export async function updateUserPassword(req, res) {
   }
 }
 
-export async function updateUserProfilePicture(req, res) {
+export async function updateOwnPersonalInfo(req, res) {
   try {
-    // L'URL de l'image est maintenant générée par Multer après le téléchargement
+    // Cette fonction permet à un utilisateur de mettre à jour ses informations personnelles
+    const userId = req.user._id;
+    const { 
+      name, 
+      firstName, 
+      email, 
+      gender, 
+      dateOfBirth, 
+      nationality, 
+      phoneNumber,
+      address,
+      emergencyContact
+    } = req.body;
 
-    if (!req.file) {
-      return res
-        .status(400)
-        .json({ message: 'Aucun fichier image n\'a été téléchargé.' });
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Le nom et l\'email sont requis.' });
     }
 
+    // Vérifier si l'email existe déjà pour un autre utilisateur
+    const existingUser = await User.findOne({ email, _id: { $ne: userId } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Cet email est déjà utilisé par un autre utilisateur.' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé.' });
+    }
+
+    // Mettre à jour les champs de base
+    user.name = name;
+    if (firstName !== undefined) user.firstName = firstName;
+    user.email = email;
+
+    // Mettre à jour les informations personnelles
+    if (gender !== undefined) user.gender = gender;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+    if (nationality !== undefined) user.nationality = nationality;
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+    
+    // Mettre à jour l'adresse
+    if (address !== undefined) {
+      user.address = user.address || {};
+      if (address.street !== undefined) user.address.street = address.street;
+      if (address.city !== undefined) user.address.city = address.city;
+      if (address.country !== undefined) user.address.country = address.country;
+    }
+
+    // Mettre à jour le contact d'urgence
+    if (emergencyContact !== undefined) {
+      user.emergencyContact = user.emergencyContact || {};
+      if (emergencyContact.name !== undefined) user.emergencyContact.name = emergencyContact.name;
+      if (emergencyContact.relationship !== undefined) user.emergencyContact.relationship = emergencyContact.relationship;
+      if (emergencyContact.phone !== undefined) user.emergencyContact.phone = emergencyContact.phone;
+      if (emergencyContact.address !== undefined) user.emergencyContact.address = emergencyContact.address;
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      message: 'Informations personnelles mises à jour avec succès.',
+      name: user.name,
+      firstName: user.firstName,
+      email: user.email,
+      gender: user.gender,
+      dateOfBirth: user.dateOfBirth,
+      nationality: user.nationality,
+      phoneNumber: user.phoneNumber,
+      address: user.address,
+      emergencyContact: user.emergencyContact,
+    });
+  } catch (e) {
+    console.error("Error updating personal info:", e);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+export async function updateUserProfilePicture(req, res) {
+  try {
+    console.log('updateUserProfilePicture called');
+    console.log('req.body:', req.body);
+    console.log('req.file:', req.file);
+    
     const userId = req.user._id;
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé.' });
     }
 
-    // Construire l'URL publique de l'image
-    // req.file.path contient le chemin complet du fichier sur le serveur
-    // Nous devons le rendre relatif à la base URL du serveur pour le frontend
-    const profilePictureUrl = `/uploads/profile_pictures/${req.file.filename}`;
+    let profilePictureUrl;
+
+    // Si une image prédéfinie est envoyée (via JSON)
+    if (req.body.profilePicture) {
+      profilePictureUrl = req.body.profilePicture;
+      console.log('Avatar prédéfini sélectionné:', profilePictureUrl);
+    }
+    // Si un fichier est uploadé
+    else if (req.file) {
+      profilePictureUrl = `/uploads/profile_pictures/${req.file.filename}`;
+      console.log('Fichier uploadé:', profilePictureUrl);
+    }
+    // Aucune image fournie
+    else {
+      console.log('Aucune image fournie');
+      return res
+        .status(400)
+        .json({ message: 'Aucune image n\'a été fournie.', error: 'Aucune image n\'a été fournie.' });
+    }
 
     user.profilePicture = profilePictureUrl;
     await user.save();
+    
+    console.log('Photo de profil mise à jour avec succès:', user.profilePicture);
 
     res.status(200).json({
       message: 'Photo de profil mise à jour avec succès.',

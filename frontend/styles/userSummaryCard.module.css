@@ -1,0 +1,144 @@
+/* UserSummaryCard Styles */
+
+.card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 4px 12px rgba(243, 111, 53, 0.15);
+  border-left: 4px solid #F36F35;
+  height: 100%;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 6px 20px rgba(243, 111, 53, 0.25);
+  transform: translateY(-3px);
+}
+
+:global(.themed:not(.light)) .card {
+  background: var(--bg);
+  box-shadow: 0 4px 12px rgba(243, 111, 53, 0.3);
+  border-left-color: #ff8556;
+}
+
+:global(.themed:not(.light)) .card:hover {
+  box-shadow: 0 6px 20px rgba(243, 111, 53, 0.5);
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border: 4px solid #179349;
+  box-shadow: 0 4px 12px rgba(23, 147, 73, 0.3);
+}
+
+:global(.themed:not(.light)) .avatar {
+  border-color: #1db558;
+  box-shadow: 0 4px 12px rgba(29, 181, 88, 0.5);
+}
+
+.userName {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 5px 0;
+}
+
+:global(.themed:not(.light)) .userName {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.greeting {
+  font-size: 20px;
+  font-weight: 700;
+  color: #179349;
+  margin: 0 0 10px 0;
+}
+
+:global(.themed:not(.light)) .greeting {
+  color: #1db558;
+}
+
+.email {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+:global(.themed:not(.light)) .email {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.statsContainer {
+  background: rgba(23, 147, 73, 0.05);
+  padding: 15px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-around;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
+:global(.themed:not(.light)) .statsContainer {
+  background: rgba(23, 147, 73, 0.2);
+}
+
+.statItem {
+  text-align: center;
+  flex: 1;
+  min-width: 70px;
+}
+
+.statValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: #179349;
+  display: block;
+  margin-bottom: 5px;
+}
+
+:global(.themed:not(.light)) .statValue {
+  color: #1db558;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  font-weight: 600;
+  display: block;
+}
+
+:global(.themed:not(.light)) .statLabel {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.actionButton {
+  background: linear-gradient(135deg, #179349 0%, #1db558 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(23, 147, 73, 0.3);
+}
+
+.actionButton:hover {
+  background: linear-gradient(135deg, #F36F35 0%, #ff8556 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(243, 111, 53, 0.4);
+}
+
