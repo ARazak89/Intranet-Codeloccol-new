@@ -34,6 +34,7 @@ const projectSchema = new mongoose.Schema({
   markdownFilePath: { type: String }, // Chemin relatif vers le fichier Markdown détaillé du projet.
   order: { type: Number }, // Ordre numérique du projet dans le cursus ou pour l'affichage.
   assignments: [assignmentSchema], // Tableau de sous-documents `assignmentSchema` pour les assignations à des étudiants.
+  student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Champ pour les projets de hackathon.
 }, { timestamps: true }); // Ajoute automatiquement `createdAt` et `updatedAt`.
 
 const Project = mongoose.model('Project', projectSchema);

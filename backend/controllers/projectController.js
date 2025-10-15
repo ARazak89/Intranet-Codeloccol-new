@@ -8,12 +8,13 @@ import fs from "fs"; // Nécessaire pour lire les fichiers Markdown
 import path from "path"; // Nécessaire pour gérer les chemins de fichiers
 import { fileURLToPath } from "url";
 import Notification from "../models/Notification.js"; // Import du nouveau modèle Notification
+import Badge from "../models/Badge.js"; // Import du nouveau modèle Badge
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Mappage des niveaux aux modules correspondants. Utilisé pour l'assignation automatique de projets.
-const levelToModuleMap = {
+export const levelToModuleMap = {
   1: "CLI/Git & GIt Hub",
   2: "HTML / CSS",
   3: "Framework",
@@ -25,6 +26,21 @@ const levelToModuleMap = {
   9: "Mobile",
   10: "Full Stack",
   11: "Soft Skills",
+};
+
+// Mappage des noms de module aux noms de badges correspondants
+const moduleToBadgeNameMap = {
+  "CLI/Git & GIt Hub": "Badge CLI/Git",
+  "HTML / CSS": "Badge HTML/CSS",
+  "Framework": "Badge Framework",
+  "WordPress": "Badge WordPress",
+  "JavaScript": "Badge JavaScript",
+  "Node Js (API)": "Badge Node Js",
+  "React JS": "Badge React JS",
+  "Electron JS": "Badge Electron JS",
+  "Mobile": "Badge Mobile",
+  "Full Stack": "Badge Full Stack",
+  "Soft Skills": "Badge Soft Skills",
 };
 
 /**
@@ -538,10 +554,10 @@ export async function submitProjectSolution(req, res) {
       return res.status(404).json({ error: "Utilisateur non trouvé." });
     }
     // Les membres du staff/admin/évaluateurs peuvent soumettre sans points
-    if (student.role === "apprenant" && (student.evaluationPoints || 0) < 2) {
+    if (student.role === "apprenant" && (student.evaluationPoints || 0) < 1) {
       return res.status(400).json({
         error:
-          "Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet.",
+          "Vous devez avoir au moins 1 point d'évaluation pour soumettre un projet.",
       });
     }
 
@@ -686,7 +702,7 @@ export async function submitProjectSolution(req, res) {
     // Décrémenter les points d'évaluation de l'étudiant en fonction du nombre de slots réservés.
     // Cette partie est pour l'apprenant, pas pour les staff/admin/evaluators
     if (student.role === "apprenant") {
-      const decrement = selectedSlots.length; // Pour 2 slots, on décrémente de 2 points
+      const decrement = 1; // Pour la soumission d'un projet, on décrémente de 1 point
       if (decrement > 0) {
         student.evaluationPoints = Math.max(
           0,
@@ -772,11 +788,53 @@ export async function finalReviewProject(req, res) {
       if (student) {
         //DAY_BONUS[project.size] n'est pas défini, il faudrait le définir plus haut
         // student.daysRemaining += DAY_BONUS[project.size] || 1; // Ajoute des jours restants à l'étudiant en fonction de la taille du projet.
-        student.level = Math.max(student.level, 1) + 1; // Incrémente le niveau de l'apprenant.
-        // student.totalProjectsCompleted = (student.totalProjectsCompleted || 0) + 1; // Optionnel: suivre le nombre total de projets complétés.
+        student.totalProjectsCompleted = (student.totalProjectsCompleted || 0) + 1; // Incrémente le nombre total de projets complétés.
 
-        // TODO: Logique pour attribuer des badges (si un modèle Badge est implémenté et décommenté).
+        // Logique pour attribuer des badges de module (si un modèle Badge est implémenté et décommenté).
+        const projectModule = project.module; // Obtenez le module du projet approuvé
+        const badgeNameForModule = moduleToBadgeNameMap[projectModule];
 
+        if (badgeNameForModule) {
+          // Compter les projets template pour ce module
+          const totalProjectsInModule = await Project.countDocuments({
+            module: projectModule,
+            status: "template",
+          });
+
+          // Compter les projets approuvés par cet étudiant pour ce module
+          const completedProjectsInModule = await Project.countDocuments({
+            module: projectModule,
+            "assignments.student": student._id,
+            "assignments.status": "approved",
+          });
+
+          // Si tous les projets du module sont complétés par l'étudiant
+          if (completedProjectsInModule >= totalProjectsInModule) {
+            const moduleBadge = await Badge.findOne({ name: badgeNameForModule });
+
+            if (moduleBadge && !student.badges.includes(moduleBadge._id)) {
+              student.badges.push(moduleBadge._id);
+              await Notification.create({
+                user: student._id,
+                type: "badge_earned",
+                message: `Félicitations ! Vous avez gagné le badge \'${moduleBadge.name}\' pour avoir terminé le module ${projectModule} !`,
+              });
+              console.log(`Badge \'${moduleBadge.name}\' attribué à ${student.name}.`);
+            }
+          }
+        }
+
+        // Incrémentation du niveau si tous les projets du module sont complétés
+        const currentModuleLevel = Object.keys(levelToModuleMap).find(key => levelToModuleMap[key] === projectModule);
+        if (currentModuleLevel && student.level === parseInt(currentModuleLevel) && completedProjectsInModule >= totalProjectsInModule) {
+          student.level = student.level + 1; // Incrémenter au niveau suivant
+          await Notification.create({
+            user: student._id,
+            type: "level_up",
+            message: `Félicitations ! Vous avez atteint le niveau ${student.level} en terminant tous les projets du module ${projectModule} !`,
+          });
+          console.log(`L'apprenant ${student.name} est passé au niveau ${student.level}.`);
+        }
         // Assignation du prochain projet en fonction du nouveau niveau de l'étudiant.
         await _assignProjectByLevel(student._id, student.level);
 

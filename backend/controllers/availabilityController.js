@@ -7,11 +7,12 @@ import Project from "../models/Project.js";
 // Fonction pour qu'un apprenant (évaluateur) crée des slots de disponibilité
 export async function createAvailabilitySlot(req, res) {
   try {
-    const { startTime, endTime } = req.body;
+    const { startTime } = req.body;
     const evaluatorId = req.user._id; // L'utilisateur connecté est l'évaluateur
 
-    const start = new Date(startTime);
-    const end = new Date(endTime);
+    const start = new Date(Date.parse(startTime));
+    start.setHours(start.getHours() - 1); // Soustraire 1 heure pour stocker en UTC
+    const end = new Date(start.getTime() + 30 * 60 * 1000); // Heure de fin = heure de début + 30 minutes
 
     // Validation des dates
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
@@ -37,20 +38,13 @@ export async function createAvailabilitySlot(req, res) {
     // Vérifier si l'utilisateur est un apprenant pour appliquer la limite
     const user = await User.findById(evaluatorId).select('role');
     if (user && user.role === 'apprenant') {
-      // Début et fin de la journée du slot créé
-      const startOfDay = new Date(start);
-      startOfDay.setUTCHours(0, 0, 0, 0);
-      const endOfDay = new Date(startOfDay);
-      endOfDay.setUTCDate(startOfDay.getUTCDate() + 1);
-
-      const slotsCreatedToday = await AvailabilitySlot.countDocuments({
+      const totalSlotsCreated = await AvailabilitySlot.countDocuments({
         evaluator: evaluatorId,
-        startTime: { $gte: startOfDay, $lt: endOfDay },
       });
 
-      if (slotsCreatedToday >= 3) {
+      if (totalSlotsCreated >= 3) {
         return res.status(400).json({
-          error: "Vous avez déjà créé 3 slots de disponibilité aujourd'hui. Vous ne pouvez pas en créer davantage.",
+          error: "Vous avez déjà créé 3 slots de disponibilité. Vous ne pouvez pas en créer davantage.",
         });
       }
     }
@@ -188,7 +182,7 @@ export async function bookSlot(req, res) {
     await Notification.create({
       user: slot.evaluator,
       type: "slot_booked",
-      message: `Votre slot de disponibilité le ${new Date(slot.startTime).toLocaleString()} a été réservé pour un projet.`, // ${new Date(slot.startTime).toLocaleString()} pour un affichage lisible
+      message: `Votre slot de disponibilité le ${new Date(slot.startTime).toISOString()} a été réservé pour un projet.`,
     });
 
     // Notifier l'apprenant qu'il a réservé un slot
@@ -196,7 +190,7 @@ export async function bookSlot(req, res) {
     await Notification.create({
       user: studentId,
       type: "slot_booked_by_student",
-      message: `Vous avez réservé un slot pour l'évaluation du projet '${project.title}' le ${new Date(slot.startTime).toLocaleString()}.`,
+      message: `Vous avez réservé un slot pour l'évaluation du projet '${project.title}' le ${new Date(slot.startTime).toISOString()}.`,
     });
 
     res.status(200).json({ message: "Slot réservé avec succès.", slot });
@@ -287,7 +281,7 @@ export async function getAvailableSlotsForProject(req, res) {
       startTime: { $gt: now }, // Seulement les slots futurs
       evaluator: { $ne: studentId } // L'étudiant ne peut pas s'évaluer lui-même
     })
-    .populate('evaluator', 'name') // Populer le nom de l'évaluateur
+    .populate('evaluator', 'name evaluationPoints') // Populer le nom et les points d'évaluation de l'évaluateur
     .sort('startTime');
     console.log(`[getAvailableSlotsForProject] Available Slots before grouping:`, availableSlots);
 
@@ -320,16 +314,30 @@ export async function getAvailableSlotsForProject(req, res) {
       });
     }
 
+    // Trier les slots en fonction des points d'évaluation de l'évaluateur (les moins élevés en premier)
+    // et secondairement par l'heure de début du slot.
+    availableSlots.sort((a, b) => {
+      const pointsA = a.evaluator?.evaluationPoints || 0;
+      const pointsB = b.evaluator?.evaluationPoints || 0;
+
+      if (pointsA === pointsB) {
+        return a.startTime.getTime() - b.startTime.getTime(); // Trier par heure si les points sont égaux
+      }
+      return pointsA - pointsB; // Trier par points d'évaluation
+    });
+
     const slotsWithEvaluatorInfo = availableSlots.map(slot => ({
       _id: slot._id,
       startTime: slot.startTime,
       endTime: slot.endTime,
       evaluator: slot.evaluator ? {
         _id: slot.evaluator._id,
-        name: slot.evaluator.name
+        name: slot.evaluator.name,
+        evaluationPoints: slot.evaluator.evaluationPoints // Inclure les points d'évaluation
       } : {
         _id: null,
-        name: 'Évaluateur Inconnu'
+        name: 'Évaluateur Inconnu',
+        evaluationPoints: 0
       } // Gérer le cas où l'évaluateur est null
     }));
     console.log(`[getAvailableSlotsForProject] Final Slots to send:`, slotsWithEvaluatorInfo);
@@ -396,7 +404,7 @@ export async function expireUnbookedSlots() {
         await Notification.create({
           user: slot.evaluator,
           type: "slot_expired",
-          message: `Votre slot de disponibilité le ${new Date(slot.startTime).toLocaleString()} a expiré car il n'a pas été réservé.`,
+          message: `Votre slot de disponibilité le ${new Date(slot.startTime.getTime() + 60 * 60 * 1000).toISOString()} a expiré car il n'a pas été réservé.`,
         });
       }
     }

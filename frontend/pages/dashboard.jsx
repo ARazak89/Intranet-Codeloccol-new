@@ -9,6 +9,7 @@ import { getAuthToken } from "../utils/auth";
 import UserSummaryCard from "../components/UserSummaryCard"; // Importation du nouveau composant
 import Loader from "../components/Loader";
 import styles from "../styles/dashboard.module.css";
+// import { levelToModuleMap } from "../utils/moduleHelper"; // Supprimez cette ligne
 
 // Fonction utilitaire pour s'assurer que les propriétés sont des tableaux
 const sanitizeProjectArrays = (project) => ({
@@ -111,6 +112,16 @@ export default function Dashboard() {
     []
   ); // Slots disponibles pour la réassignation
   const [selectedSlots, setSelectedSlots] = useState([]); // IDs des slots sélectionnés pour la réassignation
+
+  const formatUTCHourMinute = (date) => {
+    if (!date) return "N/A";
+    const d = new Date(date.getTime() + 60 * 60 * 1000); // Ajouter 1 heure pour UTC+1
+    return `${d.getUTCHours().toString().padStart(2, '0')}h${d.getUTCMinutes().toString().padStart(2, '0')}`;
+  };
+
+  const handleCloseDeleteSlotModal = () => {
+    setShowDeleteSlotModal({ show: false, slotId: null, slotStartTime: null });
+  };
 
   // Fonctions pour la gestion des notifications
   //onst handleOpenNotificationModal = (notification) => {
@@ -994,16 +1005,16 @@ export default function Dashboard() {
           </div>
       )}
 
-      {me && me.role === "apprenant" && progress && (
-        <div className="row mb-4">
-          <div className="col-12">
-              <ProgressTracker
-                level={me.level}
-                daysRemaining={me.daysRemaining}
-                progress={progress}
-              />
-          </div>
-        </div>
+      {me && me.role === "apprenant" && (
+        <ProgressTracker
+          level={me.level || 1} // Utilisez le niveau de l'utilisateur, par défaut à 1
+          daysRemaining={me.daysRemaining || 0}
+          progress={{
+            currentProject: me.totalProjectsCompleted || 0, // Utilisez totalProjectsCompleted
+            totalProjects: me.progress.totalProjectsInModule || 1, // Utiliser la progression par module pour le dashboard
+          }}
+          // currentModuleName={levelToModuleMap[me.level] || "Module Inconnu"} // Supprimez ou commentez cette ligne
+        />
       )}
 
       {/* Nouveau: Section pour les slots que j'ai créés */}
@@ -1019,7 +1030,7 @@ export default function Dashboard() {
                 <span className={styles.sectionCount}>{myCreatedSlots.filter((slot) => {
                     const slotEndTime = new Date(slot.endTime);
                     const oneHourAfterEndTime = new Date(slotEndTime.getTime() + 60 * 60 * 1000);
-                    return new Date() < oneHourAfterEndTime;
+                    return new Date(new Date().getTime() + 60 * 60 * 1000) < oneHourAfterEndTime; // Ajuster new Date() à UTC+1
                   }).length}</span>
               </div>
               <div className="list-group list-group-flush">
@@ -1028,8 +1039,8 @@ export default function Dashboard() {
                     const slotEndTime = new Date(slot.endTime);
                     const oneHourAfterEndTime = new Date(
                       slotEndTime.getTime() + 60 * 60 * 1000
-                    ); // Ajoute 1 heure en millisecondes
-                    const currentTime = new Date();
+                    );
+                    const currentTime = new Date(new Date().getTime() + 60 * 60 * 1000); // Ajuster currentTime à UTC+1
                     return currentTime < oneHourAfterEndTime;
                   })
                   .map((slot) => (
@@ -1040,7 +1051,8 @@ export default function Dashboard() {
                             <i className="bi bi-calendar-event"></i>
                             {new Date(slot.startTime).toLocaleDateString('fr-FR')} de{" "}
                             {new Date(slot.startTime).getUTCHours().toString().padStart(2, "0")}:
-                            {new Date(slot.startTime).getUTCMinutes().toString().padStart(2, "0")} à{" "}
+                            {new Date(slot.startTime).getUTCMinutes().toString().padStart(2, "0")}{" "}
+                            à{" "}
                             {new Date(slot.endTime).getUTCHours().toString().padStart(2, "0")}:
                             {new Date(slot.endTime).getUTCMinutes().toString().padStart(2, "0")}
                           </h5>
@@ -1102,7 +1114,7 @@ export default function Dashboard() {
                         )}
                           <div className={styles.projectInfoItem}>
                             <i className="bi bi-info-circle"></i>
-                            Créé le: {new Date(slot.createdAt).toLocaleString('fr-FR')}
+                            Créé le: {new Date(slot.createdAt).toUTCString()}
                       </div>
                         </div>
                       )}
@@ -1199,7 +1211,7 @@ export default function Dashboard() {
                               {project.submissionDate && (
                                 <div className={styles.projectInfoItem}>
                                   <i className="bi bi-calendar-event"></i>
-                                  Date de soumission: <strong>{new Date(project.submissionDate).toLocaleString('fr-FR')}</strong>
+                                  Date de soumission: <strong>{new Date(project.submissionDate).toUTCString()}</strong>
                             </div>
                           )}
                         </div>
@@ -1402,7 +1414,7 @@ export default function Dashboard() {
                       const evaluationEndTime = evaluation.slot ? new Date(evaluation.slot.endTime) : null;
                       if (!evaluationEndTime) return false;
                       const twoHoursAfterEndTime = new Date(evaluationEndTime.getTime() + 2 * 60 * 60 * 1000);
-                      return new Date() < twoHoursAfterEndTime;
+                      return new Date() < twoHoursAfterEndTime; // Ajuster new Date() à UTC+1
                     }).length}
                   </span>
                 </div>
@@ -1418,7 +1430,7 @@ export default function Dashboard() {
                       const evaluationEndTime = evaluation.slot
                         ? new Date(evaluation.slot.endTime)
                         : null;
-                      const now = new Date();
+                      const now = new Date(); // Supprimer l'ajustement manuel à UTC+1
 
                       // Gérer le cas où slot est null
                       if (!evaluationStartTime || !evaluationEndTime) {
@@ -1447,22 +1459,22 @@ export default function Dashboard() {
                       }
 
                       const gracePeriodEnd = new Date(
-                        evaluationEndTime.getTime() + 60 * 60 * 1000
-                      ); // 1 heure après l'heure de fin
+                        evaluationEndTime.getTime()
+                      ); // Supprimer l'ajout d'une heure
 
                       const isEvaluationActive =
                         now >= evaluationStartTime && now <= gracePeriodEnd;
                       const buttonText = isEvaluationActive
                         ? "Évaluer le projet"
-                        : now < evaluationStartTime
-                        ? `Actif à ${evaluationStartTime
+                        : now < evaluationStartTime // Revenir à la comparaison originale
+                        ? `Actif à ${new Date(evaluationStartTime.getTime() + 60 * 60 * 1000)
                             .getUTCHours()
                             .toString()
-                            .padStart(2, "0")}:${evaluationStartTime
+                            .padStart(2, "0")}:${new Date(evaluationStartTime.getTime() + 60 * 60 * 1000)
                             .getUTCMinutes()
                             .toString()
                             .padStart(2, "0")}`
-                        : "Évaluation expirée";
+                        : "Période d'évaluation terminée";
 
                       return (
                         <li
@@ -1529,10 +1541,10 @@ export default function Dashboard() {
                             >
                               <small className="d-flex align-items-center mt-1">
                                 <i className="bi bi-person me-1"></i> Apprenant:{" "}
-                                {evaluation.student.name}
+                                {evaluation.student?.name || "N/A"}
                               </small>
-                              {evaluation.project.repoUrl && (
-                                <p className="d-flex align-items-center mt-1">
+                              {evaluation.project?.repoUrl && (
+                                <small className="d-flex align-items-center mt-1">
                                   <i className="bi bi-github me-1"></i> Dépôt:{" "}
                                   <a
                                     href={evaluation.project.repoUrl}
@@ -1542,8 +1554,38 @@ export default function Dashboard() {
                                   >
                                     {evaluation.project.repoUrl}
                                   </a>
-                                </p>
+                                </small>
                               )}
+                              {/* Supprimé: Affichage de l'URL GitHub Pages */}
+                              <small className="d-flex align-items-center mt-1">
+                                <i className="bi bi-clock me-1"></i> Date et Heure:{" "}
+                                <span>
+                                  {evaluationStartTime.toLocaleDateString()} de{" "}
+                                  {evaluationStartTime
+                                    .getUTCHours()
+                                    .toString()
+                                    .padStart(2, "0")}
+                                  :
+                                  {evaluationStartTime
+                                    .getUTCMinutes()
+                                    .toString()
+                                    .padStart(2, "0")}{" "}
+                                  à{" "}
+                                  {evaluationEndTime
+                                    .getUTCHours()
+                                    .toString()
+                                    .padStart(2, "0")}
+                                  :
+                                  {evaluationEndTime
+                                    .getUTCMinutes()
+                                    .toString()
+                                    .padStart(2, "0")}
+                                </span>
+                              </small>
+                              <small className="text-danger d-flex align-items-center mt-1">
+                                <i className="bi bi-exclamation-triangle me-1"></i>{" "}
+                                Erreur: Créneau horaire manquant
+                              </small>
                               <button
                                 onClick={() =>
                                   handleOpenEvaluationModal(evaluation)
@@ -1574,7 +1616,7 @@ export default function Dashboard() {
                       const twoHoursAfterEndTime = new Date(
                         evaluationEndTime.getTime() + 2 * 60 * 60 * 1000
                       ); // Ajoute 2 heures en millisecondes
-                      const currentTime = new Date();
+                      const currentTime = new Date(new Date().getTime() + 60 * 60 * 1000); // Ajuster currentTime à UTC+1
                       return currentTime < twoHoursAfterEndTime;
                     }).length > 0 ? (
                     // Regrouper les évaluations par projet
@@ -1591,7 +1633,7 @@ export default function Dashboard() {
                           const twoHoursAfterEndTime = new Date(
                             evaluationEndTime.getTime() + 2 * 60 * 60 * 1000
                           );
-                          const currentTime = new Date();
+                          const currentTime = new Date(new Date().getTime() + 60 * 60 * 1000); // Ajuster currentTime à UTC+1
                           return currentTime < twoHoursAfterEndTime;
                         })
                         .reduce((acc, evaluation) => {
@@ -1677,7 +1719,7 @@ export default function Dashboard() {
                             <strong>Évaluations des pairs :</strong>
                             <ul className=" mt-2">
                               {projectGroup.evaluations.map((evalItem) => {
-                                const now = new Date(); // Ajouter cette ligne
+                                const now = new Date(new Date().getTime() + 60 * 60 * 1000); // Ajuster now à UTC+1
                                 // Vérifier si evalItem.slot existe avant d'accéder à ses propriétés
                                 const evaluationTime = evalItem.slot
                                   ? new Date(evalItem.slot.endTime)
@@ -1836,10 +1878,12 @@ export default function Dashboard() {
                               </a>
                               </div>
                             )}
-                            <div className={styles.projectInfoItem}>
-                              <i className="bi bi-calendar-event"></i>
-                              Date de soumission: <strong>{new Date(project.submissionDate).toLocaleDateString('fr-FR')}</strong>
-                        </div>
+                            {project.submissionDate && (
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-calendar-event"></i>
+                                Date de soumission: <strong>{new Date(project.submissionDate).toUTCString()}</strong>
+                            </div>
+                          )}
                           </div>
                         </div>
                         <div className={styles.buttonGroup}>
@@ -2104,14 +2148,13 @@ export default function Dashboard() {
                                             </a>
                                           </p>
                                         )}
-                                        {learner.assignedProject
-                                          .submissionDate && (
+                                        {learner.assignedProject.submissionDate && (
                                           <p className="mb-1 d-flex align-items-center">
                                             <i className="bi bi-calendar-event me-2 text-muted"></i>{" "}
                                             Date de soumission:{" "}
-                                            {new Date(
-                                              learner.assignedProject.submissionDate
-                                            ).toLocaleDateString()}
+                                            <strong>
+                                              {new Date(learner.assignedProject.submissionDate).toUTCString()}
+                                            </strong>
                                           </p>
                                         )}
                                       </>
@@ -2328,14 +2371,11 @@ export default function Dashboard() {
                       onChange={(e) => {
                         const newStartTime = e.target.value;
                         setSlotStartTime(newStartTime);
+                        // Calculer l'heure de fin automatiquement (début + 30 minutes)
                         const [hours, minutes] = newStartTime.split(":").map(Number);
-                        const date = new Date();
-                        date.setHours(hours, minutes + 30, 0, 0);
-                        const newEndTime = date.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hourCycle: "h23",
-                        });
+                        const date = new Date(slotDate); // Utiliser slotDate pour initialiser la date
+                        date.setHours(hours, minutes + 30, 0, 0); // Définir l'heure locale, formatUTCHourMinute gérera l'UTC+1
+                        const newEndTime = formatUTCHourMinute(date); // Utiliser formatUTCHourMinute
                         setSlotEndTime(newEndTime);
                       }}
                       required
@@ -2725,7 +2765,7 @@ export default function Dashboard() {
                               </strong>{" "}
                               {new Date(
                                 evaluation.slot.startTime
-                              ).toLocaleString()}
+                              ).toUTCString()}
                             </p>
                           )}
                           {evaluation.feedback && (
@@ -2803,7 +2843,7 @@ export default function Dashboard() {
                 </p>
                 <p>
                   <strong>
-                    {showDeleteSlotModal.slotStartTime?.toLocaleString()}
+                    {formatUTCHourMinute(showDeleteSlotModal.slotStartTime)}
                   </strong>{" "}
                   ?
                 </p>
@@ -2900,8 +2940,8 @@ export default function Dashboard() {
                           className="form-check-label"
                           htmlFor={`slot-${slot._id}`}
                         >
-                          {new Date(slot.startTime).toLocaleString()} -{" "}
-                          {new Date(slot.endTime).toLocaleString()} (
+                          {formatUTCHourMinute(slot.startTime)} -{" "}
+                          {formatUTCHourMinute(slot.endTime)} (
                           {slot.evaluator.name})
                         </label>
                       </div>

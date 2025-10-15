@@ -731,7 +731,7 @@ export default function EvaluationPage() {
                               />
                               <div className={styles.slotInfo}>
                                 <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                                  {new Date(slot.startTime).toLocaleString()} - {new Date(slot.endTime).toLocaleString()}
+                                  {new Date(slot.startTime).toUTCString()} - {new Date(slot.endTime).toUTCString()}
                                 </div>
                                 <div style={{ fontSize: '13px', color: '#666' }}>
                                   <i className="bi bi-person-fill" style={{ marginRight: '5px' }}></i>
@@ -776,6 +776,12 @@ export default function EvaluationPage() {
 
   // Rendu par défaut pour l'apprenant (vue d'une seule évaluation)
   if (me.role === "apprenant") {
+    const formatTime = (date) => {
+      if (!date) return "N/A";
+      const d = new Date(date);
+      return `${d.getUTCHours().toString().padStart(2, '0')}h${d.getUTCMinutes().toString().padStart(2, '0')}`;
+    };
+
     return (
       <div className={styles.container}>
         <div className={styles.pageHeader}>
@@ -829,7 +835,7 @@ export default function EvaluationPage() {
                         evalItem.status === "pending" &&
                         slotStartTime &&
                         slotEndTime &&
-                        new Date() >= slotStartTime &&
+                        new Date() >= slotStartTime && // Ajuster new Date() à UTC+1
                         new Date() <= slotEndTime.getTime() + 60 * 60 * 1000;
 
                       let statusBadgeClass = "bg-secondary";
@@ -887,13 +893,7 @@ export default function EvaluationPage() {
                           <td>{evalItem.evaluator?.name || "N/A"}</td>
                           <td>
                             {slotStartTime
-                              ? `${slotStartTime.toLocaleDateString()} de ${slotStartTime.toLocaleTimeString(
-                                  [],
-                                  { hour: "2-digit", minute: "2-digit" }
-                                )} à ${slotEndTime.toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}`
+                              ? `${slotStartTime.toLocaleDateString()} de ${formatTime(slotStartTime)} à ${formatTime(slotEndTime)}`
                               : "N/A"}
                           </td>
                           <td>

@@ -4,6 +4,7 @@ import Hackathon from '../models/Hackathon.js';
 import Evaluation from '../models/Evaluation.js';
 import Notification from '../models/Notification.js';
 import bcrypt from 'bcryptjs'; // Importez bcryptjs pour le hachage des mots de passe
+import { levelToModuleMap } from './projectController.js'; // Importez levelToModuleMap
 
 export async function me(req, res) {
   const u = req.user;
@@ -43,11 +44,26 @@ export async function me(req, res) {
   const badges = userWithBadges ? userWithBadges.badges : [];
 
   // Calculer la progression (nombre total de projets, nombre de projets complétés)
-  const totalProjects = await Project.countDocuments(); // Ceci devrait être le total des projets DANS LE PARCOURS de l'apprenant
-  const completedProjects = await Project.countDocuments({
-    student: u._id,
-    status: 'approved',
-  });
+  let totalProjectsForModule = 0;
+  if (u.role === 'apprenant' && u.level) {
+    console.log(`Apprenant ${u.name} (ID: ${u._id}) - Niveau actuel: ${u.level}`);
+    const currentModule = levelToModuleMap[u.level];
+    console.log(`Module correspondant au niveau ${u.level}: ${currentModule}`);
+    if (currentModule) {
+      totalProjectsForModule = await Project.countDocuments({
+        // Avant : status: "template",
+        module: currentModule,
+        status: { $ne: "archived" }, // Inclure tous les projets sauf ceux archivés
+      });
+      console.log(`Nombre total de projets pour le module ${currentModule} (non archivés) : ${totalProjectsForModule}`);
+    }
+  }
+
+  const completedProjects = u.totalProjectsCompleted || 0; // Utiliser la valeur déjà stockée dans l'utilisateur
+
+  // Calculer le nombre total de tous les projets pertinents (non archivés) pour la progression globale du curriculum.
+  const totalAllProjects = await Project.countDocuments({ status: { $ne: "archived" } });
+  console.log(`Nombre total de tous les projets non archivés dans la BDD : ${totalAllProjects}`);
 
   res.json({
     id: u._id,
@@ -59,6 +75,7 @@ export async function me(req, res) {
     daysRemaining: u.daysRemaining,
     level: u.level,
     evaluationPoints: u.evaluationPoints,
+    totalProjectsCompleted: u.totalProjectsCompleted,
     lastLogin: u.lastLogin,
     projects,
     profilePicture: u.profilePicture,
@@ -73,9 +90,10 @@ export async function me(req, res) {
     emergencyContact: u.emergencyContact,
     progress: {
       currentProject: completedProjects,
-      totalProjects: totalProjects, // Ceci est un placeholder, à adapter selon le parcours de l'apprenant
+      totalProjectsInModule: totalProjectsForModule, // Pour le tableau de bord (progression par module)
+      totalProjectsOverall: totalAllProjects, // Pour la page de profil (progression globale)
     },
-  });
+  });  
 }
 
 export async function unblock(req, res) {

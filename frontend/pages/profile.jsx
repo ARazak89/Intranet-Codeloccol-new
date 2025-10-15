@@ -36,6 +36,7 @@ export default function Profile() {
         if (!res.ok) throw new Error("Failed to fetch user profile.");
         const data = await res.json();
         setUser(data);
+        // console.log("Données utilisateur reçues:", data); // LOG pour débogage: Afficher toutes les données utilisateur
       } catch (e) {
         console.error("Error fetching user profile:", e);
         setError(e.message);
@@ -85,7 +86,6 @@ export default function Profile() {
   };
 
   const handlePredefinedImageSelect = async (imagePath) => {
-    console.log('Sélection avatar prédéfini:', imagePath);
     setError(null);
     setSuccess(null);
 
@@ -99,8 +99,6 @@ export default function Profile() {
         body: JSON.stringify({ profilePicture: imagePath }),
       });
       
-      console.log('Réponse status:', res.status);
-      
       if (!res.ok) {
         const data = await res.json();
         console.error('Erreur backend:', data);
@@ -110,7 +108,6 @@ export default function Profile() {
       }
       
       const data = await res.json();
-      console.log('Succès:', data);
       setSuccess("Photo de profil mise à jour avec succès !");
       setUser((prevUser) => ({
         ...prevUser,
@@ -491,16 +488,16 @@ export default function Profile() {
               </h3>
               <div className="d-flex justify-content-between mb-2">
                 <span className={styles.textMuted} style={{ fontSize: '15px' }}>
-                  Projet {user.progress.currentProject} sur {user.progress.totalProjects}
+                  Projet {user.progress.currentProject} sur {user.progress.totalProjectsOverall}
                 </span>
                 <span className={styles.textPrimary} style={{ fontWeight: '600', fontSize: '15px' }}>
-                  {Math.round((user.progress.currentProject / user.progress.totalProjects) * 100)}%
+                  {Math.round((user.progress.currentProject / user.progress.totalProjectsOverall) * 100)}%
                 </span>
               </div>
               <div className={styles.progressBarCustom}>
                 <div 
                   className={styles.progressBarFill} 
-                  style={{ width: `${(user.progress.currentProject / user.progress.totalProjects) * 100}%` }}
+                  style={{ width: `${(user.progress.currentProject / user.progress.totalProjectsOverall) * 100}%` }}
                 ></div>
               </div>
             </div>
@@ -519,9 +516,9 @@ export default function Profile() {
               </h3>
               <div className="d-flex flex-wrap">
                 {user.badges.map((badge, index) => (
-                  <span key={index} className={styles.badgeItem}>
+                  <span key={index} className={styles.badgeItem} title={badge.description}>
                     <i className="bi bi-award-fill"></i>
-                    {badge.name || badge}
+                    {badge.name}
                   </span>
                 ))}
               </div>

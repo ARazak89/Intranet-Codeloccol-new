@@ -72,8 +72,6 @@ function ProjectsPage() {
   const [showSubmitProjectModal, setShowSubmitProjectModal] = useState(false); // Affiche la modale de soumission de projet.
   const [currentProjectToSubmit, setCurrentProjectToSubmit] = useState(null); // Projet en cours de soumission.
   const [projectSubmissionRepoUrl, setProjectSubmissionRepoUrl] = useState(""); // URL du dépôt GitHub pour la soumission.
-  const [projectSubmissionGithubPagesUrl, setProjectSubmissionGithubPagesUrl] =
-    useState(""); // URL GitHub Pages pour la soumission.
   const [success, setSuccess] = useState(null); // Message de succès.
 
   // États pour les popups d'erreur/avertissement personnalisés
@@ -660,8 +658,6 @@ function ProjectsPage() {
   const handleOpenSubmitProjectModal = async (project) => {
     setCurrentProjectToSubmit(project);
     setProjectSubmissionRepoUrl("");
-    setProjectSubmissionGithubPagesUrl(""); // Réinitialiser l'URL GitHub Pages
-    setError(null);
     setSuccess(null);
 
     console.log("[handleOpenSubmitProjectModal] Projet soumis:", project);
@@ -753,7 +749,6 @@ function ProjectsPage() {
         setShowSubmitProjectModal(false);
         setCurrentProjectToSubmit(null);
         setProjectSubmissionRepoUrl("");
-        setProjectSubmissionGithubPagesUrl(""); // Réinitialiser l'URL GitHub Pages
         loadData(getAuthToken()); // Recharger les données pour refléter le changement de statut.
       } else {
         setErrorPopupMessage(data.error || "Échec de la soumission du projet.");
@@ -779,8 +774,6 @@ function ProjectsPage() {
     setShowSubmitProjectModal(false);
     setCurrentProjectToSubmit(null);
     setProjectSubmissionRepoUrl("");
-    setProjectSubmissionGithubPagesUrl(""); // Réinitialiser l'URL GitHub Pages
-    setError(null);
     setSuccess(null);
     setShowErrorPopup(false);
     setErrorPopupMessage("");
@@ -843,10 +836,9 @@ function ProjectsPage() {
                     <tr>
                       <th>Ordre</th>
                       <th>Titre du Projet</th>
-                      <th>Description</th>
-                      <th>Type</th>
-                      <th>Étudiant Assigné</th>
-                      <th>Statut</th>
+                      <th className="text-start">Description</th>
+                      <th className="text-center">Assignations</th>
+                      <th className="text-center">Statut</th>
                       <th className="text-center">Actions</th>
                     </tr>
                   </thead>
@@ -864,11 +856,6 @@ function ProjectsPage() {
                           <td>
                             {(projectGroup.description || "").substring(0, 70)}
                             ...
-                          </td>
-                          <td>
-                            <span className="badge bg-dark rounded-pill">
-                              <i className="bi bi-gear me-1"></i> Maître
-                            </span>
                           </td>
                           <td>
                             <p>{projectGroup.assignments.length}</p>

@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   
   // Informations académiques
   projects: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Project' }],
-  badges: [{ type: String }], // Simplified for this example
+  badges: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }], // Le champ badges référence maintenant le modèle Badge
   lastLogin: { type: Date },
   level: { type: Number, default: 1 },
   profilePicture: { type: String, default: '/profile/default-avatar.jpg' },

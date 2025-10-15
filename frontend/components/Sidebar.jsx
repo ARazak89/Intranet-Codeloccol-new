@@ -4,15 +4,11 @@ import { useRouter } from "next/router";
 
 const Sidebar = ({ user, showSidebar, setShowSidebar }) => {
   const router = useRouter();
-
-  console.log('===================user===========================');
-  console.log(user);
-  console.log('=================================================');
   
 
   return (
     <>
-      {/* Sidebar */}
+    
       <nav
         id="sidebarMenu"
         className={`col-md-3 col-lg-2 sidebar-custom shadow-lg position-fixed d-flex flex-column ${

@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "../styles/progressTracker.module.css";
 
-const ProgressTracker = ({ level, daysRemaining, progress }) => {
+const ProgressTracker = ({ level, daysRemaining, progress, currentModuleName }) => {
   const progressPercentage =
     progress && progress.totalProjects > 0
       ? ((progress.currentProject / progress.totalProjects) * 100).toFixed(0)
@@ -43,6 +43,11 @@ const ProgressTracker = ({ level, daysRemaining, progress }) => {
           <h6 className={styles.progressLabel}>
             <i className="bi bi-folder-check" style={{ color: '#F36F35' }}></i>
             Progression des projets
+            {currentModuleName && (
+              <span style={{ marginLeft: '10px', color: '#179349', fontWeight: 'bold' }}>
+                ({currentModuleName})
+              </span>
+            )}
           </h6>
           <div className={styles.progressInfo}>
             <span className={styles.progressText}>

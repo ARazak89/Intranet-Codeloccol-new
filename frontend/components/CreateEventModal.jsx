@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import UserSelector from './UserSelector';
 import styles from '../styles/calendar.module.css';
 
@@ -27,8 +27,63 @@ export default function CreateEventModal({ onClose, onSubmit, isSubmitting }) {
 
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (formData.startDate && formData.startTime) {
+      let processedStartTime = formData.startTime.replace('h', ':');
+      
+      // Tenter de compléter l'heure si elle est partielle
+      let [hours, minutes] = processedStartTime.split(':');
+      if (hours && !minutes) {
+        minutes = '00'; // Si seulement les heures sont fournies (ex: "12"), ajouter ":00"
+      }
+      if (hours) {
+        hours = hours.padStart(2, '0');
+      }
+      processedStartTime = `${hours || ''}:${minutes || ''}`; // Reconstruire l'heure
+
+      const timeRegex = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+      if (!timeRegex.test(processedStartTime)) {
+        setFormData(prev => ({ ...prev, endDate: '', endTime: '' }));
+        return; 
+      }
+
+      const startDateTimeString = `${formData.startDate}T${processedStartTime}:00`;
+      const start = new Date(startDateTimeString);
+      
+      if (!isNaN(start.getTime())) {
+        const end = new Date(start.getTime() + 30 * 60 * 1000); // Ajoute 30 minutes
+        const endDate = end.toISOString().split('T')[0];
+        const hours = String(end.getHours()).padStart(2, '0');
+        const minutes = String(end.getMinutes()).padStart(2, '0');
+        const endTime = `${hours}:${minutes}`;
+
+        setFormData(prev => ({
+          ...prev,
+          endDate: endDate,
+          endTime: endTime,
+        }));
+      } else {
+          // Si la date de début est invalide, réinitialiser la date et l'heure de fin
+          setFormData(prev => ({ ...prev, endDate: '', endTime: '' }));
+      }
+    } else {
+        // Si startDate ou startTime sont manquants, effacer endDate et endTime
+        if (formData.endDate || formData.endTime) {
+            setFormData(prev => ({ ...prev, endDate: '', endTime: '' }));
+        }
+    }
+  }, [formData.startDate, formData.startTime]);
+
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'startTime') {
+      let correctedValue = value.replace('h', ':');
+      // Ne pas valider le format ici, laisser useEffect s'en charger pour le calcul.
+      // Accepter la valeur corrigée même si elle est partielle (ex: "12:")
+      setFormData(prev => ({ ...prev, [field]: correctedValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
     setError(null);
   };
 
@@ -177,10 +232,11 @@ export default function CreateEventModal({ onClose, onSubmit, isSubmitting }) {
                 />
                 {!formData.isAllDay && (
                   <input
-                    type="time"
+                    type="text" // Changé de "time" à "text"
                     className={`${styles.formControl} mt-2`}
-                    value={formData.startTime}
+                    value={formData.startTime} // formData.startTime est maintenant toujours au bon format
                     onChange={(e) => handleChange('startTime', e.target.value)}
+                    placeholder="HH:mm" // Ajout d'un placeholder pour guider l'utilisateur
                   />
                 )}
               </div>
@@ -195,13 +251,16 @@ export default function CreateEventModal({ onClose, onSubmit, isSubmitting }) {
                   value={formData.endDate}
                   onChange={(e) => handleChange('endDate', e.target.value)}
                   required
+                  readOnly
                 />
                 {!formData.isAllDay && (
                   <input
-                    type="time"
+                    type="text" // Changé de "time" à "text"
                     className={`${styles.formControl} mt-2`}
                     value={formData.endTime}
-                    onChange={(e) => handleChange('endTime', e.target.value)}
+                    // Supprimé onChange car le champ est readOnly et la valeur est calculée
+                    readOnly
+                    placeholder="HH:mm" // Ajout d'un placeholder
                   />
                 )}
               </div>
