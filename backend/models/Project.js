@@ -8,6 +8,7 @@ const assignmentSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   status: { type: String, enum: ['assigned', 'submitted', 'pending_review', 'awaiting_staff_review', 'approved', 'rejected', 'cancelled'], default: 'assigned' },
   repoUrl: { type: String },
+  githubPagesUrl: { type: String }, // Nouveau champ pour l'URL GitHub Pages
   submissionDate: { type: Date },
   evaluations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Evaluation' }],
   peerEvaluators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Réfère aux étudiants qui évalueront ce projet.

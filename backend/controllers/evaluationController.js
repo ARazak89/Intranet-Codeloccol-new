@@ -200,6 +200,7 @@ export async function getAllEvaluationsForStaff(req, res) {
           _id: assignment._id,
           status: assignment.status,
           repoUrl: assignment.repoUrl,
+          githubPagesUrl: assignment.githubPagesUrl, // Inclure l'URL GitHub Pages
           submissionDate: assignment.submissionDate,
           student: assignment.student, // L'apprenant est déjà peuplé via project.assignments.student
           // ... autres champs d'assignation

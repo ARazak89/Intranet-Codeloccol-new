@@ -1466,6 +1466,24 @@ function ProjectsPage() {
                       </div>
                     )}
 
+                    {selectedProject.githubPagesUrl && (
+                      <div className="card thm-bg-light mb-3 shadow-sm">
+                        <div className="card-body d-flex align-items-center">
+                          <h6 className="mb-0 me-2 text-primary">
+                            <i className="bi bi-globe me-2"></i> GitHub Pages:
+                          </h6>
+                          <a
+                            href={selectedProject.githubPagesUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-info text-decoration-none"
+                          >
+                            {selectedProject.githubPagesUrl}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Resource Links */}
                     {selectedProject.resourceLinks &&
                       (selectedProject.resourceLinks || []).length > 0 && (
@@ -1525,25 +1543,6 @@ function ProjectsPage() {
                           </div>
                         </div>
                       )}
-
-                    {/* URL GitHub Pages */}
-                    {selectedProject.githubPagesUrl && (
-                      <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
-                        <div className=" d-flex align-items-center">
-                          <h6 className="mb-0 me-2">
-                            <i className="bi bi-globe me-2"></i> GitHub Pages:
-                          </h6>
-                          <a
-                            href={selectedProject.githubPagesUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-info text-decoration-none"
-                          >
-                            {selectedProject.githubPagesUrl}
-                          </a>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

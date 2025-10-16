@@ -515,6 +515,16 @@ export default function Hackathons() {
                                 Dépôt
                               </a>
                             )}
+                            {project.githubPagesUrl && (
+                              <a
+                                href={project.githubPagesUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ms-2 badge bg-secondary text-decoration-none"
+                              >
+                                GitHub Pages
+                              </a>
+                            )}
                           </li>
                         ))}
                       </ul>

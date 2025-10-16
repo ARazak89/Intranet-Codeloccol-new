@@ -459,14 +459,31 @@ export default function EvaluationPage() {
                             <td>
                               {evalItem.project?.title || "[Projet Inconnu]"}
                               {evalItem.assignment?.repoUrl && (
-                                <p className="mb-0">
+                                <p className="mb-0 d-flex align-items-center">
                                   <small>
+                                    <i className="bi bi-github me-1"></i> Dépôt:{" "}
                                     <a
                                       href={evalItem.assignment.repoUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
+                                      className="text-primary text-decoration-none"
                                     >
-                                      Dépôt GitHub
+                                      {evalItem.assignment.repoUrl}
+                                    </a>
+                                  </small>
+                                </p>
+                              )}
+                              {evalItem.assignment?.githubPagesUrl && (
+                                <p className="mb-0 d-flex align-items-center">
+                                  <small>
+                                    <i className="bi bi-globe me-1"></i> GitHub Pages:{" "}
+                                    <a
+                                      href={evalItem.assignment.githubPagesUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-primary text-decoration-none"
+                                    >
+                                      {evalItem.assignment.githubPagesUrl}
                                     </a>
                                   </small>
                                 </p>
@@ -889,6 +906,19 @@ export default function EvaluationPage() {
                                     rel="noopener noreferrer"
                                   >
                                     Dépôt GitHub
+                                  </a>
+                                </small>
+                              </p>
+                            )}
+                            {evalItem.project?.githubPagesUrl && (
+                              <p className="mb-0">
+                                <small>
+                                  <a
+                                    href={evalItem.project.githubPagesUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    GitHub Pages
                                   </a>
                                 </small>
                               </p>

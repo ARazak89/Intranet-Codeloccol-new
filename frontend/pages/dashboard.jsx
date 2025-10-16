@@ -1250,6 +1250,14 @@ export default function Dashboard() {
                                   </a>
                                 </div>
                               )}
+                              {project.githubPagesUrl && (
+                                <div className={styles.projectInfoItem}>
+                                  <i className="bi bi-globe"></i>
+                                  GitHub Pages: <a href={project.githubPagesUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                                    {project.githubPagesUrl}
+                                  </a>
+                                </div>
+                              )}
                               {project.submissionDate && (
                                 <div className={styles.projectInfoItem}>
                                   <i className="bi bi-calendar-event"></i>
@@ -1559,15 +1567,19 @@ export default function Dashboard() {
                                   </a>
                                 </small>
                               )}
-                              {/* Supprimé: Affichage de l'URL GitHub Pages */}
-                              <small className="d-flex align-items-center mt-1">
-                                <i className="bi bi-clock me-1"></i> Date et Heure:{" "}
-                                <span>
-                                  {dayjs(evaluationStartTime).tz(TIMEZONE).format('DD/MM/YYYY [de] HH[h]mm')}{" "}
-                                  à{" "}
-                                  {dayjs(evaluationEndTime).tz(TIMEZONE).format('HH[h]mm')}
-                                </span>
-                              </small>
+                              {evaluation.project?.githubPagesUrl && (
+                                <small className="d-flex align-items-center mt-1">
+                                  <i className="bi bi-globe me-1"></i> GitHub Pages:{" "}
+                                  <a
+                                    href={evaluation.project.githubPagesUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary text-decoration-none"
+                                  >
+                                    {evaluation.project.githubPagesUrl}
+                                  </a>
+                                </small>
+                              )}
                               <small className="text-danger d-flex align-items-center mt-1">
                                 <i className="bi bi-exclamation-triangle me-1"></i>{" "}
                                 Erreur: Créneau horaire manquant
@@ -1663,6 +1675,19 @@ export default function Dashboard() {
                                 {projectGroup.project.repoUrl}
                               </a>
                             </p>
+                            {projectGroup.project.githubPagesUrl && (
+                              <p className="d-flex align-items-center mt-1">
+                                GitHub Pages:{" "}
+                                <a
+                                  href={projectGroup.project.githubPagesUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary text-decoration-none"
+                                >
+                                  {projectGroup.project.githubPagesUrl}
+                                </a>
+                              </p>
+                            )}
                           </div>
                           <button
                             className="btn btn-sm btn-outline-secondary"
@@ -1855,6 +1880,14 @@ export default function Dashboard() {
                                 <i className="bi bi-github"></i>
                                 Dépôt: <a href={project.repoUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
                                 {project.repoUrl}
+                              </a>
+                              </div>
+                            )}
+                            {project.githubPagesUrl && (
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-globe"></i>
+                                GitHub Pages: <a href={project.githubPagesUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                                {project.githubPagesUrl}
                               </a>
                               </div>
                             )}
@@ -2125,6 +2158,22 @@ export default function Dashboard() {
                                               className="text-primary text-decoration-none"
                                             >
                                               {learner.assignedProject.repoUrl}
+                                            </a>
+                                          </p>
+                                        )}
+                                        {learner.assignedProject.githubPagesUrl && (
+                                          <p className="mb-1 d-flex align-items-center">
+                                            <i className="bi bi-globe me-2 text-dark"></i>{" "}
+                                            GitHub Pages:{" "}
+                                            <a
+                                              href={
+                                                learner.assignedProject.githubPagesUrl
+                                              }
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-primary text-decoration-none"
+                                            >
+                                              {learner.assignedProject.githubPagesUrl}
                                             </a>
                                           </p>
                                         )}
