@@ -13,6 +13,42 @@ import Badge from "../models/Badge.js"; // Import du nouveau modèle Badge
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Fonction utilitaire pour obtenir les IDs des collaborateurs à partir des URLs GitHub.
+ * @param {string[]} collaboratorUrls - Un tableau d'URLs de profils GitHub.
+ * @returns {Promise<string[]>} Un tableau d'IDs d'utilisateurs (MongoDB ObjectIds).
+ */
+async function getCollaboratorIds(collaboratorUrls) {
+  const collaboratorIds = [];
+  for (const url of collaboratorUrls) {
+    try {
+      // Extraire le nom d'utilisateur GitHub de l'URL
+      const usernameMatch = url.match(/github\.com\/([^/]+)/);
+      if (!usernameMatch || !usernameMatch[1]) {
+        console.warn(`URL de collaborateur invalide ignorée : ${url}`);
+        continue;
+      }
+      const githubUsername = usernameMatch[1];
+
+      // Trouver l'utilisateur correspondant dans la base de données
+      const user = await User.findOne({ githubUsername: githubUsername });
+      if (user) {
+        collaboratorIds.push(user._id);
+      } else {
+        console.warn(
+          `Utilisateur GitHub \'${githubUsername}\' non trouvé dans la base de données pour l'URL : ${url}`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Erreur lors du traitement de l'URL du collaborateur ${url}:`,
+        error
+      );
+    }
+  }
+  return collaboratorIds;
+}
+
 // Mappage des niveaux aux modules correspondants. Utilisé pour l'assignation automatique de projets.
 export const levelToModuleMap = {
   1: "CLI/Git & GIt Hub",
@@ -79,48 +115,41 @@ async function _assignProjectByLevel(studentId, level) {
       return { error: "Apprenant non trouvé." };
     }
 
-    // 1) Essayer correspondance stricte: order + module
+    // Obtenir les IDs de tous les projets déjà assignés à cet étudiant.
+    const assignedProjectIds = student.assignments.map(assign => assign.projectId);
+
+    // 1) Essayer correspondance stricte: order + module, en excluant les projets déjà assignés.
     let projectTemplate = await Project.findOne({
       status: "template",
       order: level,
       module: levelToModuleMap[level],
+      _id: { $nin: assignedProjectIds }, // Exclure les projets déjà assignés
     });
 
-    // 2) Fallback: essayer par order seulement (ne pas bloquer si module ne matche pas)
+    // 2) Fallback: essayer par order seulement (ne pas bloquer si module ne matche pas), en excluant les projets déjà assignés.
     if (!projectTemplate) {
       projectTemplate = await Project.findOne({
         status: "template",
         order: level,
+        _id: { $nin: assignedProjectIds }, // Exclure les projets déjà assignés
       });
     }
 
-    // 3) Fallback: prendre le plus petit order supérieur disponible
+    // 3) Fallback: prendre le plus petit order supérieur disponible, en excluant les projets déjà assignés.
     if (!projectTemplate) {
       projectTemplate = await Project.findOne({
         status: "template",
         order: { $gt: level },
+        _id: { $nin: assignedProjectIds }, // Exclure les projets déjà assignés
       }).sort({ order: 1 });
     }
 
     if (!projectTemplate) {
       console.warn(
-        `Aucun projet template disponible pour le niveau ${level} ni pour un ordre supérieur.`
+        `Aucun projet template disponible pour le niveau ${level} ni pour un ordre supérieur, qui ne soit pas déjà assigné à l'apprenant ${student.name}.`
       );
       return {
         error: `Aucun projet suivant disponible après le niveau ${level}.`,
-      };
-    }
-
-    // Vérifier si l'apprenant est déjà assigné à ce projet template.
-    const existingAssignment = projectTemplate.assignments.some((assign) =>
-      assign.student.equals(studentId)
-    );
-    if (existingAssignment) {
-      console.log(
-        `L'apprenant ${studentId} est déjà assigné au projet ${projectTemplate.title}.`
-      );
-      return {
-        message: `L'apprenant est déjà assigné au projet ${projectTemplate.title}.`,
       };
     }
 
@@ -142,7 +171,7 @@ async function _assignProjectByLevel(studentId, level) {
     }
 
     console.log(
-      `Projet '${projectTemplate.title}' (ordre ${level}) assigné avec succès à l'apprenant ${student.name}.`
+      `Nouveau projet \'${projectTemplate.title}\' (ordre ${level}) assigné avec succès à l'apprenant ${student.name}.`
     );
     return { message: "Projet assigné avec succès.", project: projectTemplate };
   } catch (e) {
@@ -741,10 +770,14 @@ export async function submitProjectSolution(req, res) {
 export async function finalReviewProject(req, res) {
   // Renommé de approveProject
   try {
+    console.log("Début de finalReviewProject.");
     const { id: projectId } = req.params; // ID du projet maître.
     const { assignmentId, status } = req.body; // ID de l'assignation et le nouveau statut (approved/rejected).
 
+    console.log(`projectId: ${projectId}, assignmentId: ${assignmentId}, status: ${status}`);
+
     if (!assignmentId || !status) {
+      console.log("Erreur 400: ID d\'assignation ou statut manquant.");
       return res
         .status(400)
         .json({ error: "ID d'assignation ou statut manquant." });
@@ -752,23 +785,31 @@ export async function finalReviewProject(req, res) {
 
     // Vérifier que l'utilisateur est un membre du personnel/admin.
     if (req.user.role !== "staff" && req.user.role !== "admin") {
+      console.log(`Erreur 403: Rôle non autorisé: ${req.user.role}`);
       return res.status(403).json({
         error: "Non autorisé à évaluer des projets.",
       });
     }
+    console.log(`Utilisateur ${req.user.name} (${req.user.role}) autorisé.`);
 
     const project = await Project.findById(projectId);
-    if (!project)
+    if (!project) {
+      console.log(`Erreur 404: Projet maître non trouvé pour l'ID: ${projectId}`);
       return res.status(404).json({ error: "Projet maître non trouvé." });
+    }
+    console.log(`Projet trouvé: ${project.title}`);
 
     const assignment = project.assignments.id(assignmentId);
     if (!assignment) {
+      console.log(`Erreur 404: Assignation non trouvée pour l'ID: ${assignmentId} dans le projet ${projectId}`);
       return res
         .status(404)
         .json({ error: "Assignation non trouvée dans ce projet." });
     }
+    console.log(`Assignation trouvée. Statut actuel: ${assignment.status}`);
 
     if (!["approved", "rejected"].includes(status)) {
+      console.log(`Erreur 400: Statut d'évaluation invalide: ${status}`);
       return res.status(400).json({ error: "Statut d'évaluation invalide." });
     }
 
@@ -776,43 +817,54 @@ export async function finalReviewProject(req, res) {
     let notificationMessage = "";
 
     if (status === "approved") {
+      console.log("Traitement du statut: approved.");
       if (assignment.status === "approved") {
+        console.log("Projet déjà approuvé, renvoi de la réponse.");
         return res.json({ message: "Projet déjà approuvé.", project });
       }
       assignment.status = "approved";
+      console.log(`Statut de l'assignation mis à jour à: ${assignment.status}`);
       // assignment.staffValidator = req.user._id; // Optionnel: enregistrer le validateur staff.
       message = "Projet approuvé avec succès et projet suivant assigné.";
       notificationMessage = `Votre projet \'${project.title}\' a été approuvé par le personnel. Félicitations ! Un nouveau projet vous a été assigné.`;
 
       const student = await User.findById(assignment.student);
       if (student) {
-        //DAY_BONUS[project.size] n'est pas défini, il faudrait le définir plus haut
+        console.log(`Apprenant trouvé: ${student.name}. totalProjectsCompleted avant: ${student.totalProjectsCompleted}`);
         // student.daysRemaining += DAY_BONUS[project.size] || 1; // Ajoute des jours restants à l'étudiant en fonction de la taille du projet.
         student.totalProjectsCompleted = (student.totalProjectsCompleted || 0) + 1; // Incrémente le nombre total de projets complétés.
+        console.log(`totalProjectsCompleted après: ${student.totalProjectsCompleted}`);
+
+        // Obtenez le module du projet approuvé
+        const projectModule = project.module;
+
+        // Compter les projets template pour ce module
+        const totalProjectsInModule = await Project.countDocuments({
+          module: projectModule,
+          status: "template",
+        });
+        console.log(`Total projets template dans le module ${projectModule}: ${totalProjectsInModule}`);
+
+        // Compter les projets approuvés par cet étudiant pour ce module
+        const completedProjectsInModule = await Project.countDocuments({
+          module: projectModule,
+          "assignments.student": student._id,
+          "assignments.status": "approved",
+        });
+        console.log(`Projets complétés par l'étudiant dans le module ${projectModule}: ${completedProjectsInModule}`);
 
         // Logique pour attribuer des badges de module (si un modèle Badge est implémenté et décommenté).
-        const projectModule = project.module; // Obtenez le module du projet approuvé
         const badgeNameForModule = moduleToBadgeNameMap[projectModule];
 
         if (badgeNameForModule) {
-          // Compter les projets template pour ce module
-          const totalProjectsInModule = await Project.countDocuments({
-            module: projectModule,
-            status: "template",
-          });
-
-          // Compter les projets approuvés par cet étudiant pour ce module
-          const completedProjectsInModule = await Project.countDocuments({
-            module: projectModule,
-            "assignments.student": student._id,
-            "assignments.status": "approved",
-          });
-
+          console.log(`Recherche de badge pour le module: ${projectModule}`);
           // Si tous les projets du module sont complétés par l'étudiant
           if (completedProjectsInModule >= totalProjectsInModule) {
+            console.log("Tous les projets du module sont complétés. Vérification des badges.");
             const moduleBadge = await Badge.findOne({ name: badgeNameForModule });
 
             if (moduleBadge && !student.badges.includes(moduleBadge._id)) {
+              console.log(`Attribution du badge: ${moduleBadge.name}`);
               student.badges.push(moduleBadge._id);
               await Notification.create({
                 user: student._id,
@@ -824,38 +876,50 @@ export async function finalReviewProject(req, res) {
           }
         }
 
-        // Incrémentation du niveau si tous les projets du module sont complétés
-        const currentModuleLevel = Object.keys(levelToModuleMap).find(key => levelToModuleMap[key] === projectModule);
-        if (currentModuleLevel && student.level === parseInt(currentModuleLevel) && completedProjectsInModule >= totalProjectsInModule) {
-          student.level = student.level + 1; // Incrémenter au niveau suivant
-          await Notification.create({
-            user: student._id,
-            type: "level_up",
-            message: `Félicitations ! Vous avez atteint le niveau ${student.level} en terminant tous les projets du module ${projectModule} !`,
-          });
-          console.log(`L'apprenant ${student.name} est passé au niveau ${student.level}.`);
+        // Incrémentation du niveau si tous les projets du module sont complétés ou si le module correspond au niveau actuel
+        const moduleLevel = Object.keys(levelToModuleMap).find(key => levelToModuleMap[key] === projectModule);
+        if (moduleLevel && completedProjectsInModule >= totalProjectsInModule) {
+          // Incrémenter le niveau uniquement si l'apprenant n'a pas déjà dépassé ce niveau via d'autres modules
+          if (student.level < parseInt(moduleLevel) + 1) {
+            console.log(`Niveau actuel de l'étudiant: ${student.level}, Niveau du module: ${moduleLevel}. Incrémentation du niveau.`);
+            student.level = parseInt(moduleLevel) + 1; // Incrémenter au niveau suivant du module
+            await Notification.create({
+              user: student._id,
+              type: "level_up",
+              message: `Félicitations ! Vous avez atteint le niveau ${student.level} en terminant tous les projets du module ${projectModule} !`,
+            });
+            console.log(`L'apprenant ${student.name} est passé au niveau ${student.level}.`);
+          }
         }
         // Assignation du prochain projet en fonction du nouveau niveau de l'étudiant.
+        console.log(`Assignation du prochain projet pour l'étudiant ${student.name} au niveau ${student.level}.`);
         await _assignProjectByLevel(student._id, student.level);
 
+        console.log("Sauvegarde de l'objet étudiant.");
         await student.save();
       }
     } else if (status === "rejected") {
+      console.log("Traitement du statut: rejected.");
       if (assignment.status === "rejected") {
+        console.log("Projet déjà rejeté, renvoi de la réponse.");
         return res.json({ message: "Projet déjà rejeté.", project });
       }
       assignment.status = "assigned"; // Rejette le projet et le remet à 'assigned' pour resoumission.
       assignment.repoUrl = undefined; // Efface l'URL du dépôt.
       assignment.submissionDate = undefined; // Efface la date de soumission.
+      console.log(`Statut de l'assignation mis à jour à: ${assignment.status}`);
       // TODO: Optionnel: effacer les évaluations existantes liées à cette assignation pour forcer de nouvelles évaluations.
+      message = "Projet rejeté avec succès et remis en attente de resoumission.";
       notificationMessage = `Votre projet \'${project.title}\' a été rejeté par le personnel. Veuillez revoir votre projet et le soumettre à nouveau.`;
     }
 
+    console.log("Sauvegarde de l'objet projet.");
     await project.save(); // Sauvegarde le projet maître pour persister les changements de l'assignation.
 
     // Notifier l'étudiant du résultat de l'évaluation finale.
     const student = await User.findById(assignment.student); // Récupère l'étudiant pour la notification.
     if (student) {
+      console.log(`Envoi de notification à l'étudiant ${student.name}.`);
       await Notification.create({
         user: student._id,
         type: "project_status_update",
@@ -864,6 +928,7 @@ export async function finalReviewProject(req, res) {
 
       // Si le projet est approuvé, notifier également le staff/admin du passage au projet suivant.
       if (status === "approved") {
+        console.log("Envoi de notification aux staff/admin pour progression de l'étudiant.");
         const staffAdminUsers = await User.find({
           role: { $in: ["staff", "admin"] },
         });
@@ -877,9 +942,10 @@ export async function finalReviewProject(req, res) {
       }
     }
 
+    console.log("Fin de finalReviewProject. Envoi de la réponse finale.");
     res.json({ message: message, project });
   } catch (e) {
-    console.error("Error during final staff review:", e);
+    console.error("Error during final staff review:", e.message, e.stack);
     res.status(500).json({ error: e.message });
   }
 }
