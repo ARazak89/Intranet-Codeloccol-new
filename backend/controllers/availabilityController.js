@@ -48,8 +48,10 @@ export async function createAvailabilitySlot(req, res) {
     // Vérifier si l'utilisateur est un apprenant pour appliquer la limite
     const user = await User.findById(evaluatorId).select('role');
     if (user && user.role === 'apprenant') {
+      const now = dayjs().toDate();
       const totalSlotsCreated = await AvailabilitySlot.countDocuments({
         evaluator: evaluatorId,
+        endTime: { $gt: now }
       });
 
       if (totalSlotsCreated >= 3) {

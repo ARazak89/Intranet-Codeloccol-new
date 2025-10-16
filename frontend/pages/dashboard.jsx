@@ -1494,7 +1494,7 @@ export default function Dashboard() {
                         );
                       }
 
-                      const gracePeriodEnd = evaluationEndTime; // Pas d'ajout manuel d'heure ici
+                      const gracePeriodEnd = evaluationEndTime.add(15, 'minutes'); // Ajoute 15 minutes à l'heure de fin
 
                       const isEvaluationActive =
                         now.valueOf() >= evaluationStartTime.valueOf() && now.valueOf() <= gracePeriodEnd.valueOf();
