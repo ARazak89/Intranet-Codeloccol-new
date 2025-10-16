@@ -72,6 +72,7 @@ function ProjectsPage() {
   const [showSubmitProjectModal, setShowSubmitProjectModal] = useState(false); // Affiche la modale de soumission de projet.
   const [currentProjectToSubmit, setCurrentProjectToSubmit] = useState(null); // Projet en cours de soumission.
   const [projectSubmissionRepoUrl, setProjectSubmissionRepoUrl] = useState(""); // URL du dépôt GitHub pour la soumission.
+  const [projectSubmissionGithubPagesUrl, setProjectSubmissionGithubPagesUrl] = useState(""); // URL GitHub Pages pour la soumission (conditionnel).
   const [success, setSuccess] = useState(null); // Message de succès.
 
   // États pour les popups d'erreur/avertissement personnalisés
@@ -658,6 +659,7 @@ function ProjectsPage() {
   const handleOpenSubmitProjectModal = async (project) => {
     setCurrentProjectToSubmit(project);
     setProjectSubmissionRepoUrl("");
+    setProjectSubmissionGithubPagesUrl("");
     setSuccess(null);
 
     console.log("[handleOpenSubmitProjectModal] Projet soumis:", project);
@@ -749,6 +751,7 @@ function ProjectsPage() {
         setShowSubmitProjectModal(false);
         setCurrentProjectToSubmit(null);
         setProjectSubmissionRepoUrl("");
+        setProjectSubmissionGithubPagesUrl("");
         loadData(getAuthToken()); // Recharger les données pour refléter le changement de statut.
       } else {
         setErrorPopupMessage(data.error || "Échec de la soumission du projet.");
@@ -774,6 +777,7 @@ function ProjectsPage() {
     setShowSubmitProjectModal(false);
     setCurrentProjectToSubmit(null);
     setProjectSubmissionRepoUrl("");
+    setProjectSubmissionGithubPagesUrl("");
     setSuccess(null);
     setShowErrorPopup(false);
     setErrorPopupMessage("");
@@ -1098,9 +1102,9 @@ function ProjectsPage() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if ((me?.evaluationPoints ?? 0) < 2) {
+                                    if ((me?.evaluationPoints ?? 0) < 1) {
                                       setErrorPopupMessage(
-                                        "Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet."
+                                        "Vous devez avoir au moins 1 point d'évaluation pour soumettre un projet."
                                       );
                                       setPopupType("error");
                                       setShowErrorPopup(true);
@@ -1110,7 +1114,7 @@ function ProjectsPage() {
                                   }}
                                   className="btn btn-primary w-100 btn-sm"
                                   title="Soumettre ce projet"
-                                  disabled={(me?.evaluationPoints ?? 0) < 2}
+                                  disabled={(me?.evaluationPoints ?? 0) < 1}
                                 >
                                   <i className="bi bi-upload me-2"></i>
                                   Soumettre le Projet
