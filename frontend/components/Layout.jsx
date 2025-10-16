@@ -16,7 +16,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 // const STATIC_ASSETS_BASE_URL = process.env.NEXT_PUBLIC_STATIC_ASSETS_BASE_URL || '/static';
 const STATIC_ASSETS_BASE_URL = API.replace("/api", "");
 
-const Layout = ({ children }) => {
+const Layout = ({ children, isDark, toggleTheme, boxRef }) => {
   const [user, setUser] = useState(null);
   const [daysRemaining, setDaysRemaining] = useState(0);
   const [notifications, setNotifications] = useState([]); // Déplacé de Dashboard
@@ -28,17 +28,17 @@ const Layout = ({ children }) => {
   const [token, setToken] = useState(null); // Gérer le token localement
   const [loading, setLoading] = useState(true); // Nouvel état de chargement
   const [showSidebar, setShowSidebar] = useState(false); // État pour afficher/masquer la sidebar sur mobile
-  const [isDark, setIsDark] = useState(false);
+  // const [isDark, setIsDark] = useState(false); // Supprimé, maintenant reçu via props
 
-  // Fonction pour changer le thème
-  const boxRef = useRef(null);
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-    if (boxRef.current) {
-      boxRef.current.classList.toggle("light");
-      console.log("theme switched");
-    }
-  };
+  // Fonction pour changer le thème (supprimée, maintenant reçue via props)
+  // const boxRef = useRef(null); // Supprimé, maintenant reçu via props
+  // const toggleTheme = () => {
+  //   setIsDark(!isDark);
+  //   if (boxRef.current) {
+  //     boxRef.current.classList.toggle("light");
+  //     console.log("theme switched");
+  //   }
+  // };
   // Fonctions pour la gestion des notifications
   const handleOpenNotificationModal = (notification) => {
     setCurrentNotification(notification);
@@ -202,7 +202,7 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div ref={boxRef} className="d-flex flex-column min-vh-100 themed ">
+    <div ref={boxRef} className={`d-flex flex-column min-vh-100 themed ${isDark ? '' : 'light'}`}>
       <Head>
         <title>CodeLoccol Dashboard</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
