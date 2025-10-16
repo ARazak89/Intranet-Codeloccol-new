@@ -424,11 +424,45 @@ function AdminUsersPage() {
                   </td>
                   <td style={{ fontSize: '12px' }}>
                     {user.assignedProject ? (
-                      <span title={user.assignedProject.title}>
-                        {user.assignedProject.title.length > 25 
-                          ? `${user.assignedProject.title.substring(0, 25)}...` 
-                          : user.assignedProject.title}
-                      </span>
+                      <div className="d-flex flex-column align-items-start">
+                        <span title={user.assignedProject.title} className="fw-bold mb-1">
+                          {user.assignedProject.title.length > 25
+                            ? `${user.assignedProject.title.substring(0, 25)}...`
+                            : user.assignedProject.title}
+                        </span>
+                        <span
+                          className={`badge rounded-pill bg-${(() => {
+                            if (user.assignedProject.status === "assigned") return "warning text-dark";
+                            if (user.assignedProject.status === "submitted") return "info";
+                            if (user.assignedProject.status === "awaiting_staff_review") return "primary";
+                            if (user.assignedProject.status === "approved") return "success";
+                            if (user.assignedProject.status === "rejected") return "danger";
+                            return "secondary";
+                          })()}`}
+                        >
+                          <i
+                            className={`bi bi-${(() => {
+                              if (user.assignedProject.status === "assigned") return "clock";
+                              if (user.assignedProject.status === "submitted") return "hourglass-split";
+                              if (user.assignedProject.status === "awaiting_staff_review") return "person-workspace";
+                              if (user.assignedProject.status === "approved") return "check-circle";
+                              if (user.assignedProject.status === "rejected") return "x-circle";
+                              return "question-circle";
+                            })()} me-1`}
+                          ></i>
+                          {user.assignedProject.status === "assigned"
+                            ? "Assigné"
+                            : user.assignedProject.status === "submitted"
+                            ? "Soumis"
+                            : user.assignedProject.status === "awaiting_staff_review"
+                            ? "En révision Staff"
+                            : user.assignedProject.status === "approved"
+                            ? "Approuvé"
+                            : user.assignedProject.status === "rejected"
+                            ? "Rejeté"
+                            : "Inconnu"}
+                        </span>
+                      </div>
                     ) : (
                       <span style={{ color: '#999', fontStyle: 'italic' }}>Aucun</span>
                     )}

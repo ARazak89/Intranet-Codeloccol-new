@@ -314,39 +314,44 @@ export async function listUsers(req, res) {
     // Note: Pour l'instant, le comportement par défaut est de tout afficher si aucun filtre n'est appliqué.
 
     const users = await User.find(query)
-      .select('-password -projects') // Exclure les mots de passe et le tableau de tous les projets
+      .select('-password') // Exclure uniquement les mots de passe
       .populate({
-        path: 'projects', // 'projects' est un tableau d'ObjectIds de projets maîtres
+        path: 'projects', // Peupler le tableau de projets maîtres
         populate: {
-          path: 'assignments', // Peupler le tableau d'assignations dans chaque projet maître
-          match: { student: { $eq: '$parent._id' } }, // Pas directement utilisable pour le moment ici
-          select: 'student status title order', // Sélectionner les champs pertinents de l'assignation
+          path: 'assignments',
+          match: { student: { $exists: true } }, // Match any assignment that has a student (we will filter by specific student in next step)
+          select: 'student status title order repoUrl submissionDate',
         }
       });
 
     // Nous devons filtrer et extraire l'assignation pertinente pour chaque utilisateur manuellement
     const usersWithAssignedProject = users.map((user) => {
-      let latestAssignedProject = null;
-      let latestAssignmentDate = null;
+      let currentProject = null;
+      // Définir les statuts considérés comme 'actuels'
+      const activeStatuses = ['assigned', 'submitted', 'awaiting_staff_review'];
 
       if (user.projects && user.projects.length > 0) {
         for (const project of user.projects) {
           const assignment = project.assignments.find(
-            (assign) => assign.student && assign.student.equals(user._id) // Vérifier que assign.student existe
+            (assign) => assign.student && assign.student.equals(user._id)
           );
-          if (assignment) {
-            const assignmentDate = assignment.submissionDate || project.createdAt; // Utiliser la date de soumission ou de création du projet
-            if (!latestAssignedProject || (assignmentDate && assignmentDate > latestAssignmentDate)) {
-              latestAssignedProject = {
+
+          if (assignment && activeStatuses.includes(assignment.status)) {
+            // C'est un projet actif pour cet étudiant
+            if (
+              !currentProject ||
+              (project.order > currentProject.order) ||
+              (project.order === currentProject.order && assignment.submissionDate > currentProject.submissionDate)
+            ) {
+              currentProject = {
                 title: project.title,
                 order: project.order,
                 id: project._id,
                 assignmentId: assignment._id,
-                status: assignment.status, // Inclure tous les statuts d'assignation
+                status: assignment.status,
                 repoUrl: assignment.repoUrl,
                 submissionDate: assignment.submissionDate,
               };
-              latestAssignmentDate = assignmentDate;
             }
           }
         }
@@ -360,7 +365,7 @@ export async function listUsers(req, res) {
         level: user.level,
         status: user.status,
         daysRemaining: user.daysRemaining,
-        assignedProject: latestAssignedProject, // Le projet assigné le plus récent
+        assignedProject: currentProject, // Le projet assigné le plus récent
       };
     });
 
