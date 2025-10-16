@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import UserSelector from './UserSelector';
 import styles from '../styles/calendar.module.css';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = 'Africa/Niamey';
 
 const EVENT_TYPES = [
   { value: 'hackathon', label: 'Hackathon', icon: 'bi-trophy' },
@@ -49,14 +57,12 @@ export default function CreateEventModal({ onClose, onSubmit, isSubmitting }) {
       }
 
       const startDateTimeString = `${formData.startDate}T${processedStartTime}:00`;
-      const start = new Date(startDateTimeString);
+      const start = dayjs.tz(startDateTimeString, TIMEZONE);
       
-      if (!isNaN(start.getTime())) {
-        const end = new Date(start.getTime() + 30 * 60 * 1000); // Ajoute 30 minutes
-        const endDate = end.toISOString().split('T')[0];
-        const hours = String(end.getHours()).padStart(2, '0');
-        const minutes = String(end.getMinutes()).padStart(2, '0');
-        const endTime = `${hours}:${minutes}`;
+      if (start.isValid()) {
+        const end = start.add(30, 'minutes');
+        const endDate = end.format('YYYY-MM-DD');
+        const endTime = end.format('HH:mm');
 
         setFormData(prev => ({
           ...prev,
@@ -109,15 +115,15 @@ export default function CreateEventModal({ onClose, onSubmit, isSubmitting }) {
 
     // Construire les dates complètes
     const startDateTime = formData.isAllDay 
-      ? `${formData.startDate}T00:00:00`
-      : `${formData.startDate}T${formData.startTime || '09:00'}:00`;
+      ? dayjs.tz(`${formData.startDate}T00:00:00`, TIMEZONE).utc().toISOString()
+      : dayjs.tz(`${formData.startDate}T${formData.startTime || '09:00'}:00`, TIMEZONE).utc().toISOString();
 
     const endDateTime = formData.isAllDay 
-      ? `${formData.endDate}T23:59:59`
-      : `${formData.endDate}T${formData.endTime || '18:00'}:00`;
+      ? dayjs.tz(`${formData.endDate}T23:59:59`, TIMEZONE).utc().toISOString()
+      : dayjs.tz(`${formData.endDate}T${formData.endTime || '18:00'}:00`, TIMEZONE).utc().toISOString();
 
     // Vérifier que la date de fin est après la date de début
-    if (new Date(endDateTime) <= new Date(startDateTime)) {
+    if (dayjs(endDateTime).isSameOrBefore(dayjs(startDateTime))) {
       setError('La date de fin doit être après la date de début');
       return;
     }

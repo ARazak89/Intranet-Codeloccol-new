@@ -4,8 +4,15 @@ import { getAuthToken } from "../utils/auth"; // Assurez-vous d'importer getAuth
 import Loader from "../components/Loader";
 import HtmlRenderer from "../utils/HtmlRenderer";
 import styles from "../styles/evaluations.module.css";
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const TIMEZONE = 'Africa/Niamey';
 
 export default function EvaluationPage() {
   const router = useRouter();
@@ -133,8 +140,8 @@ export default function EvaluationPage() {
             // setFeedbackCapaciteExpliquer(preselectedEval.feedback?.capacite_expliquer || '');
             // setComments(preselectedEval.comments || ''); // Toujours initialiser les commentaires
             if (preselectedEval.slot) {
-              setStartTime(new Date(preselectedEval.slot.startTime));
-              setEndTime(new Date(preselectedEval.slot.endTime));
+              setStartTime(dayjs(preselectedEval.slot.startTime).tz(TIMEZONE));
+              setEndTime(dayjs(preselectedEval.slot.endTime).tz(TIMEZONE));
             }
           }
         }
@@ -414,7 +421,7 @@ export default function EvaluationPage() {
                     evaluations.map((evalItem) => {
                       const isLate =
                         evalItem.slot &&
-                        new Date() > new Date(evalItem.slot.endTime);
+                        dayjs().tz(TIMEZONE).isAfter(dayjs(evalItem.slot.endTime).tz(TIMEZONE));
                       const rowClass = isLate
                         ? styles.rowDanger
                         : evalItem.status === "cancelled"
@@ -531,9 +538,7 @@ export default function EvaluationPage() {
                             </td>
                             <td>
                               {evalItem.slot?.startTime
-                                ? new Date(
-                                    evalItem.slot.startTime
-                                  ).toLocaleString()
+                                ? dayjs(evalItem.slot.startTime).tz(TIMEZONE).format()
                                 : "N/A"}
                             </td>
                             <td className="text-center">
@@ -731,7 +736,7 @@ export default function EvaluationPage() {
                               />
                               <div className={styles.slotInfo}>
                                 <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                                  {new Date(slot.startTime).toUTCString()} - {new Date(slot.endTime).toUTCString()}
+                                  {dayjs(slot.startTime).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')} - {dayjs(slot.endTime).tz(TIMEZONE).format('HH[h]mm')}
                                 </div>
                                 <div style={{ fontSize: '13px', color: '#666' }}>
                                   <i className="bi bi-person-fill" style={{ marginRight: '5px' }}></i>
@@ -778,8 +783,7 @@ export default function EvaluationPage() {
   if (me.role === "apprenant") {
     const formatTime = (date) => {
       if (!date) return "N/A";
-      const d = new Date(date);
-      return `${d.getUTCHours().toString().padStart(2, '0')}h${d.getUTCMinutes().toString().padStart(2, '0')}`;
+      return dayjs(date).tz(TIMEZONE).format('HH[h]mm');
     };
 
     return (
@@ -826,17 +830,17 @@ export default function EvaluationPage() {
                   {evaluations.length > 0 ? (
                     evaluations.map((evalItem) => {
                       const slotStartTime = evalItem.slot?.startTime
-                        ? new Date(evalItem.slot.startTime)
+                        ? dayjs(evalItem.slot.startTime).tz(TIMEZONE)
                         : null;
                       const slotEndTime = evalItem.slot?.endTime
-                        ? new Date(evalItem.slot.endTime)
+                        ? dayjs(evalItem.slot.endTime).tz(TIMEZONE)
                         : null;
                       const isPendingAndActive =
                         evalItem.status === "pending" &&
                         slotStartTime &&
                         slotEndTime &&
-                        new Date() >= slotStartTime && // Ajuster new Date() à UTC+1
-                        new Date() <= slotEndTime.getTime() + 60 * 60 * 1000;
+                        dayjs().tz(TIMEZONE).isSameOrAfter(slotStartTime) && // Ajuster new Date() à UTC+1
+                        dayjs().tz(TIMEZONE).isSameOrBefore(slotEndTime.add(1, 'hour')); // 1 heure après l'heure de fin
 
                       let statusBadgeClass = "bg-secondary";
                       switch (evalItem.status) {
@@ -893,7 +897,7 @@ export default function EvaluationPage() {
                           <td>{evalItem.evaluator?.name || "N/A"}</td>
                           <td>
                             {slotStartTime
-                              ? `${slotStartTime.toLocaleDateString()} de ${formatTime(slotStartTime)} à ${formatTime(slotEndTime)}`
+                              ? `${slotStartTime.format('DD/MM/YYYY')} de ${formatTime(slotStartTime)} à ${formatTime(slotEndTime)}`
                               : "N/A"}
                           </td>
                           <td>

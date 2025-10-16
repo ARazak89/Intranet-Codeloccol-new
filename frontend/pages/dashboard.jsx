@@ -10,6 +10,27 @@ import UserSummaryCard from "../components/UserSummaryCard"; // Importation du n
 import Loader from "../components/Loader";
 import styles from "../styles/dashboard.module.css";
 // import { levelToModuleMap } from "../utils/moduleHelper"; // Supprimez cette ligne
+import Head from 'next/head';
+import { useSession } from 'next-auth/react';
+import useSWR from 'swr';
+import dynamic from 'next/dynamic';
+import Modal from 'react-modal';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'; // Assurez-vous que ce plugin est bien importé
+import 'dayjs/locale/fr'; // Assurez-vous d'importer la locale si vous formatez en français
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(isSameOrAfter); // Assurez-vous que ce plugin est bien étendu
+
+// Définir la locale globale pour Day.js
+dayjs.locale('fr');
+
+const TIMEZONE = 'Africa/Niamey';
+
+// const ActivityLog = dynamic(() => import('../components/ActivityLog'), { ssr: false });
 
 // Fonction utilitaire pour s'assurer que les propriétés sont des tableaux
 const sanitizeProjectArrays = (project) => ({
@@ -115,8 +136,8 @@ export default function Dashboard() {
 
   const formatUTCHourMinute = (date) => {
     if (!date) return "N/A";
-    const d = new Date(date.getTime() + 60 * 60 * 1000); // Ajouter 1 heure pour UTC+1
-    return `${d.getUTCHours().toString().padStart(2, '0')}h${d.getUTCMinutes().toString().padStart(2, '0')}`;
+    // Interpréter la date comme UTC, puis la convertir en heure locale de Niamey
+    return dayjs.utc(date).tz(TIMEZONE).format('HH[h]mm');
   };
 
   const handleCloseDeleteSlotModal = () => {
@@ -545,21 +566,29 @@ export default function Dashboard() {
       return;
     }
 
-    // Construire les objets Date en UTC pour éviter les problèmes de fuseau horaire
-    const startDateTime = new Date(`${slotDate}T${slotStartTime}:00.000Z`);
-    const endDateTime = new Date(`${slotDate}T${slotEndTime}:00.000Z`);
+    if (!slotDate || !slotStartTime) {
+      setError("Veuillez sélectionner une date et une heure de début.");
+      setIsLoading(false);
+      return;
+    }
 
     try {
+      const localDateTime = dayjs.tz(`${slotDate}T${slotStartTime}`, TIMEZONE);
+      if (!localDateTime.isValid()) {
+        setError("La date ou l'heure du slot est invalide.");
+        setIsLoading(false);
+        return;
+      }
+
+      const startTimeUTC = localDateTime.utc().toISOString();
+
       const res = await fetch(`${API}/availability`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          startTime: startDateTime,
-          endTime: endDateTime,
-        }),
+        body: JSON.stringify({ startTime: startTimeUTC }),
       });
       const data = await res.json();
 
@@ -1017,6 +1046,24 @@ export default function Dashboard() {
         />
       )}
 
+
+  {/* Section Hackathons et Badges (pour apprenant) */}
+  {me && me.role === "apprenant" && (
+        <div className="row mb-4">
+          <div className="col-lg-6 mb-4">
+            <HackathonList
+              hackathons={hackathons}
+              me={me}
+              onShowSubmitHackathonModal={handleShowSubmitHackathonModal}
+            />
+          </div>
+          <div className="col-lg-6 mb-4">
+            <BadgeDisplay badges={badges} />
+          </div>
+        </div>
+      )}
+
+
       {/* Nouveau: Section pour les slots que j'ai créés */}
       {me && me.role === "apprenant" && myCreatedSlots.length > 0 && (
         <div className="row mb-4">
@@ -1028,20 +1075,18 @@ export default function Dashboard() {
                   Mes Slots de Disponibilité
                 </h2>
                 <span className={styles.sectionCount}>{myCreatedSlots.filter((slot) => {
-                    const slotEndTime = new Date(slot.endTime);
-                    const oneHourAfterEndTime = new Date(slotEndTime.getTime() + 60 * 60 * 1000);
-                    return new Date(new Date().getTime() + 60 * 60 * 1000) < oneHourAfterEndTime; // Ajuster new Date() à UTC+1
+                    const slotEndTime = dayjs.utc(slot.endTime);
+                    const oneHourAfterEndTime = slotEndTime.add(1, 'hour');
+                    return dayjs.utc().isBefore(oneHourAfterEndTime); // Utilisation de Day.js pour la comparaison
                   }).length}</span>
               </div>
               <div className="list-group list-group-flush">
                 {myCreatedSlots
                   .filter((slot) => {
-                    const slotEndTime = new Date(slot.endTime);
-                    const oneHourAfterEndTime = new Date(
-                      slotEndTime.getTime() + 60 * 60 * 1000
-                    );
-                    const currentTime = new Date(new Date().getTime() + 60 * 60 * 1000); // Ajuster currentTime à UTC+1
-                    return currentTime < oneHourAfterEndTime;
+                    const slotEndTime = dayjs.utc(slot.endTime);
+                    const oneHourAfterEndTime = slotEndTime.add(1, 'hour');
+                    const currentTime = dayjs.utc(); // Pas d'ajustement manuel ici
+                    return currentTime.isBefore(oneHourAfterEndTime);
                   })
                   .map((slot) => (
                     <div key={slot._id} className={styles.listItem}>
@@ -1049,12 +1094,9 @@ export default function Dashboard() {
                         <div className="flex-grow-1">
                           <h5 className={styles.listItemTitle}>
                             <i className="bi bi-calendar-event"></i>
-                            {new Date(slot.startTime).toLocaleDateString('fr-FR')} de{" "}
-                            {new Date(slot.startTime).getUTCHours().toString().padStart(2, "0")}:
-                            {new Date(slot.startTime).getUTCMinutes().toString().padStart(2, "0")}{" "}
-                            à{" "}
-                            {new Date(slot.endTime).getUTCHours().toString().padStart(2, "0")}:
-                            {new Date(slot.endTime).getUTCMinutes().toString().padStart(2, "0")}
+                            {dayjs.utc(slot.startTime).tz(TIMEZONE).format('DD/MM/YYYY')} de{" "}
+                            {formatUTCHourMinute(slot.startTime)} à{" "}
+                            {formatUTCHourMinute(slot.endTime)}
                           </h5>
                           <div className="d-flex align-items-center gap-2 mt-2">
                             {slot.isBooked ? (
@@ -1069,7 +1111,7 @@ export default function Dashboard() {
                                   setShowDeleteSlotModal({
                                     show: true,
                                     slotId: slot._id,
-                                    slotStartTime: new Date(slot.startTime),
+                                    slotStartTime: slot.startTime,
                                   })
                                 }
                               >
@@ -1114,7 +1156,7 @@ export default function Dashboard() {
                         )}
                           <div className={styles.projectInfoItem}>
                             <i className="bi bi-info-circle"></i>
-                            Créé le: {new Date(slot.createdAt).toUTCString()}
+                            Créé le: {dayjs.utc(slot.createdAt).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}
                       </div>
                         </div>
                       )}
@@ -1211,7 +1253,7 @@ export default function Dashboard() {
                               {project.submissionDate && (
                                 <div className={styles.projectInfoItem}>
                                   <i className="bi bi-calendar-event"></i>
-                                  Date de soumission: <strong>{new Date(project.submissionDate).toUTCString()}</strong>
+                                  Date de soumission: <strong>{dayjs.utc(project.submissionDate).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}</strong>
                             </div>
                           )}
                         </div>
@@ -1288,21 +1330,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Section Hackathons et Badges (pour apprenant) */}
-      {me && me.role === "apprenant" && (
-        <div className="row mb-4">
-          <div className="col-lg-6 mb-4">
-            <HackathonList
-              hackathons={hackathons}
-              me={me}
-              onShowSubmitHackathonModal={handleShowSubmitHackathonModal}
-            />
-          </div>
-          <div className="col-lg-6 mb-4">
-            <BadgeDisplay badges={badges} />
-          </div>
-        </div>
-      )}
+    
 
       {/* Modale pour la soumission de projet de Hackathon */}
       {me && me.role === "apprenant" && showSubmitHackathonProjectModal && (
@@ -1411,10 +1439,10 @@ export default function Dashboard() {
                   </h2>
                   <span className={styles.sectionCount}>
                     {me.role === "apprenant" ? upcomingEvaluations.length : allPendingEvaluationsForStaff.filter((evaluation) => {
-                      const evaluationEndTime = evaluation.slot ? new Date(evaluation.slot.endTime) : null;
+                      const evaluationEndTime = evaluation.slot ? dayjs.utc(evaluation.slot.endTime) : null;
                       if (!evaluationEndTime) return false;
-                      const twoHoursAfterEndTime = new Date(evaluationEndTime.getTime() + 2 * 60 * 60 * 1000);
-                      return new Date() < twoHoursAfterEndTime; // Ajuster new Date() à UTC+1
+                      const twoHoursAfterEndTime = evaluationEndTime.add(2, 'hour');
+                      return dayjs.utc().isBefore(twoHoursAfterEndTime); // Utiliser dayjs.utc() pour la comparaison
                     }).length}
                   </span>
                 </div>
@@ -1425,12 +1453,12 @@ export default function Dashboard() {
                     upcomingEvaluations.map((evaluation) => {
                       // Vérifier si evaluation.slot existe avant d'accéder à ses propriétés
                       const evaluationStartTime = evaluation.slot
-                        ? new Date(evaluation.slot.startTime)
+                        ? dayjs.utc(evaluation.slot.startTime)
                         : null;
                       const evaluationEndTime = evaluation.slot
-                        ? new Date(evaluation.slot.endTime)
+                        ? dayjs.utc(evaluation.slot.endTime)
                         : null;
-                      const now = new Date(); // Supprimer l'ajustement manuel à UTC+1
+                      const now = dayjs.utc(); // Utiliser dayjs.utc() pour l'heure actuelle
 
                       // Gérer le cas où slot est null
                       if (!evaluationStartTime || !evaluationEndTime) {
@@ -1458,22 +1486,14 @@ export default function Dashboard() {
                         );
                       }
 
-                      const gracePeriodEnd = new Date(
-                        evaluationEndTime.getTime()
-                      ); // Supprimer l'ajout d'une heure
+                      const gracePeriodEnd = evaluationEndTime; // Pas d'ajout manuel d'heure ici
 
                       const isEvaluationActive =
-                        now >= evaluationStartTime && now <= gracePeriodEnd;
+                        now.valueOf() >= evaluationStartTime.valueOf() && now.valueOf() <= gracePeriodEnd.valueOf();
                       const buttonText = isEvaluationActive
                         ? "Évaluer le projet"
-                        : now < evaluationStartTime // Revenir à la comparaison originale
-                        ? `Actif à ${new Date(evaluationStartTime.getTime() + 60 * 60 * 1000)
-                            .getUTCHours()
-                            .toString()
-                            .padStart(2, "0")}:${new Date(evaluationStartTime.getTime() + 60 * 60 * 1000)
-                            .getUTCMinutes()
-                            .toString()
-                            .padStart(2, "0")}`
+                        : now.valueOf() < evaluationStartTime.valueOf() // Utiliser valueOf pour la comparaison
+                        ? `Actif à ${evaluationStartTime.tz(TIMEZONE).format('HH[h]mm')}`
                         : "Période d'évaluation terminée";
 
                       return (
@@ -1491,26 +1511,9 @@ export default function Dashboard() {
                                 <i className="bi bi-clock me-1"></i>{" "}
                                 <span>
                                   Date:
-                                  {evaluationStartTime.toLocaleDateString()} de{" "}
-                                  {evaluationStartTime
-                                    .getUTCHours()
-                                    .toString()
-                                    .padStart(2, "0")}
-                                  :
-                                  {evaluationStartTime
-                                    .getUTCMinutes()
-                                    .toString()
-                                    .padStart(2, "0")}{" "}
+                                  {dayjs(evaluationStartTime).tz(TIMEZONE).format('DD/MM/YYYY [de] HH[h]mm')}{" "}
                                   à{" "}
-                                  {evaluationEndTime
-                                    .getUTCHours()
-                                    .toString()
-                                    .padStart(2, "0")}
-                                  :
-                                  {evaluationEndTime
-                                    .getUTCMinutes()
-                                    .toString()
-                                    .padStart(2, "0")}
+                                  {dayjs(evaluationEndTime).tz(TIMEZONE).format('HH[h]mm')}
                                 </span>
                               </small>
                             </div>
@@ -1560,26 +1563,9 @@ export default function Dashboard() {
                               <small className="d-flex align-items-center mt-1">
                                 <i className="bi bi-clock me-1"></i> Date et Heure:{" "}
                                 <span>
-                                  {evaluationStartTime.toLocaleDateString()} de{" "}
-                                  {evaluationStartTime
-                                    .getUTCHours()
-                                    .toString()
-                                    .padStart(2, "0")}
-                                  :
-                                  {evaluationStartTime
-                                    .getUTCMinutes()
-                                    .toString()
-                                    .padStart(2, "0")}{" "}
+                                  {dayjs(evaluationStartTime).tz(TIMEZONE).format('DD/MM/YYYY [de] HH[h]mm')}{" "}
                                   à{" "}
-                                  {evaluationEndTime
-                                    .getUTCHours()
-                                    .toString()
-                                    .padStart(2, "0")}
-                                  :
-                                  {evaluationEndTime
-                                    .getUTCMinutes()
-                                    .toString()
-                                    .padStart(2, "0")}
+                                  {dayjs(evaluationEndTime).tz(TIMEZONE).format('HH[h]mm')}
                                 </span>
                               </small>
                               <small className="text-danger d-flex align-items-center mt-1">
@@ -1608,16 +1594,14 @@ export default function Dashboard() {
                   allPendingEvaluationsForStaff.filter((evaluation) => {
                       // Vérifier si evaluation.slot existe avant d'accéder à ses propriétés
                       const evaluationEndTime = evaluation.slot
-                        ? new Date(evaluation.slot.endTime)
+                        ? dayjs.utc(evaluation.slot.endTime)
                         : null;
                       // Filtrer seulement si le slot et l'heure de fin sont valides
                       if (!evaluationEndTime) return false;
 
-                      const twoHoursAfterEndTime = new Date(
-                        evaluationEndTime.getTime() + 2 * 60 * 60 * 1000
-                      ); // Ajoute 2 heures en millisecondes
-                      const currentTime = new Date(new Date().getTime() + 60 * 60 * 1000); // Ajuster currentTime à UTC+1
-                      return currentTime < twoHoursAfterEndTime;
+                      const twoHoursAfterEndTime = evaluationEndTime.add(2, 'hour');
+                      const currentTime = dayjs.utc(); // Ajuster currentTime à UTC+1
+                      return currentTime.isBefore(twoHoursAfterEndTime);
                     }).length > 0 ? (
                     // Regrouper les évaluations par projet
                     Object.values(
@@ -1625,16 +1609,14 @@ export default function Dashboard() {
                         .filter((evaluation) => {
                           // Vérifier si evaluation.slot existe avant d'accéder à ses propriétés
                           const evaluationEndTime = evaluation.slot
-                            ? new Date(evaluation.slot.endTime)
+                            ? dayjs.utc(evaluation.slot.endTime)
                             : null;
                           // Filtrer seulement si le slot et l'heure de fin sont valides
                           if (!evaluationEndTime) return false;
 
-                          const twoHoursAfterEndTime = new Date(
-                            evaluationEndTime.getTime() + 2 * 60 * 60 * 1000
-                          );
-                          const currentTime = new Date(new Date().getTime() + 60 * 60 * 1000); // Ajuster currentTime à UTC+1
-                          return currentTime < twoHoursAfterEndTime;
+                          const twoHoursAfterEndTime = evaluationEndTime.add(2, 'hour');
+                          const currentTime = dayjs.utc(); // Ajuster currentTime à UTC+1
+                          return currentTime.isBefore(twoHoursAfterEndTime);
                         })
                         .reduce((acc, evaluation) => {
                           const projectId = evaluation.project._id;
@@ -1719,10 +1701,10 @@ export default function Dashboard() {
                             <strong>Évaluations des pairs :</strong>
                             <ul className=" mt-2">
                               {projectGroup.evaluations.map((evalItem) => {
-                                const now = new Date(new Date().getTime() + 60 * 60 * 1000); // Ajuster now à UTC+1
+                                const now = dayjs.utc();
                                 // Vérifier si evalItem.slot existe avant d'accéder à ses propriétés
                                 const evaluationTime = evalItem.slot
-                                  ? new Date(evalItem.slot.endTime)
+                                  ? dayjs.utc(evalItem.slot.endTime)
                                   : null; // Heure de fin du slot
 
                                 // Gérer le cas où evaluationTime est null
@@ -1749,11 +1731,9 @@ export default function Dashboard() {
                                   );
                                 }
                                 const submissionTime = evalItem.submissionDate
-                                  ? new Date(evalItem.submissionDate)
+                                  ? dayjs.utc(evalItem.submissionDate)
                                   : null;
-                                const gracePeriodEnd = new Date(
-                                  evaluationTime.getTime() + 60 * 60 * 1000
-                                ); // 1 heure après l'heure de fin
+                                const gracePeriodEnd = evaluationTime.add(1, 'hour'); // 1 heure après l'heure de fin
 
                                 let statusText = "En attente";
                                 let statusBadgeClass = "bg-warning";
@@ -1763,7 +1743,7 @@ export default function Dashboard() {
                                   statusBadgeClass = "bg-success";
                                   if (
                                     submissionTime &&
-                                    submissionTime <= gracePeriodEnd
+                                    submissionTime.isSameOrBefore(gracePeriodEnd)
                                   ) {
                                     timeStatus = "Dans les temps";
                                   } else if (submissionTime) {
@@ -1774,7 +1754,7 @@ export default function Dashboard() {
                                   statusBadgeClass = "bg-danger";
                                   if (
                                     submissionTime &&
-                                    submissionTime <= gracePeriodEnd
+                                    submissionTime.isSameOrBefore(gracePeriodEnd)
                                   ) {
                                     timeStatus = "Dans les temps";
                                   } else if (submissionTime) {
@@ -1803,7 +1783,7 @@ export default function Dashboard() {
                                       </span>
                                       {(evalItem.status === "rejected" ||
                                         (evalItem.status === "pending" &&
-                                          now > gracePeriodEnd)) && (
+                                         now.isAfter(gracePeriodEnd))) && (
                                         <button
                                           onClick={() =>
                                             handleReassignEvaluation(
@@ -1881,7 +1861,7 @@ export default function Dashboard() {
                             {project.submissionDate && (
                               <div className={styles.projectInfoItem}>
                                 <i className="bi bi-calendar-event"></i>
-                                Date de soumission: <strong>{new Date(project.submissionDate).toUTCString()}</strong>
+                                Date de soumission: <strong>{dayjs.utc(project.submissionDate).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}</strong>
                             </div>
                           )}
                           </div>
@@ -2373,9 +2353,8 @@ export default function Dashboard() {
                         setSlotStartTime(newStartTime);
                         // Calculer l'heure de fin automatiquement (début + 30 minutes)
                         const [hours, minutes] = newStartTime.split(":").map(Number);
-                        const date = new Date(slotDate); // Utiliser slotDate pour initialiser la date
-                        date.setHours(hours, minutes + 30, 0, 0); // Définir l'heure locale, formatUTCHourMinute gérera l'UTC+1
-                        const newEndTime = formatUTCHourMinute(date); // Utiliser formatUTCHourMinute
+                        const date = dayjs(`${slotDate}T${newStartTime}`, TIMEZONE);
+                        const newEndTime = date.add(30, 'minutes').format('HH:mm');
                         setSlotEndTime(newEndTime);
                       }}
                       required
@@ -2763,9 +2742,7 @@ export default function Dashboard() {
                                 <i className="bi bi-calendar-event me-2"></i>
                                 Date d'évaluation:
                               </strong>{" "}
-                              {new Date(
-                                evaluation.slot.startTime
-                              ).toUTCString()}
+                              {dayjs.utc(evaluation.slot.startTime).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}
                             </p>
                           )}
                           {evaluation.feedback && (

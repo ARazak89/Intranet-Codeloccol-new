@@ -1,8 +1,12 @@
 import User from "../models/User.js";
 import AvailabilitySlot from "../models/AvailabilitySlot.js";
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+
+dayjs.extend(utc);
 
 export async function findAvailableEvaluatorAndSlot(excludeEvaluatorId = null) {
-  const now = new Date();
+  const now = dayjs().utc().toDate();
 
   // Trouver tous les évaluateurs actifs
   let evaluators = await User.find({

@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import UserSelector from './UserSelector';
 import styles from '../styles/calendar.module.css';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = 'Africa/Niamey';
 
 const EVENT_TYPES = [
   { value: 'hackathon', label: 'Hackathon', icon: 'bi-trophy' },
@@ -24,10 +32,10 @@ export default function EventDetailsModal({
   const [formData, setFormData] = useState({
     title: event.title || '',
     description: event.extendedProps?.description || '',
-    startDate: event.start ? new Date(event.start).toISOString().split('T')[0] : '',
-    startTime: event.start && !event.allDay ? new Date(event.start).toTimeString().slice(0, 5) : '',
-    endDate: event.end ? new Date(event.end).toISOString().split('T')[0] : '',
-    endTime: event.end && !event.allDay ? new Date(event.end).toTimeString().slice(0, 5) : '',
+    startDate: event.start ? dayjs(event.start).tz(TIMEZONE).format('YYYY-MM-DD') : '',
+    startTime: event.start && !event.allDay ? dayjs(event.start).tz(TIMEZONE).format('HH:mm') : '',
+    endDate: event.end ? dayjs(event.end).tz(TIMEZONE).format('YYYY-MM-DD') : '',
+    endTime: event.end && !event.allDay ? dayjs(event.end).tz(TIMEZONE).format('HH:mm') : '',
     type: event.extendedProps?.type || 'autre',
     location: event.extendedProps?.location || '',
     isAllDay: event.allDay || false,
@@ -44,12 +52,12 @@ export default function EventDetailsModal({
 
     // Construire les dates complètes
     const startDateTime = formData.isAllDay 
-      ? `${formData.startDate}T00:00:00`
-      : `${formData.startDate}T${formData.startTime || '09:00'}:00`;
+      ? dayjs.tz(`${formData.startDate}T00:00:00`, TIMEZONE).utc().toISOString()
+      : dayjs.tz(`${formData.startDate}T${formData.startTime || '09:00'}:00`, TIMEZONE).utc().toISOString();
 
     const endDateTime = formData.isAllDay 
-      ? `${formData.endDate}T23:59:59`
-      : `${formData.endDate}T${formData.endTime || '18:00'}:00`;
+      ? dayjs.tz(`${formData.endDate}T23:59:59`, TIMEZONE).utc().toISOString()
+      : dayjs.tz(`${formData.endDate}T${formData.endTime || '18:00'}:00`, TIMEZONE).utc().toISOString();
 
     await onEdit(event.id, {
       ...formData,
@@ -103,20 +111,12 @@ export default function EventDetailsModal({
 
   const formatDate = (date) => {
     if (!date) return '';
-    return new Date(date).toLocaleDateString('fr-FR', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+    return dayjs(date).tz(TIMEZONE).format('dddd D MMMM YYYY');
   };
 
   const formatTime = (date) => {
     if (!date) return '';
-    return new Date(date).toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    return dayjs(date).tz(TIMEZONE).format('HH[h]mm');
   };
 
   return (
@@ -159,7 +159,7 @@ export default function EventDetailsModal({
                             <span className={styles.dateEmoji}>📅</span>
                             {formatDate(event.start)}
                           </div>
-                          {event.end && new Date(event.end).toDateString() !== new Date(event.start).toDateString() && (
+                          {event.end && dayjs(event.end).tz(TIMEZONE).format('YYYY-MM-DD') !== dayjs(event.start).tz(TIMEZONE).format('YYYY-MM-DD') && (
                             <div className={styles.detailValue}>
                               <span className={styles.dateEmoji}>→</span>
                               {formatDate(event.end)}
@@ -172,7 +172,7 @@ export default function EventDetailsModal({
                       ) : (
                         <>
                           {/* Vérifier si l'événement s'étend sur plusieurs jours */}
-                          {event.start && event.end && new Date(event.start).toDateString() === new Date(event.end).toDateString() ? (
+                          {event.start && event.end && dayjs(event.start).tz(TIMEZONE).format('YYYY-MM-DD') === dayjs(event.end).tz(TIMEZONE).format('YYYY-MM-DD') ? (
                             // Même jour
                             <>
                               <div className={styles.detailValue}>
