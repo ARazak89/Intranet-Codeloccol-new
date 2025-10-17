@@ -115,6 +115,32 @@ const Navbar = ({
                   aria-labelledby="navbarNotifications"
                   style={{ maxHeight: "300px", overflowY: "auto" }}
                 >
+                  {notifications.length > 0 && (
+                    <li>
+                      <button
+                        className="dropdown-item text-primary"
+                        onClick={async () => {
+                          try {
+                            await fetch(`${API}/notifications/all/read`, { method: 'PUT', credentials: 'include' });
+                            // Mise à jour locale
+                            if (typeof setNotifications === 'function') {
+                              setNotifications(
+                                notifications.map((notif) => ({ ...notif, read: true }))
+                              );
+                            }
+                            if (typeof setNotificationsCount === 'function') {
+                              setNotificationsCount(0);
+                            }
+                          } catch (e) {
+                            alert("Erreur lors de la lecture des notifications");
+                          }
+                        }}
+                      >
+                        <i className="bi bi-envelope-open"></i> Marquer toutes comme lues
+                      </button>
+                      <hr className="dropdown-divider" />
+                    </li>
+                  )}
                   {notifications.length > 0 ? (
                     notifications.map((notification) => (
                       <li key={notification._id}>

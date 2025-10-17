@@ -63,3 +63,15 @@ export async function getNotificationsCount(req, res) {
     res.status(500).json({ error: e.message });
   }
 }
+
+export async function markAllAsRead(req, res) {
+  try {
+    await Notification.updateMany(
+      { user: req.user._id, read: false },
+      { read: true }
+    );
+    res.status(200).json({ message: 'Toutes les notifications ont été marquées comme lues.' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+}
