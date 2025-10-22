@@ -14,10 +14,8 @@ export async function listNotifications(req, res) {
 export async function markAsRead(req, res) {
   try {
     const { id } = req.params;
-    const notification = await Notification.findOneAndUpdate(
-      { _id: id, user: req.user._id },
-      { read: true },
-      { new: true },
+    const notification = await Notification.findOneAndDelete(
+      { _id: id, user: req.user._id }
     );
 
     if (!notification) {
@@ -26,7 +24,7 @@ export async function markAsRead(req, res) {
 
     res
       .status(200)
-      .json({ message: "Notification marquée comme lue.", notification });
+      .json({ message: "Notification supprimée avec succès.", notification });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

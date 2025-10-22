@@ -50,22 +50,14 @@ const Layout = ({ children, isDark, toggleTheme, boxRef }) => {
     if (currentNotification && token) {
       try {
         await fetch(`${API}/notifications/${currentNotification._id}/read`, {
-          method: "PUT",
+          method: "PUT", // Ou "DELETE" si le backend est configuré pour supprimer
           headers: { Authorization: `Bearer ${token}` },
         });
-        // Recharger les notifications après en avoir marqué une comme lue
-        if (user && token) {
-          const notifRes = await fetch(`${API}/notifications/mine`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (notifRes.ok) {
-            const notifData = await notifRes.json();
-            setNotifications(notifData); // Stocker toutes les notifications
-            setNotificationsCount(
-              notifData.filter((notif) => !notif.read).length
-            ); // Mettre à jour le compteur avec les non lues
-          }
-        }
+        // Mettre à jour l'état des notifications après suppression
+        setNotifications((prevNotifs) =>
+          prevNotifs.filter((notif) => notif._id !== currentNotification._id)
+        );
+        setNotificationsCount((prevCount) => Math.max(0, prevCount - 1));
       } catch (error) {
         console.error("Error marking notification as read:", error);
       }
@@ -148,14 +140,11 @@ const Layout = ({ children, isDark, toggleTheme, boxRef }) => {
       const handleMarkNotificationAsRead = async (notificationId) => {
         try {
           await fetch(`${API}/notifications/${notificationId}/read`, {
-            method: "PUT",
+            method: "PUT", // Le backend gérera la suppression
             headers: { Authorization: `Bearer ${token}` },
           });
-          setNotifications(
-            (prevNotifs) =>
-              prevNotifs.map((notif) =>
-                notif._id === notificationId ? { ...notif, read: true } : notif
-              ) // Ne plus filtrer ici, juste marquer comme lue
+          setNotifications((prevNotifs) =>
+            prevNotifs.filter((notif) => notif._id !== notificationId)
           );
           setNotificationsCount((prevCount) => Math.max(0, prevCount - 1));
         } catch (e) {

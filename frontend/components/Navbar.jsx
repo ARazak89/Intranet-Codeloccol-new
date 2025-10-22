@@ -121,12 +121,13 @@ const Navbar = ({
                         className="dropdown-item text-primary"
                         onClick={async () => {
                           try {
-                            await fetch(`${API}/notifications/all/read`, { method: 'PUT', credentials: 'include' });
-                            // Mise à jour locale
+                            await fetch(`${API}/notifications/all/read`, {
+                              method: 'PUT',
+                              credentials: 'include',
+                            });
+                            // Mise à jour locale (les notifications non lues sont supprimées)
                             if (typeof setNotifications === 'function') {
-                              setNotifications(
-                                notifications.map((notif) => ({ ...notif, read: true }))
-                              );
+                              setNotifications(notifications.map(notif => ({ ...notif, read: true })));
                             }
                             if (typeof setNotificationsCount === 'function') {
                               setNotificationsCount(0);

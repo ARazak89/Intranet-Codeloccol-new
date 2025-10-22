@@ -105,9 +105,10 @@ function validateGithubPagesUrl(url) {
  * en fonction de son niveau actuel. Elle s'assure que le projet n'est pas déjà assigné et met à jour les références.
  * @param {string} studentId - L'ID de l'étudiant à qui assigner le projet.
  * @param {number} level - Le niveau actuel de l'étudiant.
+ * @param {number} [previousProjectOrder] - L'ordre du projet précédemment approuvé, pour assigner le projet suivant.
  * @returns {Promise<object>} Un objet avec un message de succès ou d'erreur, et potentiellement le projet assigné.
  */
-async function _assignProjectByLevel(studentId, level) {
+async function _assignProjectByLevel(studentId, level, previousProjectOrder) {
   try {
     const student = await User.findById(studentId);
     if (!student) {
@@ -118,30 +119,56 @@ async function _assignProjectByLevel(studentId, level) {
     // Obtenir les IDs de tous les projets déjà assignés à cet étudiant.
     const assignedProjectIds = student.assignments.map(assign => assign.projectId);
 
-    // 1) Essayer correspondance stricte: order + module, en excluant les projets déjà assignés.
-    let projectTemplate = await Project.findOne({
-      status: "template",
-      order: level,
-      module: levelToModuleMap[level],
-      _id: { $nin: assignedProjectIds }, // Exclure les projets déjà assignés
-    });
+    let projectTemplate = null;
 
-    // 2) Fallback: essayer par order seulement (ne pas bloquer si module ne matche pas), en excluant les projets déjà assignés.
+    // Nouvelle étape 1) Essayer d'assigner le projet directement suivant l'ordre du projet précédemment approuvé
+    if (previousProjectOrder) {
+      const nextOrder = previousProjectOrder + 1;
+      projectTemplate = await Project.findOne({
+        status: "template",
+        order: nextOrder,
+        _id: { $nin: assignedProjectIds }, // Exclure les projets déjà assignés
+      });
+      if (projectTemplate) {
+        console.log(`Projet suivant par ordre incrémenté trouvé: ${projectTemplate.title} (ordre ${nextOrder}).`);
+      }
+    }
+
+    // Ancienne étape 1) Essayer correspondance stricte: order + module, en excluant les projets déjà assignés.
+    if (!projectTemplate) {
+      projectTemplate = await Project.findOne({
+        status: "template",
+        order: level,
+        module: levelToModuleMap[level],
+        _id: { $nin: assignedProjectIds }, // Exclure les projets déjà assignés
+      });
+      if (projectTemplate) {
+        console.log(`Projet trouvé par correspondance stricte module/niveau: ${projectTemplate.title} (ordre ${level}).`);
+      }
+    }
+
+    // Ancienne étape 2) Fallback: essayer par order seulement (ne pas bloquer si module ne matche pas), en excluant les projets déjà assignés.
     if (!projectTemplate) {
       projectTemplate = await Project.findOne({
         status: "template",
         order: level,
         _id: { $nin: assignedProjectIds }, // Exclure les projets déjà assignés
       });
+      if (projectTemplate) {
+        console.log(`Projet trouvé par fallback ordre/niveau: ${projectTemplate.title} (ordre ${level}).`);
+      }
     }
 
-    // 3) Fallback: prendre le plus petit order supérieur disponible, en excluant les projets déjà assignés.
+    // Ancienne étape 3) Fallback: prendre le plus petit order supérieur disponible, en excluant les projets déjà assignés.
     if (!projectTemplate) {
       projectTemplate = await Project.findOne({
         status: "template",
         order: { $gt: level },
         _id: { $nin: assignedProjectIds }, // Exclure les projets déjà assignés
       }).sort({ order: 1 });
+      if (projectTemplate) {
+        console.log(`Projet trouvé par fallback ordre supérieur: ${projectTemplate.title} (ordre ${projectTemplate.order}).`);
+      }
     }
 
     if (!projectTemplate) {
@@ -893,7 +920,7 @@ export async function finalReviewProject(req, res) {
         }
         // Assignation du prochain projet en fonction du nouveau niveau de l'étudiant.
         console.log(`Assignation du prochain projet pour l'étudiant ${student.name} au niveau ${student.level}.`);
-        await _assignProjectByLevel(student._id, student.level);
+        await _assignProjectByLevel(student._id, student.level, project.order);
 
         console.log("Sauvegarde de l'objet étudiant.");
         await student.save();
