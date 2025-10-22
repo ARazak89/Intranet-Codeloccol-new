@@ -4,7 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
-
+backend/seed.js
 # testing
 /coverage
 .next

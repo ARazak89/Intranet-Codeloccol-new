@@ -3,13 +3,14 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { getAvatarUrl } from "../utils/imageHelper";
 import styles from "../styles/navbar.module.css";
+import { useEffect, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const STATIC_ASSETS_BASE_URL = API.replace("/api", "");
 
 const Navbar = ({
   user,
-  daysRemaining,
+  daysRemaining: initialDaysRemaining, // Renommer pour éviter le conflit avec l'état local
   notifications,
   notificationsCount,
   showNotificationModal,
@@ -23,6 +24,38 @@ const Navbar = ({
   toggleTheme,
 }) => {
   const router = useRouter();
+  const [displayDays, setDisplayDays] = useState(0);
+  const [displayHours, setDisplayHours] = useState(0);
+  const [displayMinutes, setDisplayMinutes] = useState(0);
+  const [displaySeconds, setDisplaySeconds] = useState(0);
+
+  useEffect(() => {
+    const calculateTimeRemaining = () => {
+      const now = new Date();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0); // Minuit du jour suivant
+
+      const msUntilMidnight = midnight.getTime() - now.getTime();
+      
+      let seconds = Math.floor((msUntilMidnight / 1000) % 60);
+      let minutes = Math.floor((msUntilMidnight / (1000 * 60)) % 60);
+      let hours = Math.floor((msUntilMidnight / (1000 * 60 * 60)) % 24);
+
+      // Les jours complets viennent directement du backend
+      let days = initialDaysRemaining;
+
+      setDisplayDays(days);
+      setDisplayHours(hours);
+      setDisplayMinutes(minutes);
+      setDisplaySeconds(seconds);
+    };
+
+    calculateTimeRemaining(); // Calcul initial
+
+    const interval = setInterval(calculateTimeRemaining, 1000); // Mettre à jour toutes les secondes
+
+    return () => clearInterval(interval);
+  }, [initialDaysRemaining]);
 
   return (
     <>
@@ -83,12 +116,17 @@ const Navbar = ({
               {/* Future Navbar items */}
             </ul>
             {/* Chrono au centre (pour l'exemple, simple texte) */}
-            <div className="d-flex justify-content-center flex-grow-1">
-              <span className="me-3 fw-bold p-2 rounded-pill thm-bg-light thm-shadow-s">
-                <i className="bi bi-hourglass-split me-1"></i> Jours restants:{" "}
-                {daysRemaining}
-              </span>
-            </div>
+            {user.role === "apprenant" && (
+              <div className="d-flex justify-content-center flex-grow-1">
+                <span className="me-3 fw-bold p-2 rounded-pill thm-bg-light thm-shadow-s">
+                  <i className="bi bi-hourglass-split me-1"></i> Temps restant:{" "}
+                  {displayDays > 0 && `${displayDays}J `}
+                  {displayHours.toString().padStart(2, '0')}H{" "}
+                  {displayMinutes.toString().padStart(2, '0')}M{" "}
+                  {displaySeconds.toString().padStart(2, '0')}S
+                </span>
+              </div>
+            )}
             {/* Notifications à droite */}
             <ul className="navbar-nav d-flex align-items-center justify-content-center">
               <li className="nav-item dropdown pt-2">
