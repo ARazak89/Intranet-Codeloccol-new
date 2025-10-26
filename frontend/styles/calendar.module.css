@@ -240,6 +240,11 @@
   color: white;
 }
 
+.customCalendar :global(.fc-event.event-challenge) {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); /* Yellow gradient for Challenge */
+  color: white;
+}
+
 .customCalendar :global(.fc-event.event-autre) {
   background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
   color: white;
@@ -640,6 +645,10 @@
 
 .eventTypeBadge.type-deadline {
   background: linear-gradient(135deg, #dc3545 0%, #e85563 100%);
+}
+
+.eventTypeBadge.type-challenge {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); /* Yellow gradient for Challenge */
 }
 
 .eventTypeBadge.type-autre {

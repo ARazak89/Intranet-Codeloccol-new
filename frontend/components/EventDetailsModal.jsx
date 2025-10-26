@@ -16,6 +16,7 @@ const EVENT_TYPES = [
   { value: 'formation', label: 'Formation', icon: 'bi-book' },
   { value: 'reunion', label: 'Réunion', icon: 'bi-people' },
   { value: 'deadline', label: 'Deadline', icon: 'bi-alarm' },
+  { value: 'challenge', label: 'Challenge', icon: 'bi-hourglass-split' }, // Ajout du type Challenge
   { value: 'autre', label: 'Autre', icon: 'bi-calendar-event' },
 ];
 
