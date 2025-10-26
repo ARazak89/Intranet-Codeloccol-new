@@ -1423,32 +1423,54 @@ export default function Dashboard() {
                                     }
                                   }
                                   return (
-                                    <li key={evalItem._id} className="list-group-item d-flex justify-content-between align-items-center flex-wrap">
-                                      <span className="d-flex align-items-center">
-                                        <i className="bi bi-person-check me-2"></i>{" "}
-                                        Évaluateur:{" "}
-                                        <strong>{evalItem.evaluator.name}</strong>{" "}
-                                        ({evalItem.evaluator.email})
-                                      </span>
-                                      <div>
-                                        <span className={`badge me-2 rounded-pill ${statusBadgeClass}`}>
-                                          {statusText}
+                                    <li key={evalItem._id} className="list-group-item d-flex flex-column align-items-start flex-wrap mb-2 p-3 border rounded">
+                                      <div className="d-flex justify-content-between w-100 flex-wrap mb-2">
+                                        <span className="d-flex align-items-center me-3">
+                                          <i className="bi bi-person-check me-2"></i>{" "}
+                                          Évaluateur:{" "}
+                                          <strong>{evalItem.evaluator.name}</strong>{" "}
+                                          ({evalItem.evaluator.email})
                                         </span>
-                                        <span className="badge bg-secondary rounded-pill">
-                                          {timeStatus}
-                                        </span>
-                                        {(evalItem.status === "rejected" || (evalItem.status === "pending" && now.isAfter(gracePeriodEnd))) && (
-                                          <button
-                                            onClick={() => handleReassignEvaluation(evalItem._id)}
-                                            className="btn btn-info btn-sm ms-2"
-                                          >
-                                            Réassigner
-                                          </button>
-                                        )}
+                                        <div className="d-flex align-items-center">
+                                          <span className={`badge me-2 rounded-pill ${statusBadgeClass}`}>
+                                            {statusText}
+                                          </span>
+                                          {submissionTime && (
+                                            <span className="ms-2 text-muted fst-italic">
+                                              Soumis le:{" "}
+                                              {submissionTime.format("DD/MM/YYYY HH:mm")}
+                                            </span>
+                                          )}
+                                          {(evalItem.status === "rejected" || (evalItem.status === "pending" && now.isAfter(gracePeriodEnd))) && (
+                                            <button
+                                              onClick={() => handleReassignEvaluation(evalItem._id)}
+                                              className="btn btn-info btn-sm ms-2"
+                                            >
+                                              Réassigner
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
+                                      {(evalItem.status === "accepted" || evalItem.status === "rejected") && evalItem.feedback && (
+                                        <div className="mt-2 w-100 border-top pt-2">
+                                          <h6 className="text-info">Feedback de l'évaluateur :</h6>
+                                          <ul className="list-unstyled ps-3">
+                                            {Object.entries(evalItem.feedback).map(([key, value]) => (
+                                              <li key={key}>
+                                                <strong>{key.replace(/_/g, " ").split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}:</strong> {value}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
                                     </li>
                                   );
                                 })}
+                                {projectGroup.evaluations.length === 0 && (
+                                  <li className="list-group-item text-muted">
+                                    Aucune évaluation pour ce projet.
+                                  </li>
+                                )}
                               </ul>
                             </div>
                           )}
@@ -1869,6 +1891,132 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+
+{/* Section Hackathons et Badges (pour apprenant) */}
+{me && me.role === "apprenant" && mySubmittedEvaluations.length > 0 && (
+  <div className="row mb-4">
+    <div className="col-12">
+      <div className={styles.cardGreen}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>
+            <i className="bi bi-chat-left-text"></i>
+            Feedback sur Mes Projets Soumis
+          </h2>
+          <span className={styles.sectionCount}>{mySubmittedEvaluations.length}</span>
+        </div>
+        <div>
+          {mySubmittedEvaluations.map((evaluation) => (
+            <div key={evaluation._id}>
+              <div className="d-flex justify-content-between align-items-center flex-wrap">
+                <h5 className="mb-2 d-flex align-items-center">
+                  <i className="bi bi-journal-check me-2"></i> Projet:{" "}
+                  {evaluation.project.title}
+                  <span
+                    className={`badge bg-${
+                      evaluation.status === "accepted"
+                        ? "success"
+                        : evaluation.status === "pending"
+                        ? "info"
+                        : "danger"
+                    } ms-2`}
+                  >
+                    {evaluation.status === "accepted"
+                      ? "Accepté"
+                      : evaluation.status === "pending"
+                      ? "En attente"
+                      : "Rejeté"}
+                  </span>
+                </h5>
+                {evaluation.feedback && (
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() =>
+                      setExpandedFeedback((prev) => ({
+                        ...prev,
+                        [evaluation._id]: !prev[evaluation._id],
+                      }))
+                    }
+                    aria-expanded={!!expandedFeedback[evaluation._id]}
+                    aria-controls={`feedback-details-${evaluation._id}`}
+                  >
+                    <i
+                      className={`bi bi-chevron-${
+                        expandedFeedback[evaluation._id] ? "up" : "down"
+                      }`}
+                    ></i>
+                  </button>
+                )}
+              </div>
+              {expandedFeedback[evaluation._id] && (
+                <div
+                  id={`feedback-details-${evaluation._id}`}
+                  className="collapse show mt-3"
+                >
+                  <p className="mb-1">
+                    <strong>
+                      <i className="bi bi-person me-2"></i>Évaluateur:
+                    </strong>{" "}
+                    {evaluation.evaluator.name}
+                  </p>
+                  {evaluation.slot && (
+                    <p className="mb-1">
+                      <strong>
+                        <i className="bi bi-calendar-event me-2"></i>
+                        Date d'évaluation:
+                      </strong>{" "}
+                      {dayjs.utc(evaluation.slot.startTime).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}
+                    </p>
+                  )}
+                  {evaluation.feedback && (
+                    <div className="border rounded p-2 mt-2">
+                      <h6>
+                        <i className="bi bi-chat-dots me-2"></i>Détails
+                        du Feedback:
+                      </h6>
+                      {evaluation.feedback.assiduite && (
+                        <p className="mb-1">
+                          <strong>Assiduité:</strong>{" "}
+                          {evaluation.feedback.assiduite}
+                        </p>
+                      )}
+                      {evaluation.feedback.comprehension && (
+                        <p className="mb-1">
+                          <strong>Compréhension:</strong>{" "}
+                          {evaluation.feedback.comprehension}
+                        </p>
+                      )}
+                      {evaluation.feedback.specifications && (
+                        <p className="mb-1">
+                          <strong>Spécifications:</strong>{" "}
+                          {evaluation.feedback.specifications}
+                        </p>
+                      )}
+                      {evaluation.feedback.maitrise_concepts && (
+                        <p className="mb-1">
+                          <strong>Maîtrise des concepts:</strong>{" "}
+                          {evaluation.feedback.maitrise_concepts}
+                        </p>
+                      )}
+                      {evaluation.feedback.capacite_expliquer && (
+                        <p className="mb-1">
+                          <strong>Capacité à expliquer:</strong>{" "}
+                          {evaluation.feedback.capacite_expliquer}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              <hr />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
 
         {/* Modales */}
         {showCreateSlotModal && (

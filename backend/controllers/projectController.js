@@ -126,31 +126,36 @@ function validateGithubPagesUrl(url) {
  * @returns {Object} Résultat de l'assignation
  */
 export async function assignNextProject(studentId, approvedProject) {
+  console.log("Début de assignNextProject.");
+  console.log(`studentId: ${studentId}, approvedProject.order: ${approvedProject.order}, approvedProject.title: ${approvedProject.title}`);
   // Validation des paramètres d'entrée
   if (!isValidInput(studentId, approvedProject)) {
+    console.log("assignNextProject: Paramètres d'entrée invalides.");
     return { error: ERROR_MESSAGES.INVALID_INPUT };
   }
 
-  const session = await mongoose.startSession();
+  // const session = await mongoose.startSession(); // Supprimé
   
   try {
-    await session.startTransaction();
+    // await session.startTransaction(); // Supprimé
 
     // Récupérer l'apprenant avec ses assignments
-    const student = await getUserWithAssignments(studentId, session);
+    const student = await getUserWithAssignments(studentId); // session retirée
     if (!student) {
+      console.log("assignNextProject: Apprenant non trouvé.");
       return { error: ERROR_MESSAGES.STUDENT_NOT_FOUND };
     }
     console.log(`Projet approuvé (ordre): ${approvedProject.order}`);
+    console.log(`Apprenant trouvé: ${student.name}, ID: ${student._id}`);
 
     // Calculer l'ordre du prochain projet
     const nextOrder = approvedProject.order + 1;
     console.log(`Ordre calculé du prochain projet: ${nextOrder}`);
     
     // Trouver le prochain projet disponible
-    const nextProject = await findNextAvailableProject(studentId, nextOrder, session);
+    const nextProject = await findNextAvailableProject(studentId, nextOrder); // session retirée
     if (!nextProject) {
-      console.log(`Aucun projet suivant trouvé après l'ordre ${approvedProject.order}`);
+      console.log(`assignNextProject: Aucun projet suivant trouvé après l'ordre ${approvedProject.order}`);
       return { 
         error: `${ERROR_MESSAGES.NO_PROJECT_AVAILABLE} Après l'ordre ${approvedProject.order}` 
       };
@@ -158,17 +163,18 @@ export async function assignNextProject(studentId, approvedProject) {
     console.log(`Projet suivant trouvé: ${nextProject.title} (ordre ${nextProject.order})`);
 
     // Assigner le projet à l'apprenant
-    await assignProjectToStudentByOrder(nextProject, studentId, session);
+    await assignProjectToStudentByOrder(nextProject, studentId); // session retirée
     
     // Mettre à jour la liste des projets de l'apprenant
-    await updateStudentProjects(student, nextProject._id, session);
+    await updateStudentProjects(student, nextProject._id); // session retirée
 
     // Ancienne logique de mise à jour du module et de la progression - Supprimée
 
-    await session.commitTransaction();
+    // await session.commitTransaction(); // Supprimé
 
     logSuccess(student.name, nextProject.title, nextOrder);
     
+    console.log("Fin de assignNextProject. Succès.");
     return { 
       success: true,
       message: "Projet suivant assigné avec succès.", 
@@ -176,11 +182,12 @@ export async function assignNextProject(studentId, approvedProject) {
     };
 
   } catch (error) {
-    await session.abortTransaction();
+    // await session.abortTransaction(); // Supprimé
     console.error(`Erreur lors de l'assignation du projet suivant pour l'apprenant ${studentId}:`, error);
     return { error: ERROR_MESSAGES.INTERNAL_ERROR };
   } finally {
-    await session.endSession();
+    // await session.endSession(); // Supprimé
+    console.log("Session-less assignNextProject process ended.");
   }
 }
 
@@ -189,76 +196,81 @@ export async function assignNextProject(studentId, approvedProject) {
  */
 function isValidInput(studentId, approvedProject) {
   if (!studentId || !mongoose.Types.ObjectId.isValid(studentId)) {
-    console.error("ID d'étudiant invalide:", studentId);
+    console.error("isValidInput: ID d'étudiant invalide:", studentId);
     return false;
   }
   
   if (!approvedProject || typeof approvedProject.order !== 'number' || approvedProject.order < 0) {
-    console.error("Projet approuvé invalide ou ordre manquant:", approvedProject);
+    console.error("isValidInput: Projet approuvé invalide ou ordre manquant:", approvedProject);
     return false;
   }
   
+  console.log("isValidInput: Entrée valide.");
   return true;
 }
 
 /**
  * Récupérer l'utilisateur avec ses assignments
  */
-async function getUserWithAssignments(studentId, session) {
+async function getUserWithAssignments(studentId) { // session retirée
   return await User.findById(studentId)
-    .session(session)
+    // .session(session) // Supprimé
     .select('name projects'); // Ne pas sélectionner 'assignments' ici
 }
 
 /**
  * Trouver le prochain projet disponible selon l'ordre
  */
-async function findNextAvailableProject(studentId, nextOrder, session) {
+async function findNextAvailableProject(studentId, nextOrder) { // session retirée
+  console.log(`Début de findNextAvailableProject pour studentId: ${studentId}, nextOrder: ${nextOrder}`);
   // Récupérer tous les projectId pour lesquels l'étudiant a déjà une assignation (qu'importe le statut)
   const assignedProjects = await Project.find({
     "assignments.student": studentId,
-  }).session(session);
+  }); // .session(session) // Supprimé
 
   const assignedProjectIds = assignedProjects.flatMap(project => 
     project.assignments
       .filter(assign => assign.student.equals(studentId))
       .map(assign => project._id.toString())
   );
+  console.log(`assignedProjectIds pour l'étudiant ${studentId}:`, assignedProjectIds);
 
   // Recherche directe par ordre +1
   const nextProject = await Project.findOne({
     status: PROJECT_STATUS.TEMPLATE,
     order: nextOrder,
     _id: { $nin: assignedProjectIds }
-  }).session(session);
+  }); // .session(session) // Supprimé
 
   if (nextProject) {
-    console.log(`Projet suivant trouvé par ordre incrémenté: ${nextProject.title} (ordre ${nextOrder})`);
+    console.log(`findNextAvailableProject: Projet suivant trouvé par ordre incrémenté: ${nextProject.title} (ordre ${nextOrder})`);
     return nextProject;
   }
 
+  console.log(`findNextAvailableProject: Aucun projet trouvé avec l'ordre direct ${nextOrder}. Tentative de fallback.`);
   // Fallback: chercher le plus petit ordre supérieur disponible
   const fallbackProject = await Project.findOne({
     status: PROJECT_STATUS.TEMPLATE,
     order: { $gt: nextOrder },
     _id: { $nin: assignedProjectIds }
   })
-  .session(session)
+  // .session(session) // Supprimé
   .sort({ order: 1 });
 
   if (fallbackProject) {
-    console.log(`Projet de fallback trouvé: ${fallbackProject.title} (ordre ${fallbackProject.order})`);
+    console.log(`findNextAvailableProject: Projet de fallback trouvé: ${fallbackProject.title} (ordre ${fallbackProject.order})`);
     return fallbackProject;
   }
 
-  console.warn(`Aucun projet disponible après l'ordre ${nextOrder} pour l'apprenant ${studentId}`);
+  console.warn(`findNextAvailableProject: Aucun projet disponible après l'ordre ${nextOrder} pour l'apprenant ${studentId}`);
   return null;
 }
 
 /**
  * Assigner le projet à l'étudiant
  */
-async function assignProjectToStudentByOrder(project, studentId, session) {
+async function assignProjectToStudentByOrder(project, studentId) { // session retirée
+  console.log(`Début de assignProjectToStudentByOrder: Assigner le projet '${project.title}' (ID: ${project._id}) à l'étudiant (ID: ${studentId}).`);
   project.assignments.push({
     student: studentId,
     status: ASSIGNMENT_STATUS.ASSIGNED,
@@ -268,18 +280,19 @@ async function assignProjectToStudentByOrder(project, studentId, session) {
     staffValidator: null,
   });
   
-  await project.save({ session });
+  await project.save(); // { session } retirée
+  console.log(`Projet '${project.title}' assigné avec succès à l'étudiant ${studentId}.`);
 }
 
 /**
  * Mettre à jour la liste des projets de l'étudiant
  */
-async function updateStudentProjects(student, projectId, session) {
+async function updateStudentProjects(student, projectId) { // session retirée
   const projectIdStr = projectId.toString();
   
   if (!student.projects.some(projId => projId.toString() === projectIdStr)) {
     student.projects.push(projectId);
-    await student.save({ session });
+    await student.save(); // { session } retirée
   }
 }
 
@@ -551,6 +564,9 @@ export async function getStudentProjects(req, res) {
     const projects = await Project.find(query).populate({
       path: "assignments.student",
       select: "name",
+    }).populate({
+      path: "assignments.peerEvaluators", // Peupler les évaluateurs pairs
+      select: "name", // Sélectionner uniquement le champ 'name'
     });
     console.log(`Found ${projects.length} projects for student ${studentId}.`);
 
@@ -831,6 +847,7 @@ export async function submitProjectSolution(req, res) {
         slot: slot._id, // Référence au créneau d'évaluation.
       });
       assignment.evaluations.push(evaluation._id);
+      assignment.peerEvaluators.push(slot.evaluator._id); // Ajouter l'évaluateur pair à l'assignation
     }
 
     await project.save();
@@ -877,6 +894,7 @@ export async function submitProjectSolution(req, res) {
 export async function finalReviewProject(req, res) {
   // Renommé de approveProject
   try {
+    console.log("----------------------------------------------------");
     console.log("Début de finalReviewProject.");
     const { id: projectId } = req.params; // ID du projet maître.
     const { assignmentId, status } = req.body; // ID de l'assignation et le nouveau statut (approved/rejected).
@@ -1008,10 +1026,8 @@ export async function finalReviewProject(req, res) {
           // Cette logique est maintenant gérée dans assignNextProject
 
         }
-        // Assignation du prochain projet en fonction du nouveau niveau de l'étudiant.
-        console.log(`Assignation du prochain projet pour l'étudiant ${student.name} au niveau ${student.level}.`);
-        await assignNextProject(student._id, project);
-
+        console.log(`*** Avant l'appel à assignNextProject pour l'étudiant ${student.name} avec le projet approuvé ${project.title} (ordre ${project.order}) ***`);
+        await assignNextProject(assignment.student, project); // Modification ici
         console.log("Sauvegarde de l'objet étudiant.");
         await student.save();
       }
@@ -1060,6 +1076,7 @@ export async function finalReviewProject(req, res) {
     }
 
     console.log("Fin de finalReviewProject. Envoi de la réponse finale.");
+    console.log("----------------------------------------------------");
     res.json({ message: message, project });
   } catch (e) {
     console.error("Error during final staff review:", e.message, e.stack);
