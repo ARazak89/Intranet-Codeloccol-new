@@ -3,8 +3,8 @@ import styles from "../styles/progressTracker.module.css";
 
 const ProgressTracker = ({ level, daysRemaining, progress, currentModuleName }) => {
   const progressPercentage =
-    progress && progress.totalProjects > 0
-      ? ((progress.currentProject / progress.totalProjects) * 100).toFixed(0)
+    progress && progress.totalProjectsInModule > 0
+      ? ((progress.currentProject / progress.totalProjectsInModule) * 100).toFixed(0)
       : 0;
 
   return (
@@ -51,7 +51,7 @@ const ProgressTracker = ({ level, daysRemaining, progress, currentModuleName }) 
           </h6>
           <div className={styles.progressInfo}>
             <span className={styles.progressText}>
-              {progress.currentProject} / {progress.totalProjects} projets complétés
+              {progress.currentProject}/{progress.totalProjectsInModule}
             </span>
             <span className={styles.progressPercent}>
               {progressPercentage}%

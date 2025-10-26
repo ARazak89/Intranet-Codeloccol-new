@@ -1,0 +1,157 @@
+.container {
+    padding: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+    background-color: var(--bg-dark);
+    color: var(--text-muted);
+    border-radius: 8px;
+    box-shadow: var(--shadow-l);
+}
+
+.backButton {
+    display: inline-block;
+    background-color: var(--bg-light);
+    color: var(--text);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.backButton:hover {
+    background-color: var(--bg);
+    color: var(--primary);
+}
+
+.title {
+    color: var(--primary);
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 2.8rem;
+}
+
+.detailsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.detailItem {
+    background-color: var(--bg);
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-s);
+    color: var(--text);
+}
+
+.detailItem strong {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--primary);
+}
+
+.descriptionSection,
+.resourcesSection {
+    background-color: var(--bg);
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-m);
+    margin-bottom: 2rem;
+}
+
+.imagesSection {
+    background-color: var(--bg);
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-m);
+    margin-bottom: 2rem;
+}
+
+.imagesSection h2 {
+    color: var(--primary);
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+    text-align: center;
+}
+
+.imageGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    justify-items: center;
+    align-items: center;
+}
+
+.challengeImage {
+    width: 100%;
+    max-width: 250px;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: var(--shadow-s);
+    object-fit: cover;
+}
+
+.descriptionSection h2,
+.resourcesSection h2 {
+    color: var(--primary);
+    margin-bottom: 1rem;
+    font-size: 1.8rem;
+}
+
+.descriptionSection p {
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.resourcesSection ul {
+    list-style: none;
+    padding: 0;
+}
+
+.resourcesSection li {
+    margin-bottom: 0.5rem;
+}
+
+.resourcesSection a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.resourcesSection a:hover {
+    text-decoration: underline;
+}
+
+.participateButton {
+    display: block;
+    width: fit-content;
+    margin: 0 auto;
+    padding: 1rem 2rem;
+    background-color: var(--success);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-m);
+}
+
+.participateButton:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-l);
+}
+
+.inactiveMessage {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--bg-light);
+}

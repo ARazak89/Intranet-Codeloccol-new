@@ -19,7 +19,7 @@ const eventSchema = new mongoose.Schema({
   },
   type: { 
     type: String, 
-    enum: ['hackathon', 'evaluation', 'formation', 'reunion', 'deadline', 'autre'], 
+    enum: ['hackathon', 'challenge', 'formation', 'reunion', 'deadline', 'autre'], 
     default: 'autre' 
   },
   location: { 

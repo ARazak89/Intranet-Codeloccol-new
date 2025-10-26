@@ -1,0 +1,343 @@
+.ideContainer {
+  min-height: 100vh;
+  font-family: "Manrope", sans-serif;
+  /* background-color et color seront gérés par la classe .themed de global.css */
+}
+
+.header {
+  background: var(--bg);
+  padding: 1.5rem 2rem;
+  box-shadow: var(--shadow-m);
+  border-bottom: 1px solid var(--bg-light);
+}
+
+.headerTitleContainer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.headerTitleIcon {
+  font-size: 2rem;
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--primary) 0%, #ffb366 100%); /* Utilisation de --primary */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.languageSelector {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.languageButton {
+  padding: 0.6rem 1.5rem;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--bg-light);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-s);
+}
+
+.languageButton.active {
+  background-color: var(--primary);
+  color: var(--bg-dark);
+  box-shadow: var(--shadow-m);
+  transform: translateY(-1px);
+}
+
+.mainContentGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 100%;
+}
+
+.editorSection {
+  background-color: var(--bg);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-l);
+  border: 1px solid var(--bg-light);
+}
+
+.editorHeader {
+  padding: 0.75rem 1.25rem;
+  background-color: var(--bg-light);
+  border-bottom: 1px solid var(--bg-light);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.trafficLightRed {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #ff5f56;
+}
+
+.trafficLightYellow {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #ffbd2e;
+}
+
+.trafficLightGreen {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #27c93f;
+}
+
+.editorLanguageLabel {
+  margin-left: 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ideChallengeTitleContainer {
+  margin-bottom: 1.5rem;
+}
+
+.ideChallengeTitleLabel {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.ideChallengeTitleInput {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--bg-light);
+  background-color: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ideChallengeTitleInput::placeholder {
+  color: var(--text-muted);
+}
+
+.ideChallengeTitleInput:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 157, 66, 0.3);
+}
+
+.editorHeight {
+  height: 400px;
+}
+
+.runButtonContainer {
+  text-align: center;
+}
+
+.runButton {
+  padding: 1rem 3rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--primary);
+  color: var(--bg-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-m);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.runButton:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7), 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.jsError {
+  margin-top: 1rem;
+  padding: 1rem 1.5rem;
+  background-color: #cc3333;
+  color: #fff;
+  border-radius: 10px;
+  max-width: 600px;
+  margin: 1rem auto 0;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 0.9rem;
+}
+
+.previewConsoleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.previewConsoleContainer {
+  background-color: var(--bg);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-l);
+  border: 1px solid var(--bg-light);
+  min-height: 350px;
+}
+
+.previewConsoleHeader {
+  padding: 0.75rem 1.25rem;
+  background-color: var(--bg-light);
+  border-bottom: 1px solid var(--bg-light);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fullscreenButton {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.fullscreenButton:hover {
+  background-color: var(--bg);
+  color: var(--primary);
+}
+
+.iframeStyle {
+  width: 100%;
+  height: calc(350px - 45px);
+  border: none;
+  background-color: #fff;
+}
+
+/* Styles pour l'iframe en mode plein écran */
+.iframeStyle:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 99999;
+  background-color: #fff; /* S'assurer qu'il y a un fond blanc en plein écran */
+}
+
+.iframeStyle:-moz-full-screen {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 99999;
+  background-color: #fff;
+}
+
+.iframeStyle:-ms-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 99999;
+  background-color: #fff;
+}
+
+.iframeStyle:full-screen {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 99999;
+  background-color: #fff;
+}
+
+.consoleContent {
+  padding: 1rem;
+  height: calc(350px - 45px);
+  overflow-y: auto;
+  font-family: "Courier New", monospace;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.emptyConsoleMessage {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.consoleEntry {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border-left: 3px solid var(--primary); /* Default border color */
+}
+
+.consoleEntry.error {
+  background-color: var(--bg-dark);
+  color: #ff6b6b;
+  border-left-color: #cc3333;
+}
+
+.consoleEntry.warn {
+  background-color: var(--bg-dark);
+  color: #ffbd2e;
+  border-left-color: #ffbd2e;
+}
+
+.consoleEntry.log {
+  background-color: var(--bg-dark);
+  color: var(--text-muted);
+  border-left-color: var(--primary); /* Default border color for log */
+}
+
+.ideSubmitButtonContainer {
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.ideSubmitButton {
+  padding: 1rem 3rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--primary);
+  color: var(--bg-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-m);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ideSubmitButton:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7), 0 6px 12px rgba(0, 0, 0, 0.4);
+}

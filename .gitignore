@@ -5,6 +5,7 @@
 /.pnp
 .pnp.js
 backend/seed.js
+yarn.lock
 # testing
 /coverage
 .next

@@ -17,6 +17,12 @@
   /* text-colors */
   --text: hsl(0, 0%, 95%);
   --text-muted: hsl(0, 0%, 69%);
+  /* Nouvelles variables pour les couleurs de survol en mode sombre */
+  --primary-dark: #1db558; /* Vert plus clair */
+  --yellow-dark: #ffcd38; /* Jaune plus clair */
+  --red-dark: #f06575; /* Rouge plus clair */
+  --orange-dark: #ff8556; /* Orange plus clair */
+  --text-color-dark: var(--text);
   /* sidebar colors - mode sombre (même que navbar) */
   --sidebar-bg: hsl(0, 0%, 15%);
   --sidebar-link-active: hsl(0, 0%, 20%);

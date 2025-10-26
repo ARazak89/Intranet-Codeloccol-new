@@ -359,6 +359,12 @@
   box-shadow: 0 4px 8px rgba(23, 147, 73, 0.3);
 }
 
+:global(.themed:not(.light)) .actionBtn.edit:hover {
+  background: var(--primary-dark); /* Couleur sombre pour le survol en mode dark */
+  color: var(--text-color-dark); /* Texte clair en mode dark */
+  box-shadow: 0 4px 8px rgba(29, 181, 88, 0.4);
+}
+
 .actionBtn.toggle {
   background: rgba(255, 193, 7, 0.1);
   color: #d39e00;
@@ -371,6 +377,12 @@
   box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
 }
 
+:global(.themed:not(.light)) .actionBtn.toggle:hover {
+  background: var(--yellow-dark); /* Couleur sombre pour le survol en mode dark */
+  color: var(--text-color-dark); /* Texte clair en mode dark */
+  box-shadow: 0 4px 8px rgba(255, 193, 7, 0.4);
+}
+
 .actionBtn.delete {
   background: rgba(220, 53, 69, 0.1);
   color: #dc3545;
@@ -381,6 +393,12 @@
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+:global(.themed:not(.light)) .actionBtn.delete:hover {
+  background: var(--red-dark); /* Couleur sombre pour le survol en mode dark */
+  color: var(--text-color-dark); /* Texte clair en mode dark */
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
 }
 
 .actionBtn.assign {
@@ -396,6 +414,13 @@
   border-color: #F36F35;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(243, 111, 53, 0.4);
+}
+
+:global(.themed:not(.light)) .actionBtn.assign:hover {
+  background: var(--orange-dark); /* Couleur sombre pour le survol en mode dark */
+  color: var(--text-color-dark); /* Texte clair en mode dark */
+  border-color: var(--orange-dark);
+  box-shadow: 0 4px 8px rgba(243, 111, 53, 0.5);
 }
 
 /* Modal Styles */

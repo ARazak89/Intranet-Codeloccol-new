@@ -40,23 +40,66 @@ const startEvaluationReminder = () => {
             }
             console.log("[CRON] Notifications staff/admin envoyées.");
 
-            // 2. Annuler l'évaluation actuelle
-            evaluation.status = "cancelled";
-            await evaluation.save();
-            console.log("[CRON] Évaluation en retard annulée.");
+            // 2. Annuler toutes les évaluations actuelles liées à cette assignation
+            const allRelatedEvaluations = await Evaluation.find({
+              project: evaluation.project._id,
+              assignment: evaluation.assignment,
+              status: "pending",
+            });
 
-            // 3. Rendre le slot de disponibilité de l'évaluateur disponible
-            if (evaluation.slot) {
-              evaluation.slot.isBooked = false;
-              evaluation.slot.bookedByStudent = null;
-              evaluation.slot.bookedForProject = null;
-              await evaluation.slot.save();
-              console.log("[CRON] Slot de disponibilité libéré.");
+            for (const relatedEvaluation of allRelatedEvaluations) {
+              relatedEvaluation.status = "cancelled";
+              await relatedEvaluation.save();
+              console.log(
+                `[CRON] Évaluation ${relatedEvaluation._id} annulée pour le projet ${evaluation.project.title}.`,
+              );
+
+              // 3. Rendre les slots de disponibilité de l'évaluateur disponibles
+              if (relatedEvaluation.slot) {
+                const slot = await AvailabilitySlot.findById(relatedEvaluation.slot);
+                if (slot) {
+                  slot.isBooked = false;
+                  slot.bookedByStudent = null;
+                  slot.bookedForProject = null;
+                  await slot.save();
+                  console.log(
+                    `[CRON] Slot de disponibilité ${slot._id} libéré.`,
+                  );
+                }
+              }
+            }
+            console.log("[CRON] Toutes les évaluations en retard liées à l'assignation ont été annulées.");
+
+            // 4. Mettre à jour l'assignation du projet
+            const project = await Project.findById(evaluation.project._id);
+            if (project) {
+              const assignment = project.assignments.id(evaluation.assignment);
+              if (assignment) {
+                // Supprimer toutes les anciennes évaluations annulées de l'assignation
+                assignment.evaluations = assignment.evaluations.filter(
+                  (evalId) =>
+                    !allRelatedEvaluations.some((re) => re._id.equals(evalId)),
+                );
+
+                // Supprimer les évaluateurs des évaluations annulées
+                assignment.peerEvaluators = assignment.peerEvaluators.filter(
+                  (evaluatorId) =>
+                    !allRelatedEvaluations.some((re) =>
+                      re.evaluator.equals(evaluatorId),
+                    ),
+                );
+                // TODO: Gérer staffValidator si l'évaluateur précédent était un staff. Pour l'instant on suppose que c'est un peer evaluator
+
+                await project.save();
+                console.log(
+                  `[CRON] Assignation de projet ${assignment._id} mise à jour après annulation.`,
+                );
+              }
             }
 
-            // 4. Tenter de réassigner le projet
+            // 5. Tenter de réassigner le projet
             const newAssignmentDetails = await findAvailableEvaluatorAndSlot(
-              evaluation.evaluator._id,
+              evaluation.evaluator._id, // Passer l'évaluateur original pour qu'il ne soit pas réaffecté au même projet immédiatement
             );
 
             if (newAssignmentDetails) {
@@ -85,29 +128,23 @@ const startEvaluationReminder = () => {
                 `[CRON] Nouvelle évaluation ${newEvaluation._id} créée.`,
               );
 
-              // Mettre à jour l'assignation du projet
-              const project = await Project.findById(evaluation.project._id);
-              if (project) {
-                const assignment = project.assignments.id(evaluation.assignment);
-                if (assignment) {
-                  // Supprimer l'ancienne évaluation et ajouter la nouvelle
-                  assignment.evaluations = assignment.evaluations.filter(
-                    (evalId) => !evalId.equals(evaluation._id),
-                  );
-                  assignment.evaluations.push(newEvaluation._id);
-
-                  // Mettre à jour le pair évaluateur si applicable
-                  if (assignment.peerEvaluators.includes(evaluation.evaluator._id)) {
-                    assignment.peerEvaluators = assignment.peerEvaluators.filter(
-                      (id) => !id.equals(evaluation.evaluator._id),
-                    );
-                    assignment.peerEvaluators.push(newEvaluator._id);
+              // Mettre à jour l'assignation du projet avec la nouvelle évaluation
+              // Recharger le projet pour s'assurer qu'on a la dernière version
+              const updatedProject = await Project.findById(evaluation.project._id);
+              if (updatedProject) {
+                const updatedAssignment = updatedProject.assignments.id(
+                  evaluation.assignment,
+                );
+                if (updatedAssignment) {
+                  updatedAssignment.evaluations.push(newEvaluation._id);
+                  if (
+                    !updatedAssignment.peerEvaluators.includes(newEvaluator._id)
+                  ) {
+                    updatedAssignment.peerEvaluators.push(newEvaluator._id);
                   }
-                   // TODO: Gérer staffValidator si l'évaluateur précédent était un staff. Pour l'instant on suppose que c'est un peer evaluator
-
-                  await project.save();
+                  await updatedProject.save();
                   console.log(
-                    `[CRON] Assignation de projet ${assignment._id} mise à jour.`,
+                    `[CRON] Assignation de projet ${updatedAssignment._id} mise à jour avec la nouvelle évaluation.`,
                   );
                 }
               }

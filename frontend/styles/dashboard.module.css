@@ -546,6 +546,16 @@
   color: #dc3545;
 }
 
+.statusCancelled { /* Nouveau style pour 'cancelled' */
+  background: rgba(108, 117, 125, 0.15);
+  color: #6c757d;
+}
+
+.statusDefault { /* Style par défaut */
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
 /* Table moderne - Optimisée pour tenir sans scroll */
 .modernTable {
   width: 100%;

@@ -1,0 +1,105 @@
+.container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: var(--bg-dark);
+    color: var(--text-muted);
+    border-radius: 8px;
+    box-shadow: var(--shadow-l);
+}
+
+.title {
+    color: var(--primary);
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 2.8rem;
+}
+
+.challengeGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.challengeCard {
+    background-color: var(--bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-m);
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.challengeCard:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-l);
+}
+
+.challengeCard h2 {
+    color: var(--text);
+    font-size: 1.8rem;
+    margin-bottom: 0.8rem;
+}
+
+.challengeCard p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.5;
+    flex-grow: 1;
+    margin-bottom: 1.5rem;
+}
+
+.cardDetails {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.cardDetails strong {
+    color: var(--primary);
+}
+
+.viewButton {
+    display: block;
+    width: 100%;
+    padding: 0.8rem 1.5rem;
+    background-color: var(--primary);
+    color: var(--bg-dark);
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.viewButton:hover {
+    background-color: var(--primary-dark);
+}
+
+.statusExpired,
+.statusInactive {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  align-self: flex-start;
+}
+
+.statusExpired {
+  background-color: var(--red-dark);
+  color: var(--text-light);
+}
+
+.statusInactive {
+  background-color: var(--yellow-dark);
+  color: var(--text-light);
+}

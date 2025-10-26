@@ -45,6 +45,8 @@ export default function Calendar() {
     handleResize();
     window.addEventListener('resize', handleResize);
 
+    const allCalendarEvents = []; // Déclarer ici pour être accessible par fetchEvents et fetchChallenges
+
     // Récupérer les informations de l'utilisateur
     const fetchUser = async () => {
       try {
@@ -86,15 +88,63 @@ export default function Calendar() {
             },
             className: `event-${event.type}`,
           }));
-          setEvents(formattedEvents);
+          // setEvents(formattedEvents); // Ne pas setter ici, on combine avec les challenges
+          allCalendarEvents.push(...formattedEvents);
         }
       } catch (e) {
         console.error("Error fetching events:", e);
       }
     };
 
+    // Récupérer les challenges
+    const fetchChallenges = async () => {
+      try {
+        const res = await fetch(`${API}/challenges`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Filtrer les challenges actifs et non expirés pour le calendrier
+          const activeChallenges = data.filter(challenge => 
+            challenge.status === 'active' && 
+            new Date(challenge.endDate) > new Date()
+          );          
+          const formattedChallenges = activeChallenges.map((challenge) => ({
+            id: challenge._id,
+            title: `Challenge: ${challenge.challengeTitle}`,
+            start: challenge.startDate,
+            end: challenge.endDate,
+            allDay: false, // Les challenges ont des dates de début/fin spécifiques
+            backgroundColor: getEventColor('challenge'),
+            borderColor: getEventColor('challenge'),
+            extendedProps: {
+              description: challenge.description,
+              type: 'challenge',
+              language: challenge.language,
+              durationHours: challenge.durationHours,
+              status: challenge.status,
+              createdBy: challenge.createdBy,
+            },
+            className: `event-challenge`,
+          }));
+          allCalendarEvents.push(...formattedChallenges);
+        }
+      } catch (e) {
+        console.error("Error fetching challenges:", e);
+      }
+    };
+
+    // Exécuter toutes les requêtes en parallèle et mettre à jour les événements une fois toutes les données récupérées
+    const loadAllCalendarData = async () => {
+      await Promise.all([
+        fetchEvents(),
+        fetchChallenges(),
+      ]);
+      setEvents(allCalendarEvents);
+    }
+
     fetchUser();
-    fetchEvents();
+    loadAllCalendarData();
 
     return () => window.removeEventListener('resize', handleResize);
   }, [token, router]);
@@ -107,6 +157,7 @@ export default function Calendar() {
       reunion: '#6f42c1',
       deadline: '#dc3545',
       autre: '#6c757d',
+      challenge: '#FFD700', // Couleur pour les challenges
     };
     return colors[type] || colors.autre;
   };
@@ -264,12 +315,14 @@ export default function Calendar() {
   };
 
   const renderEventContent = (eventInfo) => {
+    const eventType = eventInfo.event.extendedProps.type;
+    const isChallenge = eventType === 'challenge';
     return (
       <div className="fc-content p-1">
         <div className="fw-bold" style={{ fontSize: '12px' }}>
-          {eventInfo.event.title}
+          {isChallenge ? 'Challenge : ' : ''}{eventInfo.event.title}
         </div>
-        {eventInfo.event.extendedProps.location && (
+        {!isChallenge && eventInfo.event.extendedProps.location && (
           <div style={{ fontSize: '11px', opacity: 0.9 }}>
             <i className="bi bi-geo-alt me-1"></i>
             {eventInfo.event.extendedProps.location}
@@ -357,6 +410,10 @@ export default function Calendar() {
 
         {/* Légende des types d'événements */}
         <div className={styles.eventLegend}>
+          <div className={styles.legendItem}>
+            <div className={styles.legendColor} style={{ background: '#FFD700' }}></div>
+            <span className={styles.legendText}>Challenge</span>
+          </div>
           <div className={styles.legendItem}>
             <div className={styles.legendColor} style={{ background: '#179349' }}></div>
             <span className={styles.legendText}>Hackathon</span>

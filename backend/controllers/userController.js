@@ -5,6 +5,7 @@ import Evaluation from '../models/Evaluation.js';
 import Notification from '../models/Notification.js';
 import bcrypt from 'bcryptjs'; // Importez bcryptjs pour le hachage des mots de passe
 import { levelToModuleMap } from './projectController.js'; // Importez levelToModuleMap
+import mongoose from 'mongoose'; // Importez mongoose pour la gestion des sessions de transaction
 
 export async function me(req, res) {
   const u = req.user;
@@ -43,27 +44,91 @@ export async function me(req, res) {
   const userWithBadges = await User.findById(u._id).populate('badges');
   const badges = userWithBadges ? userWithBadges.badges : [];
 
-  // Calculer la progression (nombre total de projets, nombre de projets complétés)
-  let totalProjectsForModule = 0;
-  if (u.role === 'apprenant' && u.level) {
-    console.log(`Apprenant ${u.name} (ID: ${u._id}) - Niveau actuel: ${u.level}`);
-    const currentModule = levelToModuleMap[u.level];
-    console.log(`Module correspondant au niveau ${u.level}: ${currentModule}`);
-    if (currentModule) {
-      totalProjectsForModule = await Project.countDocuments({
-        // Avant : status: "template",
-        module: currentModule,
-        status: { $ne: "archived" }, // Inclure tous les projets sauf ceux archivés
-      });
-      console.log(`Nombre total de projets pour le module ${currentModule} (non archivés) : ${totalProjectsForModule}`);
+  // Trouver le projet le plus avancé qui est actuellement "actif" (assigné, soumis, en attente de révision)
+  let mostAdvancedActiveProject = null;
+  if (projects && projects.length > 0) {
+    const activeProjects = projects.filter(p =>
+      p.assignments.some(a =>
+        a.student.equals(u._id) &&
+        // Inclure tous les statuts pertinents pour la progression, y compris 'approved'
+        ['assigned', 'submitted', 'awaiting_staff_review', 'approved'].includes(a.status)
+      )
+    );
+
+    if (activeProjects.length > 0) {
+      mostAdvancedActiveProject = activeProjects.reduce((latest, current) => {
+        if (current.order > latest.order) {
+          return current;
+        } else if (current.order === latest.order) {
+          // Si les ordres sont égaux, préférer celui avec une date de soumission plus récente
+          const latestAssignment = latest.assignments.find(a => a.student.equals(u._id));
+          const currentAssignment = current.assignments.find(a => a.student.equals(u._id));
+          if (latestAssignment && currentAssignment && currentAssignment.submissionDate > latestAssignment.submissionDate) {
+            return current;
+          }
+        }
+        return latest;
+      }, activeProjects[0]);
     }
   }
 
-  const completedProjects = u.totalProjectsCompleted || 0; // Utiliser la valeur déjà stockée dans l'utilisateur
+  let currentModule;
+  if (mostAdvancedActiveProject) {
+    currentModule = mostAdvancedActiveProject.module;
+  } else {
+    // Si aucun projet actif n'est trouvé, utiliser le module correspondant au niveau actuel de l'apprenant.
+    // Cela signifie qu'il a terminé le module précédent et est passé au suivant.
+    currentModule = levelToModuleMap[u.level] || "Module Inconnu";
+  }
 
-  // Calculer le nombre total de tous les projets pertinents (non archivés) pour la progression globale du curriculum.
+  let totalProjectsForModule = 0;
+  let currentModuleProjectsCompleted = 0;
+
+  if (currentModule) {
+    totalProjectsForModule = await Project.countDocuments({
+      module: currentModule,
+      status: { $ne: "archived" },
+    });
+
+    const approvedProjectsInModule = await Project.aggregate([
+      { $match: { module: currentModule } },
+      { $project: {
+          title: 1,
+          assignments: {
+            $filter: {
+              input: "$assignments",
+              as: "assignment",
+              cond: {
+                $and: [
+                  { $eq: ["$$assignment.student", u._id] },
+                  { $eq: ["$$assignment.status", "approved"] }
+                ]
+              }
+            }
+          }
+        }
+      },
+      { $match: { "assignments.0": { $exists: true } } } // Ne garder que les projets qui ont au moins une affectation approuvée pour l'étudiant
+    ]);
+
+    currentModuleProjectsCompleted = approvedProjectsInModule.length;
+
+    console.log(`Approved Projects Details for ${u.name} in ${currentModule}:`);
+    approvedProjectsInModule.forEach(p => {
+      console.log(`- Project Title: ${p.title}, Approved Assignments for this Project: ${JSON.stringify(p.assignments)}`);
+    });
+  }
+
+  console.log(`--- Dashboard Progress Logs for ${u.name} ---`);
+  console.log(`Current Assigned Project: ${mostAdvancedActiveProject ? mostAdvancedActiveProject.title : 'N/A'}`);
+  console.log(`Module of Current Assigned Project: ${mostAdvancedActiveProject ? mostAdvancedActiveProject.module : 'N/A'}`);
+  console.log(`Determined Current Module for Progress: ${currentModule}`);
+  console.log(`Total Projects for this Module: ${totalProjectsForModule}`);
+  console.log(`Approved Projects in this Module: ${currentModuleProjectsCompleted}`);
+  console.log(`------------------------------------------`);
+
+  const completedProjectsOverall = u.totalProjectsCompleted || 0;
   const totalAllProjects = await Project.countDocuments({ status: { $ne: "archived" } });
-  console.log(`Nombre total de tous les projets non archivés dans la BDD : ${totalAllProjects}`);
 
   res.json({
     id: u._id,
@@ -75,8 +140,10 @@ export async function me(req, res) {
     daysRemaining: u.daysRemaining,
     level: u.level,
     evaluationPoints: u.evaluationPoints,
-    totalProjectsCompleted: u.totalProjectsCompleted,
+    totalProjectsCompleted: completedProjectsOverall,
     lastLogin: u.lastLogin,
+    currentModule: currentModule, // Utilise le module dérivé dynamiquement
+    totalAllProjects: totalAllProjects, // AJOUTER : Total général des projets
     projects,
     profilePicture: u.profilePicture,
     hackathons,
@@ -89,7 +156,7 @@ export async function me(req, res) {
     address: u.address,
     emergencyContact: u.emergencyContact,
     progress: {
-      currentProject: completedProjects,
+      currentProject: currentModuleProjectsCompleted, // Utilise la progression du module actuel calculée
       totalProjectsInModule: totalProjectsForModule, // Pour le tableau de bord (progression par module)
       totalProjectsOverall: totalAllProjects, // Pour la page de profil (progression globale)
     },
@@ -635,5 +702,66 @@ export async function toggleUserStatus(req, res) {
   } catch (e) {
     console.error("Error toggling user status:", e);
     res.status(500).json({ error: e.message });
+  }
+}
+
+// Fonction utilitaire pour l'assignation du premier projet lors de la création d'un nouvel apprenant
+// (Assurez-vous que cette fonction existe ou ajoutez-la si nécessaire)
+async function _assignProjectByLevel(studentId, levelOrder) {
+  const session = await mongoose.startSession();
+  try {
+    await session.startTransaction();
+
+    const student = await User.findById(studentId).session(session);
+    if (!student) {
+      return { error: "Apprenant non trouvé." };
+    }
+
+    const nextModule = levelToModuleMap[levelOrder];
+    if (!nextModule) {
+      return { error: `Aucun module défini pour le niveau ${levelOrder}.` };
+    }
+
+    const firstProject = await Project.findOne({
+      module: nextModule,
+      order: 1, // Assigner toujours le premier projet du module pour le démarrage
+      status: "template",
+    }).session(session);
+
+    if (!firstProject) {
+      return { error: `Aucun projet template d'ordre 1 trouvé pour le module ${nextModule}.` };
+    }
+
+    const existingAssignment = firstProject.assignments.some(
+      (assign) => assign.student.equals(studentId)
+    );
+    if (existingAssignment) {
+      await session.abortTransaction();
+      return { error: `L'apprenant est déjà assigné au projet ${firstProject.title}.` };
+    }
+
+    firstProject.assignments.push({
+      student: studentId,
+      status: "assigned",
+      repoUrl: "",
+      evaluations: [],
+      peerEvaluators: [],
+      staffValidator: null,
+    });
+    await firstProject.save({ session });
+
+    if (!student.projects.includes(firstProject._id)) {
+      student.projects.push(firstProject._id);
+      await student.save({ session });
+    }
+
+    await session.commitTransaction();
+    return { success: true, project: firstProject };
+  } catch (error) {
+    await session.abortTransaction();
+    console.error(`Erreur lors de l'assignation du projet par niveau: ${error.message}`);
+    return { error: `Erreur interne du serveur: ${error.message}` };
+  } finally {
+    await session.endSession();
   }
 }

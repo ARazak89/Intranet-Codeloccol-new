@@ -36,7 +36,8 @@ export default function Profile() {
         if (!res.ok) throw new Error("Failed to fetch user profile.");
         const data = await res.json();
         setUser(data);
-        // console.log("Données utilisateur reçues:", data); // LOG pour débogage: Afficher toutes les données utilisateur
+        console.log("Données utilisateur reçues:", data); // LOG pour débogage: Afficher toutes les données utilisateur
+        console.log(`Profil - Projets Complétés: ${data.totalProjectsCompleted}, Total Général Projets: ${data.totalAllProjects}`);
       } catch (e) {
         console.error("Error fetching user profile:", e);
         setError(e.message);
@@ -488,16 +489,16 @@ export default function Profile() {
               </h3>
               <div className="d-flex justify-content-between mb-2">
                 <span className={styles.textMuted} style={{ fontSize: '15px' }}>
-                  Projet {user.progress.currentProject} sur {user.progress.totalProjectsOverall}
+                  {user.totalProjectsCompleted || 0} / {user.totalAllProjects || 0}
                 </span>
                 <span className={styles.textPrimary} style={{ fontWeight: '600', fontSize: '15px' }}>
-                  {Math.round((user.progress.currentProject / user.progress.totalProjectsOverall) * 100)}%
+                  {Math.round(((user.totalProjectsCompleted || 0) / (user.totalAllProjects || 1)) * 100)}%
                 </span>
               </div>
               <div className={styles.progressBarCustom}>
                 <div 
                   className={styles.progressBarFill} 
-                  style={{ width: `${(user.progress.currentProject / user.progress.totalProjectsOverall) * 100}%` }}
+                  style={{ width: `${((user.totalProjectsCompleted || 0) / (user.totalAllProjects || 1)) * 100}%` }}
                 ></div>
               </div>
             </div>

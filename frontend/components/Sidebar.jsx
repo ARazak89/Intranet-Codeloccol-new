@@ -46,32 +46,6 @@ const Sidebar = ({ user, showSidebar, setShowSidebar }) => {
             
             <li className="nav-item">
               <Link
-                href="/hackathons"
-                className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
-                  router.pathname === "/hackathons" ? "active" : ""
-                }`}
-                onClick={() => setShowSidebar(false)}
-              >
-                <i className="bi bi-trophy-fill me-2 sidebar-icon"></i>
-                <span className="sidebar-text">Hackathons</span>
-              </Link>
-            </li>
-            
-            <li className="nav-item">
-              <Link
-                href="/profile"
-                className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
-                  router.pathname === "/profile" ? "active" : ""
-                }`}
-                onClick={() => setShowSidebar(false)}
-              >
-                <i className="bi bi-person-circle me-2 sidebar-icon"></i>
-                <span className="sidebar-text">Mon Profil</span>
-              </Link>
-            </li>
-            
-            <li className="nav-item">
-              <Link
                 href="/evaluations"
                 className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
                   router.pathname === "/evaluations" ? "active" : ""
@@ -85,14 +59,45 @@ const Sidebar = ({ user, showSidebar, setShowSidebar }) => {
             
             <li className="nav-item">
               <Link
-                href="/calendar"
+                href="/hackathons"
                 className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
-                  router.pathname === "/calendar" ? "active" : ""
+                  router.pathname === "/hackathons" ? "active" : ""
                 }`}
                 onClick={() => setShowSidebar(false)}
               >
-                <i className="bi bi-calendar-event me-2 sidebar-icon"></i>
-                <span className="sidebar-text">Calendrier</span>
+                <i className="bi bi-trophy-fill me-2 sidebar-icon"></i>
+                <span className="sidebar-text">Hackathons</span>
+              </Link>
+            </li>
+            
+            {user && (user.role === "apprenant" || user.role === "staff" || user.role === "admin") && (
+              <li className="nav-item">
+                <Link
+                  href={user.role === "apprenant" ? "/challenges" : "/admin/challenges"}
+                  className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
+                    (user.role === "apprenant" && router.pathname.startsWith("/challenges") && !router.pathname.startsWith("/admin/challenges")) ||
+                    ((user.role === "staff" || user.role === "admin") && router.pathname.startsWith("/admin/challenges"))
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() => setShowSidebar(false)}
+                >
+                  <i className={`bi ${user.role === "apprenant" ? "bi-journal-check" : "bi-folder-check"} me-2 sidebar-icon`}></i>
+                  <span className="sidebar-text">Challenges</span>
+                </Link>
+              </li>
+            )}
+            
+            <li className="nav-item">
+              <Link
+                href="/ide"
+                className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
+                  router.pathname === "/ide" ? "active" : ""
+                }`}
+                onClick={() => setShowSidebar(false)}
+              >
+                <i className="bi bi-code-square me-2 sidebar-icon"></i>
+                <span className="sidebar-text">Octogone</span>
               </Link>
             </li>
             
@@ -110,6 +115,33 @@ const Sidebar = ({ user, showSidebar, setShowSidebar }) => {
                 </Link>
               </li>
             )}
+            
+            <li className="nav-item">
+              <Link
+                href="/calendar"
+                className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
+                  router.pathname === "/calendar" ? "active" : ""
+                }`}
+                onClick={() => setShowSidebar(false)}
+              >
+                <i className="bi bi-calendar-event me-2 sidebar-icon"></i>
+                <span className="sidebar-text">Calendrier</span>
+              </Link>
+            </li>
+            
+            <li className="nav-item">
+              <Link
+                href="/profile"
+                className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
+                  router.pathname === "/profile" ? "active" : ""
+                }`}
+                onClick={() => setShowSidebar(false)}
+              >
+                <i className="bi bi-person-circle me-2 sidebar-icon"></i>
+                <span className="sidebar-text">Mon Profil</span>
+              </Link>
+            </li>
+            
             {/* <li className="mt-5 mx-auto">
               <button
                 className="btn thm-shadow-s thm-bg-light"

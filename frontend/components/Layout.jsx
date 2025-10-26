@@ -43,28 +43,80 @@ const Layout = ({ children, isDark, toggleTheme, boxRef }) => {
   const handleOpenNotificationModal = (notification) => {
     setCurrentNotification(notification);
     setShowNotificationModal(true);
+    // Optionnel: marquer la notification comme lue si elle ne l'est pas
+    if (!notification.read) {
+      markNotificationAsRead(notification._id);
+    }
   };
 
-  const handleCloseNotificationModal = async () => {
-    // Marquer la notification comme lue sur le backend
-    if (currentNotification && token) {
-      try {
-        await fetch(`${API}/notifications/${currentNotification._id}/read`, {
-          method: "PUT", // Ou "DELETE" si le backend est configuré pour supprimer
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        // Mettre à jour l'état des notifications après suppression
-        setNotifications((prevNotifs) =>
-          prevNotifs.filter((notif) => notif._id !== currentNotification._id)
-        );
-        setNotificationsCount((prevCount) => Math.max(0, prevCount - 1));
-      } catch (error) {
-        console.error("Error marking notification as read:", error);
-      }
-    }
+  // Fonction pour fermer le modal de notification
+  const handleCloseNotificationModal = () => {
     setShowNotificationModal(false);
     setCurrentNotification(null);
   };
+
+  // Fonction pour marquer une notification comme lue (API call)
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      await fetch(`${API}/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      // Mettre à jour l'état local des notifications
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notif =>
+          notif._id === notificationId ? { ...notif, read: true } : notif
+        )
+      );
+      setNotificationsCount(prevCount => Math.max(0, prevCount - 1));
+    } catch (error) {
+      console.error("Erreur lors du marquage de la notification comme lue:", error);
+    }
+  };
+
+  // Effet pour récupérer les notifications et le nombre de notifications non lues
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+      try {
+        const [notifResponse, countResponse] = await Promise.all([
+          fetch(`${API}/notifications/mine`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }),
+          fetch(`${API}/notifications/count`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }),
+        ]);
+
+        if (notifResponse.ok) {
+          const notifData = await notifResponse.json();
+          setNotifications(notifData);
+        }
+
+        if (countResponse.ok) {
+          const countData = await countResponse.json();
+          setNotificationsCount(countData.count);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des notifications:", error);
+      }
+    };
+
+    fetchNotifications();
+
+    // Actualiser les notifications toutes les 30 secondes (ou autre intervalle)
+    const intervalId = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(intervalId);
+  }, [token]); // Dépend du token pour se recharger si l'utilisateur change
 
   useEffect(() => {
     // Au premier chargement, essayer de récupérer le token depuis localStorage
@@ -107,57 +159,10 @@ const Layout = ({ children, isDark, toggleTheme, boxRef }) => {
         }
       };
 
-      const fetchNotifications = async () => {
-        // Renommé et adapté pour récupérer toutes les notifications
-        try {
-          const res = await fetch(`${API}/notifications/mine`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!res.ok) throw new Error("Failed to fetch notifications");
-          const notifData = await res.json();
-          setNotifications(notifData); // Stocker toutes les notifications
-          setNotificationsCount(
-            notifData.filter((notif) => !notif.read).length
-          ); // Mettre à jour le compteur avec les non lues
-        } catch (e) {
-          console.error("Error fetching notifications:", e);
-        }
-      };
-
-      const handleToggleNotification = async (notificationId) => {
-        setExpandedNotifications((prev) => ({
-          ...prev,
-          [notificationId]: !prev[notificationId],
-        }));
-        const notificationToMark = notifications.find(
-          (n) => n._id === notificationId
-        );
-        if (notificationToMark && !notificationToMark.read) {
-          await handleMarkNotificationAsRead(notificationId);
-        }
-      };
-
-      const handleMarkNotificationAsRead = async (notificationId) => {
-        try {
-          await fetch(`${API}/notifications/${notificationId}/read`, {
-            method: "PUT", // Le backend gérera la suppression
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setNotifications((prevNotifs) =>
-            prevNotifs.filter((notif) => notif._id !== notificationId)
-          );
-          setNotificationsCount((prevCount) => Math.max(0, prevCount - 1));
-        } catch (e) {
-          console.error("Error marking notification as read:", e);
-        }
-      };
-
       fetchUserData();
-      fetchNotifications(); // Appeler la nouvelle fonction de récupération des notifications
 
       const interval = setInterval(() => {
         fetchUserData();
-        fetchNotifications(); // Mettre à jour les notifications dans l'intervalle
       }, 60000);
 
       return () => clearInterval(interval);
