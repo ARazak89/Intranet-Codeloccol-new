@@ -27,7 +27,7 @@ const ChallengeSubmissionsPage = () => {
           }
 
           // Fetch challenge details
-          const challengeResponse = await fetch(`http://localhost:4000/api/challenges/${challengeId}`, {
+          const challengeResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/challenges/${challengeId}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -40,7 +40,7 @@ const ChallengeSubmissionsPage = () => {
           setChallenge(challengeData);
 
           // Fetch challenge statistics
-          const statsResponse = await fetch(`http://localhost:4000/api/challenges/${challengeId}/stats`, {
+          const statsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/challenges/${challengeId}/stats`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -66,7 +66,7 @@ const ChallengeSubmissionsPage = () => {
             return;
           }
 
-          let submissionsUrl = `http://localhost:4000/api/ide-submissions/challenges/${challengeId}`;
+          let submissionsUrl = `${process.env.NEXT_PUBLIC_API_URL}/ide-submissions/challenges/${challengeId}`;
           const queryParams = new URLSearchParams();
           if (filterStatus) {
             queryParams.append('correctionStatus', filterStatus);

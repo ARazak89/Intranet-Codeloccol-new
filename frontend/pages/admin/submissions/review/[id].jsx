@@ -43,7 +43,7 @@ const ReviewSubmissionPage = ({ isDark }) => {
             return;
           }
 
-          const response = await fetch(`http://localhost:4000/api/ide-submissions/${id}`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ide-submissions/${id}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -187,8 +187,8 @@ const ReviewSubmissionPage = ({ isDark }) => {
         router.push('/login');
         return;
       }
-
-      const response = await fetch(`http://localhost:4000/api/ide-submissions/${id}/review`, {
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ide-submissions/${id}/review`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

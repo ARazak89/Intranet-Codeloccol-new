@@ -4,7 +4,7 @@ import { getAuthToken } from '../../utils/auth';
 import Loader from '../../components/Loader';
 import styles from '../../styles/adminUsers.module.css';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 function AdminUsersPage() {
   const [users, setUsers] = useState([]);

@@ -32,7 +32,7 @@ const EditChallengePage = () => {
             return;
           }
 
-          const response = await fetch(`http://localhost:4000/api/challenges/${id}`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/challenges/${id}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -89,7 +89,7 @@ const EditChallengePage = () => {
         const formData = new FormData();
         selectedFiles.forEach(file => formData.append('challengeImages', file));
 
-        const uploadResponse = await fetch('http://localhost:4000/api/upload/challenge-image', {
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/challenge-image`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -107,7 +107,7 @@ const EditChallengePage = () => {
         finalImageUrls.push(...uploadData.imageUrls); // Ajouter les nouvelles URLs
       }
 
-      const response = await fetch(`http://localhost:4000/api/challenges/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/challenges/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

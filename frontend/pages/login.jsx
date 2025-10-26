@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
+import { jwtDecode } from 'jwt-decode'; // Importer jwt-decode
 import Image from "next/image";
 import styles from "../styles/login.module.css";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -26,12 +27,22 @@ export default function Login() {
       const data = await r.json();
       if (data.token) {
         localStorage.setItem("token", data.token);
-        router.push("/dashboard");
+        
+        // Décoder le token pour obtenir le rôle de l'utilisateur
+        const decodedToken = jwtDecode(data.token);
+        const userRole = decodedToken.role; // Assurez-vous que le rôle est bien dans le token
+
+        if (userRole === "admin") {
+          router.push("/admin/challenges"); // Rediriger l'admin vers la page des challenges admin
+        } else {
+          router.push("/dashboard"); // Redirection par défaut pour les apprenants
+        }
       } else {
         setError(data.error || "Erreur de connexion.");
         setIsLoading(false);
       }
     } catch (e) {
+      console.error("Erreur de connexion:", e);
       setError("Impossible de se connecter au serveur.");
       setIsLoading(false);
     }

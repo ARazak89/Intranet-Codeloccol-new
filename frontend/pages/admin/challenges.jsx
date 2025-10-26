@@ -19,7 +19,7 @@ const AdminChallengesPage = () => {
           return;
         }
 
-        const response = await fetch('http://localhost:4000/api/challenges', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/challenges`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -52,7 +52,7 @@ const AdminChallengesPage = () => {
     }
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/challenges/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/challenges/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

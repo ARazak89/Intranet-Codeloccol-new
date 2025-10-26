@@ -111,7 +111,6 @@ const reviewIdeSubmission = asyncHandler(async (req, res) => {
     if (user) {
       user.daysRemaining = (user.daysRemaining || 0) + rewardDays;
       await user.save();
-      console.log(`[REWARD] ${rewardDays} jours ajoutés à l'utilisateur ${user.email}. Nouveau total: ${user.daysRemaining}`);
     }
   }
   if (staffFeedback) {

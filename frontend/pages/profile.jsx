@@ -7,7 +7,7 @@ import EditProfileForm from "../components/EditProfileForm";
 import ProfileImageSelector from "../components/ProfileImageSelector";
 import Loader from "../components/Loader";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 export default function Profile() {
   const [user, setUser] = useState(null);

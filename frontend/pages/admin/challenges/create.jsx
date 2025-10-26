@@ -37,7 +37,7 @@ const CreateChallengePage = () => {
         const formData = new FormData();
         selectedFiles.forEach(file => formData.append('challengeImages', file));
 
-        const uploadResponse = await fetch('http://localhost:4000/api/upload/challenge-image', {
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload/challenge-image`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -55,7 +55,7 @@ const CreateChallengePage = () => {
         finalImageUrls.push(...uploadData.imageUrls); // Ajouter les nouvelles URLs
       }
 
-      const response = await fetch('http://localhost:4000/api/challenges', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/challenges`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

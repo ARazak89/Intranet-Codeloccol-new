@@ -18,8 +18,8 @@ const ChallengeListPage = () => {
           router.push('/login');
           return;
         }
-
-        const response = await fetch('http://localhost:4000/api/challenges', {
+        console.log('Challenges API URL:', process.env.NEXT_PUBLIC_API_URL);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/challenges`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
