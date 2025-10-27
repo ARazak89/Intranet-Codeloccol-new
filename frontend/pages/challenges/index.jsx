@@ -34,8 +34,9 @@ const ChallengeListPage = () => {
         }
 
         const data = await response.json();
-        // Filtrer pour n'afficher que les challenges actifs et non expirés
-        setChallenges(data);
+        const now = new Date();
+        const filteredChallenges = data.filter(challenge => new Date(challenge.startDate) <= now);
+        setChallenges(filteredChallenges);
       } catch (err) {
         console.error('Erreur lors du chargement des challenges:', err);
         setError(err.message);
