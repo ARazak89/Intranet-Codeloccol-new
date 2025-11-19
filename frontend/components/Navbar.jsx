@@ -120,7 +120,7 @@ const Navbar = ({
               <div className="d-flex justify-content-center flex-grow-1">
                 <span className="me-3 fw-bold p-2 rounded-pill thm-bg-light thm-shadow-s">
                   <i className="bi bi-hourglass-split me-1"></i> Temps restant:{" "}
-                  {displayDays > 0 && `${displayDays}J `}
+                  {displayDays > 1 && `${displayDays - 1}J `}
                   {displayHours.toString().padStart(2, '0')}H{" "}
                   {displayMinutes.toString().padStart(2, '0')}M{" "}
                   {displaySeconds.toString().padStart(2, '0')}S

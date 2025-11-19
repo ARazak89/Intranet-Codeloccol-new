@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { getAuthToken } from '../../utils/auth';
 import Loader from '../../components/Loader';
 import styles from '../../styles/adminUsers.module.css';
-
+import Link from 'next/link';
 const API = process.env.NEXT_PUBLIC_API_URL;
 
 function AdminUsersPage() {
@@ -404,7 +404,7 @@ function AdminUsersPage() {
             <tbody>
               {users.map((user) => (
                 <tr key={user._id}>
-                  <td><strong>{user.name}</strong></td>
+                  <td><strong><Link href={`/user/${user._id}`}>{user.name}</Link></strong></td>
                   <td style={{ fontSize: '12px' }}>{user.email}</td>
                   <td style={{ textAlign: 'center' }}>
                     <span className={`${styles.roleBadge} ${styles[user.role]}`}>
