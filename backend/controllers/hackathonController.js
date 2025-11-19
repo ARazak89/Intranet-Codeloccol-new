@@ -159,7 +159,7 @@ export async function evaluateHackathonProjects(req, res) {
     for (let i = 0; i < hackathon.rankings.length; i++) {
       const rank = i + 1;
       const rankedProject = hackathon.rankings[i];
-      const project = await Project.findById(rankedProject.project);
+      const project = await Project.findById(rankedProject.project).populate('student'); // Peupler le champ étudiant
 
       if (project && project.student) {
         const student = await User.findById(project.student);

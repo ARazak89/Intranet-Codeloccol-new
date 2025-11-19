@@ -4,7 +4,8 @@
 /node_modules
 /.pnp
 .pnp.js
-
+backend/seed.js
+yarn.lock
 # testing
 /coverage
 .next
@@ -26,3 +27,6 @@ frontend/node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log
+
+# Ignorer les fichiers des photos de profil téléchargées
+public/uploads/profile_pictures/

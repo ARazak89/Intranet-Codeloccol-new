@@ -200,6 +200,7 @@ export async function getAllEvaluationsForStaff(req, res) {
           _id: assignment._id,
           status: assignment.status,
           repoUrl: assignment.repoUrl,
+          githubPagesUrl: assignment.githubPagesUrl, // Inclure l'URL GitHub Pages
           submissionDate: assignment.submissionDate,
           student: assignment.student, // L'apprenant est déjà peuplé via project.assignments.student
           // ... autres champs d'assignation
@@ -223,6 +224,16 @@ export async function submitEvaluation(req, res) {
     const { evaluationId } = req.params;
     const { feedback, status } = req.body; // feedback est un objet, status est 'accepted' ou 'rejected'
     const evaluatorId = req.user._id;
+
+    // Validation des champs de feedback (minimum 15 mots)
+    for (const key in feedback) {
+      if (Object.hasOwnProperty.call(feedback, key)) {
+        const feedbackText = feedback[key];
+        if (typeof feedbackText === 'string' && feedbackText.trim().split(/\s+/).length < 15) {
+          return res.status(400).json({ error: `Le champ de feedback '${key}' doit contenir au moins 15 mots.` });
+        }
+      }
+    }
 
     const evaluation = await Evaluation.findById(evaluationId)
       .populate({

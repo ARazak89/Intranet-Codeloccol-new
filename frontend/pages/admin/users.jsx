@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { getAuthToken } from '../../utils/auth';
-
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+import Loader from '../../components/Loader';
+import styles from '../../styles/adminUsers.module.css';
+import Link from 'next/link';
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 function AdminUsersPage() {
   const [users, setUsers] = useState([]);
@@ -317,82 +319,187 @@ function AdminUsersPage() {
     }
   };
 
-  if (loading && !me) return (
-    <div className="d-flex justify-content-center align-items-center vh-100">
-      <div className="spinner-border text-primary" role="status">
-        <span className="visually-hidden">Chargement...</span>
+  if (loading && !me) {
+    return <Loader message="Chargement des données..." />;
+  }
+
+  if (error) return (
+    <div className="container-fluid mt-5">
+      <div className={`${styles.alert} ${styles.danger}`}>
+        <i className="bi bi-exclamation-triangle"></i>
+        Erreur: {error}
       </div>
-      <p className="ms-2">Chargement des données...</p>
     </div>
   );
 
-  if (error) return <div className="alert alert-danger text-center mt-5">Error: {error}</div>;
-
   if (me && me.role !== 'staff' && me.role !== 'admin') {
-    return <div className="alert alert-danger text-center mt-5">Accès non autorisé.</div>;
+    return (
+      <div className="container-fluid mt-5">
+        <div className={`${styles.alert} ${styles.danger}`}>
+          <i className="bi bi-shield-exclamation"></i>
+          Accès non autorisé.
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container-fluid mt-4 pt-5 px-4">
-      <h1 className="mb-4">Gestion des Utilisateurs</h1>
-      <div className="d-flex justify-content-end mb-3">
-        <button className="btn btn-primary" onClick={handleShowAddUserModal}>
-          <i className="bi bi-person-plus me-2"></i> Ajouter un Utilisateur
+    <div className={`${styles.pageContainer} container-fluid pt-5`}>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>
+          <i className="bi bi-people-fill"></i>
+          Gestion des Utilisateurs
+        </h1>
+        <button className={styles.addButton} onClick={handleShowAddUserModal}>
+          <i className="bi bi-person-plus"></i>
+          Ajouter un Utilisateur
         </button>
       </div>
 
       {users.length === 0 ? (
-        <div className="alert alert-info text-center">
-          <i className="bi bi-info-circle me-2"></i> Aucun utilisateur trouvé.
+        <div className={`${styles.alert} ${styles.info}`}>
+          <i className="bi bi-info-circle"></i>
+          Aucun utilisateur trouvé.
         </div>
       ) : (
-        <div className="table-responsive">
-          <table className="table table-striped table-hover align-middle">
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Rôle</th>
-                <th>Niveau</th>
-                <th>Jours Restants</th>
-                <th>Statut</th>
-                <th>Dernier Projet Assigné</th>
-                <th>Actions</th>
+        <div className={styles.tableContainer}>
+          <div className={styles.tableWrapper}>
+            <table className={styles.customTable}>
+              <thead>
+                <tr>
+                  <th>
+                    <i className="bi bi-person-fill me-2"></i>
+                    Nom
+                  </th>
+                <th>
+                  <i className="bi bi-envelope-fill me-2"></i>
+                  Email
+                </th>
+                <th style={{ textAlign: 'center' }}>
+                  <i className="bi bi-shield-fill-check me-2"></i>
+                  Rôle
+                </th>
+                <th style={{ textAlign: 'center' }}>
+                  <i className="bi bi-bar-chart-fill me-2"></i>
+                  Niveau
+                </th>
+                <th style={{ textAlign: 'center' }}>
+                  <i className="bi bi-hourglass-split me-2"></i>
+                  Jours
+                </th>
+                <th style={{ textAlign: 'center' }}>
+                  <i className="bi bi-check-circle-fill me-2"></i>
+                  Statut
+                </th>
+                <th>
+                  <i className="bi bi-folder-fill me-2"></i>
+                  Projet Assigné
+                </th>
+                <th>
+                  <i className="bi bi-gear-fill me-2"></i>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {users.map((user) => (
                 <tr key={user._id}>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td><span className="badge bg-secondary">{user.role}</span></td>
-                  <td>{user.level || 'N/A'}</td>
-                  <td>{user.daysRemaining || 'N/A'}</td>
-                  <td>
-                    <span className={`badge bg-${user.status === 'active' ? 'success' : user.status === 'inactive' ? 'warning text-dark' : 'danger'}`}>
+                  <td><strong><Link href={`/user/${user._id}`}>{user.name}</Link></strong></td>
+                  <td style={{ fontSize: '12px' }}>{user.email}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span className={`${styles.roleBadge} ${styles[user.role]}`}>
+                       {user.role === 'admin' ? 'Admin' : 
+                        user.role === 'staff' ? 'Staff' : 
+                        user.role === 'evaluator' ? 'Évaluateur' : 
+                        'Apprenant'}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>{user.level || '-'}</td>
+                  <td style={{ textAlign: 'center' }}>{user.daysRemaining || '-'}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span className={`${styles.statusBadge} ${styles[user.status]}`}>
+                      <i className={`bi bi-${user.status === 'active' ? 'check-circle' : user.status === 'inactive' ? 'pause-circle' : 'x-circle'}`}></i>
                       {user.status === 'active' ? 'Actif' : user.status === 'inactive' ? 'Inactif' : 'Bloqué'}
                     </span>
                   </td>
-                  <td>
-                    {user.assignedProject ? user.assignedProject.title : 'Aucun'}
+                  <td style={{ fontSize: '12px' }}>
+                    {user.assignedProject ? (
+                      <div className="d-flex flex-column align-items-start">
+                        <span title={user.assignedProject.title} className="fw-bold mb-1">
+                          {user.assignedProject.title.length > 25
+                            ? `${user.assignedProject.title.substring(0, 25)}...`
+                            : user.assignedProject.title}
+                        </span>
+                        <span
+                          className={`badge rounded-pill bg-${(() => {
+                            if (user.assignedProject.status === "assigned") return "warning text-dark";
+                            if (user.assignedProject.status === "submitted") return "info";
+                            if (user.assignedProject.status === "awaiting_staff_review") return "primary";
+                            if (user.assignedProject.status === "approved") return "success";
+                            if (user.assignedProject.status === "rejected") return "danger";
+                            return "secondary";
+                          })()}`}
+                        >
+                          <i
+                            className={`bi bi-${(() => {
+                              if (user.assignedProject.status === "assigned") return "clock";
+                              if (user.assignedProject.status === "submitted") return "hourglass-split";
+                              if (user.assignedProject.status === "awaiting_staff_review") return "person-workspace";
+                              if (user.assignedProject.status === "approved") return "check-circle";
+                              if (user.assignedProject.status === "rejected") return "x-circle";
+                              return "question-circle";
+                            })()} me-1`}
+                          ></i>
+                          {user.assignedProject.status === "assigned"
+                            ? "Assigné"
+                            : user.assignedProject.status === "submitted"
+                            ? "Soumis"
+                            : user.assignedProject.status === "awaiting_staff_review"
+                            ? "En révision Staff"
+                            : user.assignedProject.status === "approved"
+                            ? "Approuvé"
+                            : user.assignedProject.status === "rejected"
+                            ? "Rejeté"
+                            : "Inconnu"}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#999', fontStyle: 'italic' }}>Aucun</span>
+                    )}
                   </td>
                   <td>
-                    <div className="btn-group btn-group-sm" role="group" aria-label="Actions utilisateur">
-                      <button className="btn btn-outline-info" onClick={() => handleShowEditUserModal(user)} title="Modifier Utilisateur">
+                    <div className={styles.actionButtons}>
+                      <button 
+                        className={`${styles.actionBtn} ${styles.edit}`} 
+                        onClick={() => handleShowEditUserModal(user)} 
+                        title="Modifier Utilisateur"
+                      >
                         <i className="bi bi-pencil-square"></i>
                       </button>
                       {me && me.role === 'admin' && (
-                        <button className="btn btn-outline-warning text-dark" onClick={() => handleShowToggleStatusModal(user)} title="Changer Statut">
+                        <button 
+                          className={`${styles.actionBtn} ${styles.toggle}`} 
+                          onClick={() => handleShowToggleStatusModal(user)} 
+                          title="Changer Statut"
+                        >
                           <i className={`bi bi-${user.status === 'active' ? 'person-x' : 'person-check'}`}></i>
                         </button>
                       )}
                       {me && me.role === 'admin' && (
-                        <button className="btn btn-outline-danger" onClick={() => handleShowDeleteUserModal(user)} title="Supprimer Utilisateur">
+                        <button 
+                          className={`${styles.actionBtn} ${styles.delete}`} 
+                          onClick={() => handleShowDeleteUserModal(user)} 
+                          title="Supprimer Utilisateur"
+                        >
                           <i className="bi bi-trash"></i>
                         </button>
                       )}
                       {user.role === 'apprenant' && me && me.role === 'admin' && (
-                        <button className="btn btn-outline-success" onClick={() => handleShowAssignProjectModal(user)} title="Assigner Projet">
+                        <button 
+                          className={`${styles.actionBtn} ${styles.assign}`} 
+                          onClick={() => handleShowAssignProjectModal(user)} 
+                          title="Assigner Projet"
+                        >
                           <i className="bi bi-folder-plus"></i>
                         </button>
                       )}
@@ -402,187 +509,248 @@ function AdminUsersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* Modale d'ajout/édition d'utilisateur */}
       {(showAddUserModal || showEditUserModal) && (
-        <div className="modal" tabIndex="-1" style={{ display: 'block' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-primary text-white">
-                <h5 className="modal-title">{currentUser ? 'Modifier Utilisateur' : 'Ajouter un Utilisateur'}</h5>
-                <button type="button" className="btn-close" onClick={currentUser ? handleCloseEditUserModal : handleCloseAddUserModal}></button>
-              </div>
-              <div className="modal-body">
-                {error && <div className="alert alert-danger mb-3">{error}</div>}
+        <div className={styles.modalOverlay} onClick={currentUser ? handleCloseEditUserModal : handleCloseAddUserModal}>
+          <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.modalHeader} ${styles.green}`}>
+              <h5 className={styles.modalTitle}>
+                <i className={`bi bi-${currentUser ? 'pencil-square' : 'person-plus'}`}></i>
+                {currentUser ? 'Modifier Utilisateur' : 'Ajouter un Utilisateur'}
+              </h5>
+              <button type="button" className={styles.closeBtn} onClick={currentUser ? handleCloseEditUserModal : handleCloseAddUserModal}>
+                <i className="bi bi-x"></i>
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {error && (
+                <div className={`${styles.alert} ${styles.danger}`}>
+                  <i className="bi bi-exclamation-triangle"></i>
+                  {error}
+                </div>
+              )}
                 <form onSubmit={currentUser ? handleUpdateUser : handleCreateUser}>
-                  <div className="mb-3">
-                    <label htmlFor="userName" className="form-label">Nom</label>
-                    <input type="text" className="form-control" id="userName" value={userName} onChange={(e) => setUserName(e.target.value)} required />
+                  <div className={styles.formGroup}>
+                    <label htmlFor="userName" className={styles.formLabel}>Nom</label>
+                    <input type="text" className={styles.formControl} id="userName" value={userName} onChange={(e) => setUserName(e.target.value)} required />
                   </div>
-                  <div className="mb-3">
-                    <label htmlFor="userEmail" className="form-label">Email</label>
-                    <input type="email" className="form-control" id="userEmail" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} required />
+                  <div className={styles.formGroup}>
+                    <label htmlFor="userEmail" className={styles.formLabel}>Email</label>
+                    <input type="email" className={styles.formControl} id="userEmail" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} required />
                   </div>
-                  <div className="mb-3">
-                    <label htmlFor="userPassword" className="form-label">Mot de passe {currentUser ? '(Laisser vide pour ne pas modifier)' : ''}</label>
-                    <input type="password" className="form-control" id="userPassword" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} { ...(!currentUser && { required: true }) } />
+                  <div className={styles.formGroup}>
+                    <label htmlFor="userPassword" className={styles.formLabel}>Mot de passe {currentUser ? '(Laisser vide pour ne pas modifier)' : ''}</label>
+                    <input type="password" className={styles.formControl} id="userPassword" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} { ...(!currentUser && { required: true }) } />
                   </div>
-                  <div className="mb-3">
-                    <label htmlFor="userRole" className="form-label">Rôle</label>
-                    <select className="form-select" id="userRole" value={userRole} onChange={(e) => setUserRole(e.target.value)}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="userRole" className={styles.formLabel}>Rôle</label>
+                    <select className={styles.formControl} id="userRole" value={userRole} onChange={(e) => setUserRole(e.target.value)}>
                       <option value="apprenant">Apprenant</option>
                       <option value="staff">Staff</option>
                       <option value="admin">Admin</option>
                       <option value="evaluator">Évaluateur</option>
                     </select>
                   </div>
-                  <div className="mb-3">
-                    <label htmlFor="userLevel" className="form-label">Niveau</label>
-                    <input type="number" className="form-control" id="userLevel" value={userLevel} onChange={(e) => setUserLevel(parseInt(e.target.value))} min="1" />
+                  <div className={styles.formGroup}>
+                    <label htmlFor="userLevel" className={styles.formLabel}>Niveau</label>
+                    <input type="number" className={styles.formControl} id="userLevel" value={userLevel} onChange={(e) => setUserLevel(parseInt(e.target.value))} min="1" />
                   </div>
                   {me && me.role === 'admin' && (
-                    <div className="mb-3">
-                      <label htmlFor="userDaysRemaining" className="form-label">Jours Restants</label>
-                      <input type="number" className="form-control" id="userDaysRemaining" value={userDaysRemaining} onChange={(e) => setUserDaysRemaining(parseInt(e.target.value))} min="0" />
+                    <div className={styles.formGroup}>
+                      <label htmlFor="userDaysRemaining" className={styles.formLabel}>Jours Restants</label>
+                      <input type="number" className={styles.formControl} id="userDaysRemaining" value={userDaysRemaining} onChange={(e) => setUserDaysRemaining(parseInt(e.target.value))} min="0" />
                     </div>
                   )}
-                  <div className="mb-3">
-                    <label htmlFor="userStatus" className="form-label">Statut</label>
-                    <select className="form-select" id="userStatus" value={userStatus} onChange={(e) => setUserStatus(e.target.value)}>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="userStatus" className={styles.formLabel}>Statut</label>
+                    <select className={styles.formControl} id="userStatus" value={userStatus} onChange={(e) => setUserStatus(e.target.value)}>
                       <option value="active">Actif</option>
                       <option value="inactive">Inactif</option>
                       <option value="blocked">Bloqué</option>
                     </select>
                   </div>
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
+                  <button type="submit" className={styles.submitBtn} disabled={loading}>
                     {loading ? (
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     ) : (
-                      <i className="bi bi-save me-2"></i>
+                      <i className="bi bi-save"></i>
                     )}
                     {currentUser ? 'Modifier' : 'Ajouter'}
                   </button>
                 </form>
-              </div>
             </div>
           </div>
         </div>
       )}
-      {(showAddUserModal || showEditUserModal) && <div className="modal-backdrop fade show"></div>}
 
       {/* Modale de suppression d'utilisateur */}
       {showDeleteUserModal && currentUser && (
-        <div className="modal" tabIndex="-1" style={{ display: 'block' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-danger text-white">
-                <h5 className="modal-title">Confirmer la Suppression</h5>
-                <button type="button" className="btn-close" onClick={handleCloseDeleteUserModal}></button>
+        <div className={styles.modalOverlay} onClick={handleCloseDeleteUserModal}>
+          <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.modalHeader} ${styles.red}`}>
+              <h5 className={styles.modalTitle}>
+                <i className="bi bi-trash"></i>
+                Confirmer la Suppression
+              </h5>
+              <button type="button" className={styles.closeBtn} onClick={handleCloseDeleteUserModal}>
+                <i className="bi bi-x"></i>
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {error && (
+                <div className={`${styles.alert} ${styles.danger}`}>
+                  <i className="bi bi-exclamation-triangle"></i>
+                  {error}
+                </div>
+              )}
+              <p style={{ marginBottom: '15px' }}>
+                Êtes-vous sûr de vouloir supprimer l'utilisateur "<strong>{currentUser.name}</strong>" ({currentUser.email}) ? 
+                Cette action est <strong>irréversible</strong> et supprimera également toutes les données associées (projets, évaluations, etc.).
+              </p>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Veuillez taper le nom de l'utilisateur (exactement) pour confirmer :</label>
+                <input 
+                  type="text" 
+                  className={styles.formControl} 
+                  value={confirmUserName} 
+                  onChange={(e) => setConfirmUserName(e.target.value)} 
+                  placeholder={currentUser.name} 
+                />
               </div>
-              <div className="modal-body">
-                {error && <div className="alert alert-danger mb-3">{error}</div>}
-                <p>Êtes-vous sûr de vouloir supprimer l'utilisateur "<strong>{currentUser.name}</strong>" ({currentUser.email}) ? Cette action est irréversible et supprimera également toutes les données associées (projets, évaluations, etc.).</p>
-                <p>Veuillez taper le nom de l'utilisateur (exactement) pour confirmer :</p>
-                <input type="text" className="form-control" value={confirmUserName} onChange={(e) => setConfirmUserName(e.target.value)} placeholder={currentUser.name} />
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={handleCloseDeleteUserModal}>Annuler</button>
-                <button type="button" className="btn btn-danger" onClick={handleDeleteUser} disabled={loading || confirmUserName !== currentUser.name}>
-                  {loading ? (
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  ) : (
-                    <i className="bi bi-trash me-2"></i>
-                  )}
-                  Supprimer
-                </button>
-              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button type="button" className={styles.cancelBtn} onClick={handleCloseDeleteUserModal}>
+                Annuler
+              </button>
+              <button 
+                type="button" 
+                className={styles.deleteBtn} 
+                onClick={handleDeleteUser} 
+                disabled={loading || confirmUserName !== currentUser.name}
+              >
+                {loading ? (
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                ) : (
+                  <i className="bi bi-trash"></i>
+                )}
+                Supprimer
+              </button>
             </div>
           </div>
         </div>
       )}
-      {showDeleteUserModal && <div className="modal-backdrop fade show"></div>}
 
       {/* Modale de changement de statut */}
       {showToggleStatusModal && currentUser && (
-        <div className="modal" tabIndex="-1" style={{ display: 'block' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-warning text-dark">
-                <h5 className="modal-title">Changer le Statut de l'Utilisateur</h5>
-                <button type="button" className="btn-close" onClick={handleCloseToggleStatusModal}></button>
-              </div>
-              <div className="modal-body">
-                {error && <div className="alert alert-danger mb-3">{error}</div>}
-                <p>Modifier le statut de l'utilisateur "<strong>{currentUser.name}</strong>" (actuel: <span className="fw-bold">{currentUser.status}</span>) :</p>
-                <select className="form-select" value={userStatus} onChange={(e) => setUserStatus(e.target.value)}>
+        <div className={styles.modalOverlay} onClick={handleCloseToggleStatusModal}>
+          <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.modalHeader} ${styles.yellow}`}>
+              <h5 className={styles.modalTitle}>
+                <i className="bi bi-arrow-repeat"></i>
+                Changer le Statut de l'Utilisateur
+              </h5>
+              <button type="button" className={styles.closeBtn} onClick={handleCloseToggleStatusModal}>
+                <i className="bi bi-x"></i>
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {error && (
+                <div className={`${styles.alert} ${styles.danger}`}>
+                  <i className="bi bi-exclamation-triangle"></i>
+                  {error}
+                </div>
+              )}
+              <p style={{ marginBottom: '15px' }}>
+                Modifier le statut de l'utilisateur "<strong>{currentUser.name}</strong>" (actuel: <span className="fw-bold">{currentUser.status}</span>) :
+              </p>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Nouveau statut</label>
+                <select className={styles.formControl} value={userStatus} onChange={(e) => setUserStatus(e.target.value)}>
                   <option value="active">Actif</option>
                   <option value="inactive">Inactif</option>
                   <option value="blocked">Bloqué</option>
                 </select>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={handleCloseToggleStatusModal}>Annuler</button>
-                <button type="button" className="btn btn-warning text-dark" onClick={() => handleToggleUserStatus(userStatus)} disabled={loading || userStatus === currentUser.status}>
-                  {loading ? (
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  ) : (
-                    <i className="bi bi-arrow-repeat me-2"></i>
-                  )}
-                  Mettre à jour le statut
-                </button>
-              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button type="button" className={styles.cancelBtn} onClick={handleCloseToggleStatusModal}>
+                Annuler
+              </button>
+              <button 
+                type="button" 
+                className={styles.updateBtn} 
+                onClick={() => handleToggleUserStatus(userStatus)} 
+                disabled={loading || userStatus === currentUser.status}
+              >
+                {loading ? (
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                ) : (
+                  <i className="bi bi-arrow-repeat"></i>
+                )}
+                Mettre à jour le statut
+              </button>
             </div>
           </div>
         </div>
       )}
-      {showToggleStatusModal && <div className="modal-backdrop fade show"></div>}
 
       {/* Nouveau: Modale d'assignation de projet */}
       {showAssignProjectModal && currentUser && (
-        <div className="modal" tabIndex="-1" style={{ display: 'block' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-success text-white">
-                <h5 className="modal-title">Assigner un Projet à {currentUser.name}</h5>
-                <button type="button" className="btn-close" onClick={handleCloseAssignProjectModal}></button>
-              </div>
-              <div className="modal-body">
-                {error && <div className="alert alert-danger mb-3">{error}</div>}
-                <form onSubmit={handleAssignProject}>
-                  <div className="mb-3">
-                    <label htmlFor="projectToAssign" className="form-label">Sélectionner un Projet</label>
-                    <select
-                      className="form-select"
-                      id="projectToAssign"
-                      value={selectedProjectToAssignId}
-                      onChange={(e) => setSelectedProjectToAssignId(e.target.value)}
-                      required
-                    >
-                      <option value="">-- Choisir un projet --</option>
-                      {availableProjects.filter(p =>
-                        p.status === 'template' && !p.assignments.some(a => a.student === currentUser._id)
-                      ).map(project => (
-                        <option key={project._id} value={project._id}>{project.title} (Order: {project.order})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <button type="submit" className="btn btn-success" disabled={loading || !selectedProjectToAssignId}>
-                    {loading ? (
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    ) : (
-                      <i className="bi bi-share me-2"></i>
-                    )}
-                    Assigner le Projet
-                  </button>
-                </form>
-              </div>
+        <div className={styles.modalOverlay} onClick={handleCloseAssignProjectModal}>
+          <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.modalHeader} ${styles.orange}`}>
+              <h5 className={styles.modalTitle}>
+                <i className="bi bi-folder-plus"></i>
+                Assigner un Projet à {currentUser.name}
+              </h5>
+              <button type="button" className={styles.closeBtn} onClick={handleCloseAssignProjectModal}>
+                <i className="bi bi-x"></i>
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {error && (
+                <div className={`${styles.alert} ${styles.danger}`}>
+                  <i className="bi bi-exclamation-triangle"></i>
+                  {error}
+                </div>
+              )}
+              <form onSubmit={handleAssignProject}>
+                <div className={styles.formGroup}>
+                  <label htmlFor="projectToAssign" className={styles.formLabel}>Sélectionner un Projet</label>
+                  <select
+                    className={styles.formControl}
+                    id="projectToAssign"
+                    value={selectedProjectToAssignId}
+                    onChange={(e) => setSelectedProjectToAssignId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Choisir un projet --</option>
+                    {availableProjects.filter(p =>
+                      p.status === 'template' && !p.assignments.some(a => a.student === currentUser._id)
+                    ).map(project => (
+                      <option key={project._id} value={project._id}>
+                        {project.title} (Order: {project.order})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" className={styles.submitBtn} disabled={loading || !selectedProjectToAssignId}>
+                  {loading ? (
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  ) : (
+                    <i className="bi bi-share"></i>
+                  )}
+                  Assigner le Projet
+                </button>
+              </form>
             </div>
           </div>
         </div>
       )}
-      {showAssignProjectModal && <div className="modal-backdrop fade show"></div>}
 
     </div>
   );

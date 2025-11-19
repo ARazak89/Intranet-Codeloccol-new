@@ -4,20 +4,30 @@ import ProjectList from "../components/ProjectList";
 import HackathonList from "../components/HackathonList";
 import BadgeDisplay from "../components/BadgeDisplay";
 import ProgressTracker from "../components/ProgressTracker";
-import React from "react"; // Added for React.Fragment
+import React from "react";
 import { getAuthToken } from "../utils/auth";
-import UserSummaryCard from "../components/UserSummaryCard"; // Importation du nouveau composant
+import UserSummaryCard from "../components/UserSummaryCard";
+import Loader from "../components/Loader";
+import styles from "../styles/dashboard.module.css";
+import Head from 'next/head';
+import { useSession } from 'next-auth/react';
+import useSWR from 'swr';
+import dynamic from 'next/dynamic';
+import Modal from 'react-modal';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import 'dayjs/locale/fr';
 
-// Fonction utilitaire pour s'assurer que les propriétés sont des tableaux
-const sanitizeProjectArrays = (project) => ({
-  ...project,
-  objectives: project.objectives || [],
-  specifications: project.specifications || [],
-  exerciseStatements: project.exerciseStatements || [],
-  resourceLinks: project.resourceLinks || [],
-});
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(isSameOrAfter);
+dayjs.locale('fr');
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const TIMEZONE = 'Africa/Niamey';
+
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 export default function Dashboard() {
   const [me, setMe] = useState(null);
@@ -25,47 +35,39 @@ export default function Dashboard() {
   const [hackathons, setHackathons] = useState([]);
   const [badges, setBadges] = useState([]);
   const [progress, setProgress] = useState(null);
-  const [mySubmittedEvaluations, setMySubmittedEvaluations] = useState([]); // Pour les projets que j'ai soumis
-  const [evaluationsAsEvaluator, setEvaluationsAsEvaluator] = useState([]); // Pour les projets que je dois évaluer
-  const [showCreateSlotModal, setShowCreateSlotModal] = useState(false); // État de la modale
+  const [mySubmittedEvaluations, setMySubmittedEvaluations] = useState([]);
+  const [evaluationsAsEvaluator, setEvaluationsAsEvaluator] = useState([]);
+  const [showCreateSlotModal, setShowCreateSlotModal] = useState(false);
   const [slotDate, setSlotDate] = useState("");
-  const [slotStartTime, setSlotStartTime] = useState("09:00"); // Par défaut 9h
-  const [slotEndTime, setSlotEndTime] = useState("09:45"); // Par défaut 9h45
-  const [showEvaluationModal, setShowEvaluationModal] = useState(false); // Nouvel état pour la modale d'évaluation
-  const [currentEvaluationToSubmit, setCurrentEvaluationToSubmit] =
-    useState(null); // Évaluation en cours de soumission
-  const [upcomingEvaluations, setUpcomingEvaluations] = useState([]); // Nouvel état pour les évaluations à venir
-  const [projectsAwaitingStaffReview, setProjectsAwaitingStaffReview] =
-    useState([]); // Nouvel état pour les projets en attente de révision du personnel
-  const [learners, setLearners] = useState([]); // Nouveau: Liste des apprenants pour le staff/admin
-  const [allProjects, setAllProjects] = useState([]); // Nouveau: Liste de tous les projets pour le staff/admin
-  const [allPendingEvaluationsForStaff, setAllPendingEvaluationsForStaff] =
-    useState([]); // Nouveau: Toutes les évaluations en attente pour le staff
-  const [expandedLearners, setExpandedLearners] = useState({}); // État pour gérer les détails des apprenants déroulés
-  const [expandedProjectEvaluations, setExpandedProjectEvaluations] = useState(
-    {}
-  ); // Nouveau: État pour gérer les détails des évaluations de projet déroulées pour le staff/admin
-  const [showAddProjectModal, setShowAddProjectModal] = useState(false); // Nouvel état pour la modale d'ajout de projet
-  const [showEditProjectModal, setShowEditProjectModal] = useState(false); // Nouvel état pour la modale de modification de projet
-  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false); // Nouvel état pour la modale de suppression de projet
-  const [currentProjectToEdit, setCurrentProjectToEdit] = useState(null); // Projet actuellement sélectionné pour la modification
-  const [currentProjectToDelete, setCurrentProjectToDelete] = useState(null); // Projet actuellement sélectionné pour la suppression
-  // États pour le formulaire d'ajout/modification de projet
+  const [slotStartTime, setSlotStartTime] = useState("09:00");
+  const [slotEndTime, setSlotEndTime] = useState("09:45");
+  const [showEvaluationModal, setShowEvaluationModal] = useState(false);
+  const [currentEvaluationToSubmit, setCurrentEvaluationToSubmit] = useState(null);
+  const [upcomingEvaluations, setUpcomingEvaluations] = useState([]);
+  const [projectsAwaitingStaffReview, setProjectsAwaitingStaffReview] = useState([]);
+  const [learners, setLearners] = useState([]);
+  const [allProjects, setAllProjects] = useState([]);
+  const [allPendingEvaluationsForStaff, setAllPendingEvaluationsForStaff] = useState([]);
+  const [expandedLearners, setExpandedLearners] = useState({});
+  const [expandedProjectEvaluations, setExpandedProjectEvaluations] = useState({});
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
+  const [currentProjectToEdit, setCurrentProjectToEdit] = useState(null);
+  const [currentProjectToDelete, setCurrentProjectToDelete] = useState(null);
   const [projectTitle, setProjectTitle] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
-  const [projectRepoUrl, setProjectRepoUrl] = useState(""); // Pour les projets d'apprenant
+  const [projectRepoUrl, setProjectRepoUrl] = useState("");
   const [projectDemoVideoUrl, setProjectDemoVideoUrl] = useState("");
   const [projectSpecifications, setProjectSpecifications] = useState("");
   const [projectSize, setProjectSize] = useState("short");
-
-  const [myProjects, setMyProjects] = useState([]); // Nouvel état pour les projets de l'apprenant
-  const [confirmProjectTitle, setConfirmProjectTitle] = useState(""); // Nouvel état pour la double confirmation
+  const [myProjects, setMyProjects] = useState([]);
+  const [confirmProjectTitle, setConfirmProjectTitle] = useState("");
   const [showDeleteSlotModal, setShowDeleteSlotModal] = useState({
     show: false,
     slotId: null,
     slotStartTime: null,
-  }); // Nouvel état pour le modal de suppression de slot
-
+  });
   const [feedback, setFeedback] = useState({
     assiduite: "",
     comprehension: "",
@@ -73,131 +75,90 @@ export default function Dashboard() {
     maitrise_concepts: "",
     capacite_expliquer: "",
   });
-  const [error, setError] = useState(null); // Ajoutez cet état si non présent
-  const [success, setSuccess] = useState(null); // Ajoutez cet état si non présent
-  const [isLoading, setIsLoading] = useState(true); // Nouvel état de chargement
-  const [myCreatedSlots, setMyCreatedSlots] = useState([]); // Nouveau: Slots créés par l'apprenant
-  const [token, setToken] = useState(null); // Gérer le token localement
-  const router = useRouter();
-
-  // Nouveaux états pour l'ajout d'utilisateur (staff/admin)
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [myCreatedSlots, setMyCreatedSlots] = useState([]);
+  const [token, setToken] = useState(null);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
-  const [newUserRole, setNewUserRole] = useState("apprenant"); // Rôle par défaut
-
-  // Nouveaux états pour la soumission de projet de Hackathon
-  const [showSubmitHackathonProjectModal, setShowSubmitHackathonProjectModal] =
-    useState(false);
-  const [currentHackathonToSubmit, setCurrentHackathonToSubmit] =
-    useState(null);
+  const [newUserRole, setNewUserRole] = useState("apprenant");
+  const [showSubmitHackathonProjectModal, setShowSubmitHackathonProjectModal] = useState(false);
+  const [currentHackathonToSubmit, setCurrentHackathonToSubmit] = useState(null);
   const [currentTeamToSubmit, setCurrentTeamToSubmit] = useState(null);
-  const [hackathonSubmissionRepoUrl, setHackathonSubmissionRepoUrl] =
-    useState("");
-
-  // État pour s'assurer que le composant est monté côté client
+  const [hackathonSubmissionRepoUrl, setHackathonSubmissionRepoUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
-  const [expandedFeedback, setExpandedFeedback] = useState({}); // Nouveau: État pour gérer l'expansion du feedback
-  const [expandedSlots, setExpandedSlots] = useState({}); // Nouveau: État pour gérer l'expansion des slots
+  const [expandedFeedback, setExpandedFeedback] = useState({});
+  const [expandedSlots, setExpandedSlots] = useState({});
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [currentEvaluationToReassign, setCurrentEvaluationToReassign] = useState(null);
+  const [reassignSlotDate, setReassignSlotDate] = useState("");
+  const [availableSlotsForReassign, setAvailableSlotsForReassign] = useState([]);
+  const [selectedSlots, setSelectedSlots] = useState([]);
 
-  const [showReassignModal, setShowReassignModal] = useState(false); // État pour contrôler la visibilité de la modale de réassignation
-  const [currentEvaluationToReassign, setCurrentEvaluationToReassign] =
-    useState(null); // L'évaluation sélectionnée pour la réassignation
-  const [reassignSlotDate, setReassignSlotDate] = useState(""); // Date sélectionnée pour les nouveaux slots
-  const [availableSlotsForReassign, setAvailableSlotsForReassign] = useState(
-    []
-  ); // Slots disponibles pour la réassignation
-  const [selectedSlots, setSelectedSlots] = useState([]); // IDs des slots sélectionnés pour la réassignation
+  const router = useRouter();
 
-  // Fonctions pour la gestion des notifications
-  //onst handleOpenNotificationModal = (notification) => {
-  // setCurrentNotification(notification);
-  // setShowNotificationModal(true);
-  //};
+  const sanitizeProjectArrays = (project) => ({
+    ...project,
+    objectives: project.objectives || [],
+    specifications: project.specifications || [],
+    exerciseStatements: project.exerciseStatements || [],
+    resourceLinks: project.resourceLinks || [],
+  });
 
-  // const handleCloseNotificationModal = async () => {
-  // Marquer la notification comme lue sur le backend
-  // if (currentNotification && token) {
-  //   try {
-  //     await fetch(`${API}/notifications/${currentNotification._id}/read`, {
-  //       method: 'PUT',
-  //       headers: { Authorization: `Bearer ${token}` },
-  //     });
-  //     fetchData(); // Recharger les notifications pour mettre à jour la liste
-  //   } catch (error) {
-  //     console.error("Error marking notification as read:", error);
-  //   }
-  // }
-  // setShowNotificationModal(false);
-  // setCurrentNotification(null);
-  //  };
+  const formatUTCHourMinute = (date) => {
+    if (!date) return "N/A";
+    return dayjs.utc(date).tz(TIMEZONE).format('HH[h]mm');
+  };
 
-  // Utilisez useCallback pour memoizer fetchData et la rendre accessible
+  const handleCloseDeleteSlotModal = () => {
+    setShowDeleteSlotModal({ show: false, slotId: null, slotStartTime: null });
+  };
+
   const fetchData = useCallback(async () => {
-    if (!token) return; // Ne pas exécuter si le token est null
-    setIsLoading(true); // Début du chargement
+    if (!token) return;
+    setIsLoading(true);
     try {
-      // Fetch user data
-      // console.log('Fetching user data...');
       const userRes = await fetch(`${API}/users/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!userRes.ok) {
-        // console.log('User data fetch failed. Status:', userRes.status);
         const errorData = await userRes.json();
-        throw new Error(
-          errorData.error || "Échec du chargement des données utilisateur."
-        );
+        throw new Error(errorData.error || "Échec du chargement des données utilisateur.");
       }
       const userData = await userRes.json();
       setMe(userData);
-      // setProjects(userData.projects || []); // Ancienne ligne, non utilisée directement pour les apprenants
       setHackathons(userData.hackathons || []);
       setBadges(userData.badges || []);
       setProgress(userData.progress || null);
 
-      // Fetch evaluations for my submitted projects (for apprenant only)
       if (userData.role === "apprenant") {
-        // console.log('Fetching my submitted evaluations...');
         const mySubmittedEvalRes = await fetch(`${API}/evaluations/mine`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (mySubmittedEvalRes.ok) {
           const mySubmittedEvalData = await mySubmittedEvalRes.json();
           setMySubmittedEvaluations(mySubmittedEvalData);
-        } else {
-          // console.log('My submitted evaluations fetch failed. Status:', mySubmittedEvalRes.status);
-          const errorData = await mySubmittedEvalRes.json();
-          throw new Error(
-            errorData.error ||
-              "Échec du chargement de mes évaluations soumises."
-          );
         }
       }
 
-      // Fetch projects for the current student (assigned, pending, or approved)
       if (userData.role === "apprenant") {
-        // console.log('Fetching my projects...');
         const myProjectsRes = await fetch(`${API}/projects/my-projects`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (myProjectsRes.ok) {
           const rawMyProjectsData = await myProjectsRes.json();
-
-          // Les projets reçus sont déjà filtrés pour l'utilisateur et contiennent seulement l'assignation pertinente
-          // Nous devons formater ces données pour qu'elles soient compatibles avec l'UI existante si nécessaire
           const formattedStudentProjects = rawMyProjectsData.map((project) => {
             const sanitizedProject = sanitizeProjectArrays(project);
-            // Définir le type basé sur assignmentStatus
             let type = "my_project";
             if (sanitizedProject.assignmentStatus === "submitted") {
-              type = "to_evaluate"; // Si l'apprenant a soumis, il peut aussi être évaluateur peer
+              type = "to_evaluate";
             }
             return { ...sanitizedProject, type };
           });
 
-          // Filtrer et trier les projets
           const myAssignedProjects = formattedStudentProjects.sort(
             (a, b) => (a.order || 0) - (b.order || 0)
           );
@@ -209,145 +170,73 @@ export default function Dashboard() {
           setEvaluationsAsEvaluator((prevEvals) => [
             ...prevEvals,
             ...projectsToEvaluateAsApprenant,
-          ]); // Ajouter aux évaluations existantes
-        } else {
-          // console.log('My projects fetch failed. Status:', myProjectsRes.status);
-          const errorData = await myProjectsRes.json();
-          throw new Error(
-            errorData.error || "Échec du chargement de mes projets."
-          );
+          ]);
         }
       }
 
-      // Fetch pending evaluations as an evaluator (for all roles that can evaluate)
-      // Cette section devrait maintenant compléter les évaluations à faire pour les apprenants si elles viennent d'autres sources que my-projects
-      // console.log('Fetching pending evaluations as evaluator...');
       const evalAsEvaluatorRes = await fetch(
         `${API}/evaluations/pending-as-evaluator`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (evalAsEvaluatorRes.ok) {
         const evalAsEvaluatorData = await evalAsEvaluatorRes.json();
-        // Nous allons remplacer complètement l'état evaluationsAsEvaluator avec les nouvelles données
         setEvaluationsAsEvaluator(evalAsEvaluatorData);
-        setUpcomingEvaluations(evalAsEvaluatorData); // upcomingEvaluations est la même liste pour l'instant
-      } else {
-        // console.log('Pending evaluations as evaluator fetch failed. Status:', evalAsEvaluatorRes.status);
-        const errorData = await evalAsEvaluatorRes.json();
-        throw new Error(
-          errorData.error || "Échec du chargement des évaluations à réaliser."
-        );
+        setUpcomingEvaluations(evalAsEvaluatorData);
       }
 
-      // Fetch all pending evaluations for staff/admin
       if (userData.role === "staff" || userData.role === "admin") {
-        // console.log('Fetching all pending evaluations for staff...');
         const allPendingEvalsRes = await fetch(
           `${API}/evaluations/all-for-staff`,
           { headers: { Authorization: `Bearer ${token}` } }
-        ); // Mise à jour de l'URL
+        );
         if (allPendingEvalsRes.ok) {
           const allPendingEvalsData = await allPendingEvalsRes.json();
           setAllPendingEvaluationsForStaff(allPendingEvalsData);
-        } else {
-          // console.log('All pending evaluations for staff fetch failed. Status:', allPendingEvalsRes.status);
-          const errorData = await allPendingEvalsRes.json();
-          throw new Error(
-            errorData.error ||
-              "Échec du chargement de toutes les évaluations en attente pour le staff."
-          );
         }
-      }
 
-      // Fetch my created slots (for apprenant only, if they are also evaluators)
-      if (userData.role === "apprenant") {
-        // console.log('Fetching my created slots...');
-        const mySlotsRes = await fetch(`${API}/availability/mine`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (mySlotsRes.ok) {
-          const mySlotsData = await mySlotsRes.json();
-          setMyCreatedSlots(mySlotsData);
-        } else {
-          // console.log('My created slots fetch failed. Status:', mySlotsRes.status);
-          const errorData = await mySlotsRes.json();
-          throw new Error(
-            errorData.error ||
-              "Échec du chargement de mes slots de disponibilité."
-          );
-        }
-      }
-
-      // Fetch projects awaiting staff review (for staff/admin only)
-      if (userData.role === "staff" || userData.role === "admin") {
-        // console.log('Fetching projects awaiting staff review...');
         const staffReviewRes = await fetch(
           `${API}/projects/awaiting-staff-review`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (staffReviewRes.ok) {
           const staffReviewData = await staffReviewRes.json();
-          console.log("Projects awaiting staff review data:", staffReviewData); // Ajout du console.log
-          // Les données sont déjà formatées par le backend pour inclure les détails des assignations
           const sanitizedStaffReviewData = staffReviewData.map(
             (assignment) => ({
-              ...assignment, // L'assignation est déjà fusionnée avec le projet maître
+              ...assignment,
               student: assignment.student
                 ? {
-                    _id: assignment.student._id,
-                    name: assignment.student.name,
-                    email: assignment.student.email,
-                  }
+                  _id: assignment.student._id,
+                  name: assignment.student.name,
+                  email: assignment.student.email,
+                }
                 : null,
               evaluations: (assignment.evaluations || []).map((evalItem) => ({
                 ...evalItem,
                 evaluator: evalItem.evaluator
                   ? {
-                      _id: evalItem.evaluator._id,
-                      name: evalItem.evaluator.name,
-                    }
+                    _id: evalItem.evaluator._id,
+                    name: evalItem.evaluator.name,
+                  }
                   : null,
               })),
             })
           );
           setProjectsAwaitingStaffReview(sanitizedStaffReviewData);
-        } else {
-          // console.log('Projects awaiting staff review fetch failed. Status:', staffReviewRes.status);
-          const errorData = await staffReviewRes.json();
-          throw new Error(
-            errorData.error ||
-              "Échec du chargement des projets en attente de révision du personnel."
-          );
         }
-      }
 
-      // Fetch list of learners for staff/admin
-      if (userData.role === "staff" || userData.role === "admin") {
-        // console.log('Fetching learners list...');
         const learnersRes = await fetch(`${API}/users`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (learnersRes.ok) {
           const learnersData = await learnersRes.json();
           setLearners(learnersData);
-        } else {
-          // console.log('Learners list fetch failed. Status:', learnersRes.status);
-          const errorData = await learnersRes.json();
-          throw new Error(
-            errorData.error || "Échec du chargement de la liste des apprenants."
-          );
         }
-      }
 
-      // Fetch all projects (master projects with assignments) for staff/admin
-      if (userData.role === "staff" || userData.role === "admin") {
-        // console.log('Fetching all projects...');
         const allProjectsRes = await fetch(`${API}/projects/all`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (allProjectsRes.ok) {
           const rawAllProjectsData = await allProjectsRes.json();
-          // Assainir les projets maîtres et leurs assignations
           const sanitizedAllProjects = rawAllProjectsData.map((project) => ({
             ...project,
             objectives: project.objectives || [],
@@ -358,79 +247,44 @@ export default function Dashboard() {
               ...assign,
               student: assign.student
                 ? {
-                    _id: assign.student._id,
-                    name: assign.student.name,
-                    email: assign.student.email,
-                  }
-                : null, // S'assurer que student est un objet
+                  _id: assign.student._id,
+                  name: assign.student.name,
+                  email: assign.student.email,
+                }
+                : null,
               evaluations: (assign.evaluations || []).map((evalItem) => ({
                 ...evalItem,
                 evaluator: evalItem.evaluator
                   ? {
-                      _id: evalItem.evaluator._id,
-                      name: evalItem.evaluator.name,
-                    }
+                    _id: evalItem.evaluator._id,
+                    name: evalItem.evaluator.name,
+                  }
                   : null,
               })),
             })),
           }));
           setAllProjects(sanitizedAllProjects);
-        } else {
-          // console.log('All projects fetch failed. Status:', allProjectsRes.status);
-          const errorData = await allProjectsRes.json();
-          throw new Error(
-            errorData.error ||
-              "Échec du chargement de la liste de tous les projets."
-          );
         }
       }
 
-      // Fetch notifications
-      // console.log('Fetching notifications...');
-      const notifRes = await fetch(`${API}/notifications/mine`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!notifRes.ok) {
-        // console.log('Notifications fetch failed. Status:', notifRes.status);
-        const errorData = await notifRes.json();
-        throw new Error(
-          errorData.error || "Échec du chargement des notifications."
-        );
+      if (userData.role === "apprenant") {
+        const mySlotsRes = await fetch(`${API}/availability/mine`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (mySlotsRes.ok) {
+          const mySlotsData = await mySlotsRes.json();
+          setMyCreatedSlots(mySlotsData);
+        }
       }
-      const notifData = await notifRes.json();
-      const newSlotBookedNotifications = notifData.filter(
-        (notif) => !notif.read
-      ); // Afficher toutes les nouvelles notifications non lues
-      if (newSlotBookedNotifications.length > 0) {
-        // setNotifications(newSlotBookedNotifications); // Mettre à jour l'état des notifications
-      }
+
     } catch (e) {
       console.error("Error fetching dashboard data:", e);
       setError("Échec du chargement des données du tableau de bord.");
-      // Gérer l'erreur de manière appropriée, peut-être déconnecter l'utilisateur
     } finally {
-      setIsLoading(false); // Fin du chargement
+      setIsLoading(false);
     }
-  }, [
-    token,
-    setMe,
-    setHackathons,
-    setBadges,
-    setProgress,
-    setMySubmittedEvaluations,
-    setEvaluationsAsEvaluator,
-    setUpcomingEvaluations,
-    setMyCreatedSlots,
-    setError,
-    setIsLoading,
-    setProjectsAwaitingStaffReview,
-    setLearners,
-    setAllProjects,
-    setAllPendingEvaluationsForStaff,
-    setMyProjects,
-  ]); // Suppression de handleFinalStaffReview
+  }, [token]);
 
-  // Fonction pour gérer l'évaluation finale par le personnel
   const handleFinalStaffReview = useCallback(
     async (projectId, assignmentId, status) => {
       setIsLoading(true);
@@ -468,18 +322,16 @@ export default function Dashboard() {
         setIsLoading(false);
       }
     },
-    [token, setIsLoading, setError, setSuccess, fetchData]
+    [token, fetchData]
   );
 
   useEffect(() => {
-    // Ceci s'exécute uniquement côté client après le premier rendu
     setIsClient(true);
 
     const initializeData = async () => {
       const storedToken = getAuthToken();
 
       if (!storedToken) {
-        // Si aucun token n'est trouvé, rediriger vers la page de connexion
         if (router.pathname !== "/login") {
           router.push("/login");
         }
@@ -487,7 +339,6 @@ export default function Dashboard() {
         return;
       }
 
-      // Gérer le jeton OAuth de l'URL si applicable
       if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
         const oauthToken = urlParams.get("token");
@@ -499,31 +350,22 @@ export default function Dashboard() {
         }
       }
 
-      // Si un token est présent (soit stocké, soit via OAuth) et n'a pas encore été défini dans l'état
       if (storedToken && !token) {
         setToken(storedToken);
       }
     };
 
-    // Exécuter l'initialisation au montage ou si le token change
     initializeData();
-  }, [router, token, setIsLoading, setError, setSuccess]); // Suppression de fetchData des dépendances pour éviter une boucle
+  }, [router, token]);
 
-  // Un useEffect séparé pour appeler fetchData une fois que le token est disponible
   useEffect(() => {
     if (token) {
       fetchData();
     }
   }, [token, fetchData]);
 
-  // Rendre null si pas encore côté client pour éviter les problèmes d'hydratation
-  if (!isClient) {
-    return null;
-  }
-
   const handleCreateSlot = async (e) => {
     e.preventDefault();
-    // Réinitialiser les messages d'erreur/succès précédents
     setError(null);
     setSuccess(null);
 
@@ -532,35 +374,41 @@ export default function Dashboard() {
       return;
     }
 
-    // Construire les objets Date en UTC pour éviter les problèmes de fuseau horaire
-    const startDateTime = new Date(`${slotDate}T${slotStartTime}:00.000Z`);
-    const endDateTime = new Date(`${slotDate}T${slotEndTime}:00.000Z`);
+    if (!slotDate || !slotStartTime) {
+      setError("Veuillez sélectionner une date et une heure de début.");
+      setIsLoading(false);
+      return;
+    }
 
     try {
+      const localDateTime = dayjs.tz(`${slotDate}T${slotStartTime}`, TIMEZONE);
+      if (!localDateTime.isValid()) {
+        setError("La date ou l'heure du slot est invalide.");
+        setIsLoading(false);
+        return;
+      }
+
+      const startTimeUTC = localDateTime.utc().toISOString();
+
       const res = await fetch(`${API}/availability`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          startTime: startDateTime,
-          endTime: endDateTime,
-        }),
+        body: JSON.stringify({ startTime: startTimeUTC }),
       });
       const data = await res.json();
 
       if (res.ok) {
         setSuccess("Slot de disponibilité créé avec succès !");
-        setShowCreateSlotModal(false); // Fermer la modale
-        setSlotDate(""); // Réinitialiser le formulaire
+        setShowCreateSlotModal(false);
+        setSlotDate("");
         setSlotStartTime("09:00");
         setSlotEndTime("09:45");
-        fetchData(); // Recharger les données pour inclure le nouveau slot
+        fetchData();
       } else {
-        throw new Error(
-          data.error || data.message || "Échec de la création du slot."
-        );
+        throw new Error(data.error || data.message || "Échec de la création du slot.");
       }
     } catch (e) {
       console.error("Error creating availability slot:", e);
@@ -597,8 +445,8 @@ export default function Dashboard() {
           show: false,
           slotId: null,
           slotStartTime: null,
-        }); // Fermer la modale
-        fetchData(); // Recharger les données pour mettre à jour la liste des slots
+        });
+        fetchData();
       } else {
         throw new Error(data.error || "Échec de la suppression du slot.");
       }
@@ -632,7 +480,6 @@ export default function Dashboard() {
       maitrise_concepts: "",
       capacite_expliquer: "",
     });
-    setShowEvaluationModal(false);
   };
 
   const handleFeedbackChange = (e) => {
@@ -655,9 +502,7 @@ export default function Dashboard() {
         (key) => feedback[key] && feedback[key].trim() !== ""
       );
       if (!allFeedbackProvided) {
-        setError(
-          "Tous les champs de feedback sont obligatoires pour accepter le projet."
-        );
+        setError("Tous les champs de feedback sont obligatoires pour accepter le projet.");
         return;
       }
     }
@@ -682,7 +527,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (res.ok) {
         setSuccess(data.message);
-        fetchData(); // Refresh data to update evaluation lists
+        fetchData();
         handleCloseEvaluationModal();
       } else {
         setError(data.error || "Échec de la soumission de l'évaluation.");
@@ -694,7 +539,6 @@ export default function Dashboard() {
     }
   };
 
-  // Fonction pour gérer l'ajout d'un nouveau projet
   const handleAddProject = async (e) => {
     e.preventDefault();
     setError(null);
@@ -720,13 +564,12 @@ export default function Dashboard() {
       if (res.ok) {
         setSuccess("Projet ajouté avec succès !");
         setShowAddProjectModal(false);
-        // Réinitialiser les champs du formulaire
         setProjectTitle("");
         setProjectDescription("");
         setProjectDemoVideoUrl("");
         setProjectSpecifications("");
         setProjectSize("short");
-        fetchData(); // Recharger la liste des projets
+        fetchData();
       } else {
         throw new Error(data.error || "Échec de l ajout du projet.");
       }
@@ -738,12 +581,11 @@ export default function Dashboard() {
     }
   };
 
-  // Fonction pour gérer la modification d'un projet
   const handleEditProject = (project) => {
     setCurrentProjectToEdit(project);
     setProjectTitle(project.title);
     setProjectDescription(project.description);
-    setProjectRepoUrl(project.repoUrl || ""); // Si c'est un projet d'apprenant
+    setProjectRepoUrl(project.repoUrl || "");
     setProjectDemoVideoUrl(project.demoVideoUrl || "");
     setProjectSpecifications(project.specifications || "");
     setProjectSize(project.size || "short");
@@ -768,7 +610,7 @@ export default function Dashboard() {
         body: JSON.stringify({
           title: projectTitle,
           description: projectDescription,
-          repoUrl: currentProjectToEdit.student ? projectRepoUrl : undefined, // N'envoyer repoUrl que pour les projets d'apprenant
+          repoUrl: currentProjectToEdit.student ? projectRepoUrl : undefined,
           demoVideoUrl: projectDemoVideoUrl,
           specifications: projectSpecifications,
           size: projectSize,
@@ -779,14 +621,13 @@ export default function Dashboard() {
         setSuccess("Projet mis à jour avec succès !");
         setShowEditProjectModal(false);
         setCurrentProjectToEdit(null);
-        // Réinitialiser les champs du formulaire
         setProjectTitle("");
         setProjectDescription("");
         setProjectRepoUrl("");
         setProjectDemoVideoUrl("");
         setProjectSpecifications("");
         setProjectSize("short");
-        fetchData(); // Recharger la liste des projets
+        fetchData();
       } else {
         throw new Error(data.error || "Échec de la mise à jour du projet.");
       }
@@ -798,9 +639,7 @@ export default function Dashboard() {
     }
   };
 
-  // Fonction pour gérer la suppression d'un projet
   const handleDeleteProject = (projectId) => {
-    // Trouver le projet à supprimer pour afficher son titre dans la modale de confirmation
     const project = allProjects.find((p) => p._id === projectId);
     if (project) {
       setCurrentProjectToDelete(project);
@@ -823,7 +662,7 @@ export default function Dashboard() {
         setSuccess("Projet supprimé avec succès !");
         setShowDeleteProjectModal(false);
         setCurrentProjectToDelete(null);
-        fetchData(); // Recharger la liste des projets
+        fetchData();
       } else {
         throw new Error(data.error || "Échec de la suppression du projet.");
       }
@@ -860,12 +699,11 @@ export default function Dashboard() {
       if (res.ok) {
         setSuccess("Utilisateur ajouté avec succès !");
         setShowAddUserModal(false);
-        // Réinitialiser les champs du formulaire
         setNewUserName("");
         setNewUserEmail("");
         setNewUserPassword("");
         setNewUserRole("apprenant");
-        fetchData(); // Recharger les données pour inclure le nouvel utilisateur
+        fetchData();
       } else {
         throw new Error(data.error || "Échec de l'ajout de l'utilisateur.");
       }
@@ -877,7 +715,6 @@ export default function Dashboard() {
     }
   };
 
-  // Fonction pour gérer l'affichage de la modale de soumission de projet de Hackathon
   const handleShowSubmitHackathonModal = (hackathon, team) => {
     setCurrentHackathonToSubmit(hackathon);
     setCurrentTeamToSubmit(team);
@@ -885,7 +722,6 @@ export default function Dashboard() {
     setShowSubmitHackathonProjectModal(true);
   };
 
-  // Fonction pour fermer la modale de soumission de projet de Hackathon
   const handleCloseSubmitHackathonModal = () => {
     setShowSubmitHackathonProjectModal(false);
     setCurrentHackathonToSubmit(null);
@@ -893,21 +729,14 @@ export default function Dashboard() {
     setHackathonSubmissionRepoUrl("");
   };
 
-  // Fonction pour soumettre le projet de Hackathon
   const handleSubmitHackathonProject = async (e) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
     setIsLoading(true);
 
-    if (
-      !currentHackathonToSubmit ||
-      !currentTeamToSubmit ||
-      !hackathonSubmissionRepoUrl
-    ) {
-      setError(
-        "Veuillez remplir tous les champs requis pour soumettre le projet."
-      );
+    if (!currentHackathonToSubmit || !currentTeamToSubmit || !hackathonSubmissionRepoUrl) {
+      setError("Veuillez remplir tous les champs requis pour soumettre le projet.");
       setIsLoading(false);
       return;
     }
@@ -931,11 +760,9 @@ export default function Dashboard() {
       if (res.ok) {
         setSuccess(data.message);
         handleCloseSubmitHackathonModal();
-        fetchData(); // Recharger les données du tableau de bord pour refléter la soumission
+        fetchData();
       } else {
-        throw new Error(
-          data.error || "Échec de la soumission du projet de Hackathon."
-        );
+        throw new Error(data.error || "Échec de la soumission du projet de Hackathon.");
       }
     } catch (e) {
       console.error("Error submitting hackathon project:", e);
@@ -945,311 +772,207 @@ export default function Dashboard() {
     }
   };
 
-  if (!token)
+  const handleReassignEvaluation = async (evaluationId) => {
+    // Implémentation de la réassignation
+    console.log("Réassigner l'évaluation:", evaluationId);
+  };
+
+  const handleSlotSelection = (slotId) => {
+    setSelectedSlots(prev =>
+      prev.includes(slotId)
+        ? prev.filter(id => id !== slotId)
+        : [...prev, slotId]
+    );
+  };
+
+  const handleConfirmReassign = async () => {
+    // Implémentation de la confirmation de réassignation
+    console.log("Confirmer la réassignation avec les slots:", selectedSlots);
+  };
+
+  if (!isClient) {
+    return null;
+  }
+
+  if (!token) {
     return (
       <div className="text-center mt-5">
         <p className="lead">Veuillez vous connecter.</p>
       </div>
     );
+  }
 
   if (isLoading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Chargement...</span>
-        </div>
-        <p className="ms-2">Chargement du tableau de bord...</p>
-      </div>
-    );
+    return <Loader message="Chargement du tableau de bord..." />;
   }
 
   return (
-    <div className="container-fluid mt-4 pt-5 px-4">
-      <h1 className="mb-4">Tableau de bord</h1>
+    <div className={`${styles.dashboardContainer} container-fluid pt-5`}>
+      <Head>
+        <title>Tableau de bord - CodeLoccol</title>
+        <meta name="description" content="Tableau de bord CodeLoccol" />
+      </Head>
+
       {error && (
-        <div className="alert alert-danger mt-3" role="alert">
+        <div className={`${styles.alert} ${styles.alertDanger}`}>
+          <i className="bi bi-exclamation-triangle-fill"></i>
           {error}
         </div>
       )}
       {success && (
-        <div className="alert alert-success mt-3" role="alert">
+        <div className={`${styles.alert} ${styles.alertSuccess}`}>
+          <i className="bi bi-check-circle-fill"></i>
           {success}
         </div>
       )}
+
       {me && (
-        <div className="row mb-4">
-          <div className="col-md-6 col-lg-5 mb-3">
-            <UserSummaryCard
-              me={me}
-              onShowCreateSlotModal={() => setShowCreateSlotModal(true)}
-              onShowAddUserModal={() => setShowAddUserModal(true)}
-            />
+        <div className={styles.headerFlexContainer}>
+          <div className={styles.pageHeader}>
+            <div>
+              <h1 className={styles.pageTitle}>
+                <i className="bi bi-speedometer2"></i>
+                Tableau de bord
+              </h1>
+              <p>
+                Bienvenue sur votre espace personnel CodeLoccol. Consultez vos projets en cours, suivez vos évaluations, gérez vos disponibilités et accédez à toutes vos activités pédagogiques.
+              </p>
+            </div>
           </div>
-          <div className="col-md-6 col-lg-7 mb-3">
-            {me.role === "apprenant" && progress && (
-              <ProgressTracker
-                level={me.level}
-                daysRemaining={me.daysRemaining}
-                progress={progress}
-              />
-            )}
-          </div>
+          <UserSummaryCard
+            me={me}
+            onShowCreateSlotModal={() => setShowCreateSlotModal(true)}
+            onShowAddUserModal={() => setShowAddUserModal(true)}
+          />
         </div>
       )}
 
-      {/* Nouveau: Section pour les slots que j'ai créés */}
-      {me && me.role === "apprenant" && myCreatedSlots.length > 0 && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="thm-bg p-3 rounded-3 shadow-sm">
-              <div className="text-white d-flex align-items-center">
-                <i className="bi bi-calendar-check me-2"></i>
-                <h2 className="h5 mb-">Mes Slots de Disponibilité</h2>
-              </div>
-              <hr />
-              <div className="list-group list-group-flush">
-                {myCreatedSlots
-                  .filter((slot) => {
-                    const slotEndTime = new Date(slot.endTime);
-                    const oneHourAfterEndTime = new Date(
-                      slotEndTime.getTime() + 60 * 60 * 1000
-                    ); // Ajoute 1 heure en millisecondes
-                    const currentTime = new Date();
-                    return currentTime < oneHourAfterEndTime;
-                  })
-                  .map((slot) => (
-                    <div>
-                      <div
-                        key={slot._id}
-                        className="d-flex justify-content-between pb-2"
-                      >
-                        <div>
-                          <h5 className="mb-1 text-primary d-flex align-items-center">
-                            <i className="bi bi-calendar-event me-2"></i>
-                            <span>
-                              {new Date(slot.startTime).toLocaleDateString()} de{" "}
-                              {new Date(slot.startTime)
-                                .getUTCHours()
-                                .toString()
-                                .padStart(2, "0")}
-                              :
-                              {new Date(slot.startTime)
-                                .getUTCMinutes()
-                                .toString()
-                                .padStart(2, "0")}{" "}
-                              à{" "}
-                              {new Date(slot.endTime)
-                                .getUTCHours()
-                                .toString()
-                                .padStart(2, "0")}
-                              :
-                              {new Date(slot.endTime)
-                                .getUTCMinutes()
-                                .toString()
-                                .padStart(2, "0")}
-                            </span>
-                          </h5>
-                          <div className="d-flex align-items-center">
-                            {slot.isBooked ? (
-                              <span className="badge bg-success rounded-pill me-2">
-                                <i className="bi bi-person-check-fill me-1"></i>{" "}
-                                Réservé
-                              </span>
-                            ) : (
+      {me && me.role === "apprenant" && (
+        <ProgressTracker
+          level={me.level || 1}
+          daysRemaining={me.daysRemaining || 0}
+          progress={{
+            currentProject: me.progress.currentProject || 0,
+            totalProjectsInModule: me.progress.totalProjectsInModule || 1,
+          }}
+          currentModuleName={me.currentModule || "Module Inconnu"}
+        />
+      )}
+
+      <div className={styles.recentActivity}>
+        {/* Section Hackathons et Badges */}
+        {me && me.role === "apprenant" && (
+          <div className="row mb-4">
+            <div className="col-lg-6 mb-4">
+              <HackathonList
+                hackathons={hackathons}
+                me={me}
+                onShowSubmitHackathonModal={handleShowSubmitHackathonModal}
+              />
+            </div>
+            <div className="col-lg-6 mb-4">
+              <BadgeDisplay badges={badges} />
+            </div>
+          </div>
+        )}
+
+        {/* Section des slots créés */}
+        {me && me.role === "apprenant" && myCreatedSlots.length > 0 && (
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className={styles.cardGreen}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-calendar-check"></i>
+                    Mes Slots de Disponibilité
+                  </h2>
+                  <span className={styles.sectionCount}>
+                    {myCreatedSlots.filter((slot) => {
+                      const slotEndTime = dayjs.utc(slot.endTime);
+                      const oneHourAfterEndTime = slotEndTime.add(1, 'hour');
+                      return dayjs.utc().isBefore(oneHourAfterEndTime);
+                    }).length}
+                  </span>
+                </div>
+                <div className="list-group list-group-flush">
+                  {myCreatedSlots
+                    .filter((slot) => {
+                      const slotEndTime = dayjs.utc(slot.endTime);
+                      const oneHourAfterEndTime = slotEndTime.add(1, 'hour');
+                      return dayjs.utc().isBefore(oneHourAfterEndTime);
+                    })
+                    .map((slot) => (
+                      <div key={slot._id} className={styles.listItem}>
+                        <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                          <div className="flex-grow-1">
+                            <h5 className={styles.listItemTitle}>
+                              <i className="bi bi-calendar-event"></i>
+                              {dayjs.utc(slot.startTime).tz(TIMEZONE).format('DD/MM/YYYY')} de{" "}
+                              {formatUTCHourMinute(slot.startTime)} à{" "}
+                              {formatUTCHourMinute(slot.endTime)}
+                            </h5>
+                            <div className="d-flex align-items-center gap-2 mt-2">
+                              {slot.isBooked ? (
+                                <span className={`${styles.badge} ${styles.badgeGreen}`}>
+                                  <i className="bi bi-person-check-fill"></i>
+                                  Réservé
+                                </span>
+                              ) : (
+                                <button
+                                  className={`${styles.btnSmall} ${styles.btnDanger}`}
+                                  onClick={() =>
+                                    setShowDeleteSlotModal({
+                                      show: true,
+                                      slotId: slot._id,
+                                      slotStartTime: slot.startTime,
+                                    })
+                                  }
+                                >
+                                  <i className="bi bi-trash"></i>
+                                  Supprimer
+                                </button>
+                              )}
                               <button
-                                className="btn btn-sm btn-outline-danger d-flex align-items-center me-2"
+                                className={styles.expandButton}
                                 onClick={() =>
-                                  setShowDeleteSlotModal({
-                                    show: true,
-                                    slotId: slot._id,
-                                    slotStartTime: new Date(slot.startTime),
-                                  })
+                                  setExpandedSlots((prev) => ({
+                                    ...prev,
+                                    [slot._id]: !prev[slot._id],
+                                  }))
                                 }
+                                aria-expanded={!!expandedSlots[slot._id]}
+                                aria-controls={`slot-details-${slot._id}`}
                               >
-                                <i className="bi bi-trash me-1"></i> Supprimer
+                                <i className={`bi bi-chevron-${expandedSlots[slot._id] ? "up" : "down"}`}></i>
                               </button>
-                            )}
-                            <button
-                              className="btn btn-sm btn-outline-secondary"
-                              onClick={() =>
-                                setExpandedSlots((prev) => ({
-                                  ...prev,
-                                  [slot._id]: !prev[slot._id],
-                                }))
-                              }
-                              aria-expanded={!!expandedSlots[slot._id]}
-                              aria-controls={`slot-details-${slot._id}`}
-                            >
-                              <i
-                                className={`bi bi-chevron-${
-                                  expandedSlots[slot._id] ? "up" : "down"
-                                }`}
-                              ></i>
-                            </button>
+                            </div>
                           </div>
                         </div>
                         {expandedSlots[slot._id] && (
-                          <div
-                            id={`slot-details-${slot._id}`}
-                            className="collapse show mt-3 ps-3 border-start border-primary border-2"
-                          >
+                          <div className={styles.expandedContent} id={`slot-details-${slot._id}`}>
                             {slot.isBooked ? (
-                              <>
-                                <p className="mb-1">
-                                  <i className="bi bi-person me-2"></i> Réservé
-                                  par:{" "}
-                                  <strong>
-                                    {slot.bookedByStudent
-                                      ? slot.bookedByStudent.name
-                                      : "[Utilisateur inconnu]"}
-                                  </strong>
-                                </p>
-                                <p className="mb-1">
-                                  <i className="bi bi-journal-text me-2"></i>{" "}
-                                  Pour le projet:{" "}
-                                  <strong>
-                                    {slot.bookedForProject
-                                      ? slot.bookedForProject.title
-                                      : "[Projet inconnu]"}
-                                  </strong>
-                                </p>
-                              </>
+                              <div className={styles.projectInfo}>
+                                <div className={styles.projectInfoItem}>
+                                  <i className="bi bi-person-fill"></i>
+                                  Réservé par: <strong>{slot.bookedByStudent ? slot.bookedByStudent.name : "[Utilisateur inconnu]"}</strong>
+                                </div>
+                                <div className={styles.projectInfoItem}>
+                                  <i className="bi bi-journal-text"></i>
+                                  Pour le projet: <strong>{slot.bookedForProject ? slot.bookedForProject.title : "[Projet inconnu]"}</strong>
+                                </div>
+                              </div>
                             ) : (
-                              <p className="mb-1">
-                                <i className="bi bi-check-circle me-2"></i> Ce
-                                slot est actuellement disponible.
-                              </p>
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-check-circle"></i>
+                                Ce slot est actuellement disponible.
+                              </div>
                             )}
-                            <p className="mb-1">
-                              <i className="bi bi-info-circle me-2"></i> Créé
-                              le: {new Date(slot.createdAt).toLocaleString()}
-                            </p>
+                            <div className={styles.projectInfoItem}>
+                              <i className="bi bi-info-circle"></i>
+                              Créé le: {dayjs.utc(slot.createdAt).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}
+                            </div>
                           </div>
                         )}
-                      </div>
-                      <hr />
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Section des évaluations de MES PROJETS SOUMIS */}
-      {me &&
-        me.role === "apprenant" &&
-        myProjects.filter(
-          (p) =>
-            p.assignmentStatus === "submitted" ||
-            p.assignmentStatus === "pending_review"
-        ).length > 0 && (
-          <div className="row mb-4">
-            <div className="col-12">
-              <div className="thm-shadow-s thm-bg rounded-3 p-3">
-                <div className="d-flex align-items-center mb-3">
-                  <i className="bi bi-hourglass-split me-2"></i>
-                  <h2 className="h5 mb-0">Projets en Cours d'Évaluation</h2>
-                </div>
-
-                <div className="list-group list-group-flush">
-                  {myProjects
-                    .filter(
-                      (p) =>
-                        p.assignmentStatus === "submitted" ||
-                        p.assignmentStatus === "pending_review"
-                    )
-                    .map((project) => (
-                      <div
-                        key={project.assignmentId}
-                        className="mb-3 p-3 rounded-3 thm-shadow-s thm-bg-light border-info"
-                      >
-                        <div className="">
-                          <div className="d-flex justify-content-between align-items-center flex-wrap">
-                            <h5 className="card-title d-flex align-items-center mb-2">
-                              <i className="bi bi-journal-text me-2 text-info"></i>{" "}
-                              Projet: {project.title}
-                              {project.assignmentStatus === "submitted" && (
-                                <span className="badge bg-warning text-dark ms-2 rounded-pill">
-                                  <i className="bi bi-hourglass-split me-1"></i>{" "}
-                                  En attente d'évaluation
-                                </span>
-                              )}
-                              {project.assignmentStatus ===
-                                "pending_review" && (
-                                <span className="badge bg-info ms-2 rounded-pill">
-                                  <i className="bi bi-person-workspace me-1"></i>{" "}
-                                  En Attente Staff
-                                </span>
-                              )}
-                            </h5>
-                            <button
-                              className="btn btn-sm btn-outline-secondary"
-                              onClick={() =>
-                                setExpandedFeedback((prev) => ({
-                                  ...prev,
-                                  [project.assignmentId]:
-                                    !prev[project.assignmentId],
-                                }))
-                              }
-                              aria-expanded={
-                                !!expandedFeedback[project.assignmentId]
-                              }
-                              aria-controls={`project-details-${project.assignmentId}`}
-                            >
-                              <i
-                                className={`bi bi-chevron-${
-                                  expandedFeedback[project.assignmentId]
-                                    ? "up"
-                                    : "down"
-                                }`}
-                              ></i>
-                            </button>
-                          </div>
-                          {expandedFeedback[project.assignmentId] && (
-                            <div
-                              id={`project-details-${project.assignmentId}`}
-                              className="collapse show mt-3"
-                            >
-                              <p className="card-text mb-1 d-flex align-items-center">
-                                <i className="bi bi-person-check me-2 text-muted"></i>{" "}
-                                Évaluateurs:
-                                {project.peerEvaluators &&
-                                project.peerEvaluators.length > 0
-                                  ? project.peerEvaluators
-                                      .map(
-                                        (evaluator) =>
-                                          evaluator.name || evaluator
-                                      )
-                                      .join(", ")
-                                  : "N/A"}
-                              </p>
-                              {project.repoUrl && (
-                                <p className="card-text mb-1 d-flex align-items-center">
-                                  <i className="bi bi-github me-2 text-muted"></i>{" "}
-                                  Dépôt:{" "}
-                                  <a
-                                    href={project.repoUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-primary text-decoration-none"
-                                  >
-                                    {project.repoUrl}
-                                  </a>
-                                </p>
-                              )}
-                              {project.submissionDate && (
-                                <p className="card-text mb-1 d-flex align-items-center">
-                                  <i className="bi bi-calendar-event me-2 text-muted"></i>{" "}
-                                  Date de soumission:{" "}
-                                  {new Date(
-                                    project.submissionDate
-                                  ).toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
                       </div>
                     ))}
                 </div>
@@ -1258,264 +981,197 @@ export default function Dashboard() {
           </div>
         )}
 
-      {/* Section pour tous les projets assignés à l'apprenant */}
-      {me && me.role === "apprenant" && myProjects.length > 0 && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="thm-shadow-s thm-bg p-3 rounded-3">
-              <div className="d-flex align-items-center">
-                <i className="bi bi-folder-check me-2"></i>
-                <h2 className="h5 mb-0">
-                  Mes Projets Assignés ({myProjects.length})
-                </h2>
-              </div>
-
-              <div className="list-group list-group-flush pt-3">
-                {myProjects.map((project) => (
-                  <div
-                    key={project.assignmentId}
-                    className="mb-3 thm-bg-light thm-shadow-s p-3 rounded-3 transform-hover"
-                  >
-                    <div className="card-body d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
-                      <div
-                        className="flex-grow-1 mb-2 mb-md-0"
-                        onClick={() => router.push("/projects")}
-                        style={{ cursor: "pointer" }}
-                      >
-                        <h5 className="card-title d-flex align-items-center mb-1">
-                          <i className="bi bi-folder-open me-2 text-success"></i>{" "}
-                          {project.title}
-                          <span
-                            className={`badge rounded-pill bg-${(() => {
-                              if (project.assignmentStatus === "submitted") {
-                                return "warning text-dark";
-                              } else if (
-                                project.assignmentStatus === "pending_review"
-                              ) {
-                                return "info";
-                              } else if (
-                                project.assignmentStatus === "approved"
-                              ) {
-                                return "success";
-                              } else if (
-                                project.assignmentStatus === "rejected"
-                              ) {
-                                return "danger";
-                              } else if (
-                                project.assignmentStatus === "assigned"
-                              ) {
-                                return "primary"; // Statut assigné
-                              }
-                              return "secondary";
-                            })()} ms-2`}
-                          >
-                            <i
-                              className={`bi bi-${(() => {
-                                if (project.assignmentStatus === "submitted") {
-                                  return "hourglass-split";
-                                } else if (
-                                  project.assignmentStatus === "pending_review"
-                                ) {
-                                  return "person-workspace";
-                                } else if (
-                                  project.assignmentStatus === "approved"
-                                ) {
-                                  return "check-circle";
-                                } else if (
-                                  project.assignmentStatus === "rejected"
-                                ) {
-                                  return "x-circle";
-                                } else if (
-                                  project.assignmentStatus === "assigned"
-                                ) {
-                                  return "clock";
-                                }
-                                return "question-circle";
-                              })()} me-1`}
-                            ></i>
-                            {(() => {
-                              if (project.assignmentStatus === "submitted") {
-                                return "Soumis (en attente d'évaluation)";
-                              } else if (
-                                project.assignmentStatus === "pending_review"
-                              ) {
-                                return "En attente Staff";
-                              } else if (
-                                project.assignmentStatus === "approved"
-                              ) {
-                                return "Approuvé";
-                              } else if (
-                                project.assignmentStatus === "rejected"
-                              ) {
-                                return "Rejeté";
-                              } else if (
-                                project.assignmentStatus === "assigned"
-                              ) {
-                                return "Assigné";
-                              }
-                              return "Statut Inconnu";
-                            })()}
-                          </span>
-                          {project.order && (
-                            <small className="text-muted ms-2">
-                              (Projet {project.order})
-                            </small>
-                          )}
-                        </h5>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Section Hackathons et Badges (pour apprenant) */}
-      {me && me.role === "apprenant" && (
-        <div className="row mb-4">
-          <div className="col-lg-6 mb-4">
-            <HackathonList
-              hackathons={hackathons}
-              me={me}
-              onShowSubmitHackathonModal={handleShowSubmitHackathonModal}
-            />
-          </div>
-          <div className="col-lg-6 mb-4">
-            <BadgeDisplay badges={badges} />
-          </div>
-        </div>
-      )}
-
-      {/* Modale pour la soumission de projet de Hackathon */}
-      {me && me.role === "apprenant" && showSubmitHackathonProjectModal && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-primary text-white">
-                <h5 className="modal-title">
-                  <i className="bi bi-upload me-2"></i> Soumettre le Projet pour
-                  Hackathon: {currentHackathonToSubmit?.title}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={handleCloseSubmitHackathonModal}
-                ></button>
-              </div>
-              <div className="modal-body">
-                {error && (
-                  <div className="alert alert-danger mb-3" role="alert">
-                    {error}
-                  </div>
-                )}
-                {success && (
-                  <div className="alert alert-success mb-3" role="alert">
-                    {success}
-                  </div>
-                )}
-                <form onSubmit={handleSubmitHackathonProject}>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="hackathonSubmissionRepoUrl"
-                      className="form-label"
-                    >
-                      URL du Dépôt GitHub <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="url"
-                      className="form-control"
-                      id="hackathonSubmissionRepoUrl"
-                      value={hackathonSubmissionRepoUrl}
-                      onChange={(e) =>
-                        setHackathonSubmissionRepoUrl(e.target.value)
-                      }
-                      placeholder="Ex: https://github.com/mon-equipe/mon-projet-hackathon"
-                      required
-                    />
-                    <small className="form-text text-muted">
-                      Veuillez fournir l'URL de votre dépôt GitHub pour le
-                      projet de hackathon.
-                    </small>
-                  </div>
-                  <div className="mb-3">
-                    <p className="mb-1">
-                      <strong>Hackathon:</strong>{" "}
-                      {currentHackathonToSubmit?.title}
-                    </p>
-                    <p className="mb-1">
-                      <strong>Votre équipe:</strong> {currentTeamToSubmit?.name}
-                    </p>
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary d-flex align-items-center"
-                    disabled={isLoading || !hackathonSubmissionRepoUrl}
-                  >
-                    {isLoading ? (
-                      <>
-                        <span
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                          aria-hidden="true"
-                        ></span>
-                        Soumission en cours...
-                      </>
-                    ) : (
-                      <>
-                        <i className="bi bi-upload me-2"></i> Soumettre le
-                        Projet
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {me && me.role === "apprenant" && showSubmitHackathonProjectModal && (
-        <div className="modal-backdrop fade show"></div>
-      )}
-
-      {/* Section des évaluations que JE DOIS FAIRE (en tant qu'évaluateur) */}
-      {me &&
-        (me.role === "apprenant" ||
-          me.role === "staff" ||
-          me.role === "admin") && (
+        {/* Section des projets en cours d'évaluation */}
+        {me && me.role === "apprenant" && myProjects.filter(
+          (p) => p.assignmentStatus === "submitted" || p.assignmentStatus === "pending_review"
+        ).length > 0 && (
           <div className="row mb-4">
             <div className="col-12">
-              <div className="thm-shadow-s thm-bg p-3 rounded-3">
-                <div className="d-flex align-items-center mb-3">
-                  <i className="bi bi-list-check me-2"></i>
-                  <h2 className="h5">
-                    Corrections à Venir{" "}
-                    {me.role !== "apprenant" &&
-                      "(Toutes les évaluations en attente)"}
+              <div className={styles.cardOrange}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-hourglass-split"></i>
+                    Projets en Cours d'Évaluation
                   </h2>
+                  <span className={styles.sectionCount}>
+                    {myProjects.filter((p) => p.assignmentStatus === "submitted" || p.assignmentStatus === "pending_review").length}
+                  </span>
                 </div>
+                <div>
+                  {myProjects
+                    .filter((p) => p.assignmentStatus === "submitted" || p.assignmentStatus === "pending_review")
+                    .map((project) => (
+                      <div key={project.assignmentId} className={styles.projectCard}>
+                        <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                          <div className="flex-grow-1">
+                            <h5 className={styles.projectTitle}>
+                              <i className="bi bi-journal-text"></i>
+                              {project.title}
+                              {project.assignmentStatus === "submitted" && (
+                                <span className={`${styles.statusBadge} ${styles.statusSubmitted}`}>
+                                  <i className="bi bi-hourglass-split"></i>
+                                  En attente d'évaluation
+                                </span>
+                              )}
+                              {project.assignmentStatus === "pending_review" && (
+                                <span className={`${styles.statusBadge} ${styles.statusPendingReview}`}>
+                                  <i className="bi bi-person-workspace"></i>
+                                  En Attente Staff
+                                </span>
+                              )}
+                            </h5>
+                          </div>
+                          <button
+                            className={styles.expandButton}
+                            onClick={() =>
+                              setExpandedFeedback((prev) => ({
+                                ...prev,
+                                [project.assignmentId]: !prev[project.assignmentId],
+                              }))
+                            }
+                            aria-expanded={!!expandedFeedback[project.assignmentId]}
+                            aria-controls={`project-details-${project.assignmentId}`}
+                          >
+                            <i className={`bi bi-chevron-${expandedFeedback[project.assignmentId] ? "up" : "down"}`}></i>
+                          </button>
+                        </div>
+                        {expandedFeedback[project.assignmentId] && (
+                          <div className={styles.expandedContent} id={`project-details-${project.assignmentId}`}>
+                            <div className={styles.projectInfo}>
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-person-check"></i>
+                                Évaluateurs: <strong>
+                                  {project.peerEvaluators && project.peerEvaluators.length > 0
+                                    ? project.peerEvaluators.map((evaluator) => evaluator.name || evaluator).join(", ")
+                                    : "N/A"}
+                                </strong>
+                              </div>
+                              {project.repoUrl && (
+                                <div className={styles.projectInfoItem}>
+                                  <i className="bi bi-github"></i>
+                                  Dépôt: <a href={project.repoUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                                    {project.repoUrl}
+                                  </a>
+                                </div>
+                              )}
+                              {project.githubPagesUrl && (
+                                <div className={styles.projectInfoItem}>
+                                  <i className="bi bi-globe"></i>
+                                  GitHub Pages: <a href={project.githubPagesUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                                    {project.githubPagesUrl}
+                                  </a>
+                                </div>
+                              )}
+                              {project.submissionDate && (
+                                <div className={styles.projectInfoItem}>
+                                  <i className="bi bi-calendar-event"></i>
+                                  Date de soumission: <strong>{dayjs.utc(project.submissionDate).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}</strong>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-                <ul className="list-group list-group-flush">
+        {/* Section des projets assignés */}
+        {me && me.role === "apprenant" && myProjects.length > 0 && (
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className={styles.card}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-folder-check"></i>
+                    Mes Projets Assignés
+                  </h2>
+                  <span className={styles.sectionCount}>{myProjects.length}</span>
+                </div>
+                <div className={styles.grid2}>
+                  {myProjects.map((project) => (
+                    <div
+                      key={project.assignmentId}
+                      className={styles.projectCard}
+                      onClick={() => router.push("/projects")}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <h5 className={styles.projectTitle}>
+                        <i className="bi bi-folder-open"></i>
+                        {project.title}
+                        <span className={`${styles.statusBadge} ${
+                          project.assignmentStatus === "submitted" ? styles.statusSubmitted :
+                          project.assignmentStatus === "pending_review" ? styles.statusPendingReview :
+                          project.assignmentStatus === "awaiting_staff_review" ? styles.statusPendingReview :
+                          project.assignmentStatus === "approved" ? styles.statusApproved :
+                          project.assignmentStatus === "rejected" ? styles.statusRejected :
+                          project.assignmentStatus === "assigned" ? styles.statusAssigned :
+                          project.assignmentStatus === "cancelled" ? styles.statusCancelled :
+                          styles.statusDefault
+                        }`}>
+                          {project.assignmentStatus === "pending_review" || project.assignmentStatus === "awaiting_staff_review"
+                            ? "En attente de révision"
+                            : project.assignmentStatus === "approved"
+                            ? "Approuvé"
+                            : project.assignmentStatus === "rejected"
+                            ? "Rejeté"
+                            : project.assignmentStatus === "assigned"
+                            ? "Assigné"
+                            : project.assignmentStatus === "cancelled"
+                            ? "Annulé"
+                            : "Soumis"}
+                        </span>
+                        {project.order && (
+                          <span className={`${styles.badge} ${styles.badgeGray}`}>
+                            Projet #{project.order}
+                          </span>
+                        )}
+                      </h5>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Section des corrections à venir */}
+        {me && (me.role === "apprenant" || me.role === "staff" || me.role === "admin") && (
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className={styles.cardOrange}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-list-check"></i>
+                    Corrections à Venir
+                    {me.role !== "apprenant" && " (Toutes les évaluations)"}
+                  </h2>
+                  <span className={styles.sectionCount}>
+                    {me.role === "apprenant" ? upcomingEvaluations.length : allPendingEvaluationsForStaff.filter((evaluation) => {
+                      const evaluationEndTime = evaluation.slot ? dayjs.utc(evaluation.slot.endTime) : null;
+                      if (!evaluationEndTime) return false;
+                      const twoHoursAfterEndTime = evaluationEndTime.add(2, 'hour');
+                      return dayjs.utc().isBefore(twoHoursAfterEndTime);
+                    }).length}
+                  </span>
+                </div>
+                <div>
                   {me.role === "apprenant" ? (
-                    // Affichage pour l'apprenant
                     upcomingEvaluations.map((evaluation) => {
-                      // Vérifier si evaluation.slot existe avant d'accéder à ses propriétés
                       const evaluationStartTime = evaluation.slot
-                        ? new Date(evaluation.slot.startTime)
+                        ? dayjs.utc(evaluation.slot.startTime)
                         : null;
                       const evaluationEndTime = evaluation.slot
-                        ? new Date(evaluation.slot.endTime)
+                        ? dayjs.utc(evaluation.slot.endTime)
                         : null;
-                      const now = new Date();
+                      const now = dayjs.utc();
 
-                      // Gérer le cas où slot est null
                       if (!evaluationStartTime || !evaluationEndTime) {
                         return (
-                          <li
-                            key={evaluation._id}
-                            className="d-flex justify-content-between align-items-center flex-wrap py-3"
-                          >
+                          <div key={evaluation._id} className="d-flex justify-content-between align-items-center flex-wrap py-3">
                             <div>
                               <h5 className="mb-1">
                                 <i className="bi bi-calendar-check me-2"></i>{" "}
@@ -1530,34 +1186,21 @@ export default function Dashboard() {
                                 Erreur: Créneau horaire manquant
                               </small>
                             </div>
-                          </li>
+                          </div>
                         );
                       }
 
-                      const gracePeriodEnd = new Date(
-                        evaluationEndTime.getTime() + 60 * 60 * 1000
-                      ); // 1 heure après l'heure de fin
-
-                      const isEvaluationActive =
-                        now >= evaluationStartTime && now <= gracePeriodEnd;
+                      const gracePeriodEnd = evaluationEndTime.add(15, 'minutes');
+                      const isEvaluationActive = now.valueOf() >= evaluationStartTime.valueOf() && now.valueOf() <= gracePeriodEnd.valueOf();
                       const buttonText = isEvaluationActive
                         ? "Évaluer le projet"
-                        : now < evaluationStartTime
-                        ? `Actif à ${evaluationStartTime
-                            .getUTCHours()
-                            .toString()
-                            .padStart(2, "0")}:${evaluationStartTime
-                            .getUTCMinutes()
-                            .toString()
-                            .padStart(2, "0")}`
-                        : "Évaluation expirée";
+                        : now.valueOf() < evaluationStartTime.valueOf()
+                        ? `Actif à ${evaluationStartTime.tz(TIMEZONE).format('HH[h]mm')}`
+                        : "Période d'évaluation terminée";
 
                       return (
-                        <li
-                          key={evaluation._id}
-                          className="thm-bg-light p-3 rounded-3 thm-shadow-s"
-                        >
-                          <div className="d-flex justify-content-between align-items-center flex-wrap py-3">
+                        <div key={evaluation._id} className="thm-bg-light p-3 rounded-3 thm-shadow-s mb-3">
+                          <div className="d-flex justify-content-between align-items-center flex-wrap">
                             <div className="d-flex flex-column">
                               <h5 className="mb-1 d-flex align-items-center">
                                 <i className="bi bi-calendar-check me-2"></i>{" "}
@@ -1567,26 +1210,9 @@ export default function Dashboard() {
                                 <i className="bi bi-clock me-1"></i>{" "}
                                 <span>
                                   Date:
-                                  {evaluationStartTime.toLocaleDateString()} de{" "}
-                                  {evaluationStartTime
-                                    .getUTCHours()
-                                    .toString()
-                                    .padStart(2, "0")}
-                                  :
-                                  {evaluationStartTime
-                                    .getUTCMinutes()
-                                    .toString()
-                                    .padStart(2, "0")}{" "}
+                                  {dayjs(evaluationStartTime).tz(TIMEZONE).format('DD/MM/YYYY [de] HH[h]mm')}{" "}
                                   à{" "}
-                                  {evaluationEndTime
-                                    .getUTCHours()
-                                    .toString()
-                                    .padStart(2, "0")}
-                                  :
-                                  {evaluationEndTime
-                                    .getUTCMinutes()
-                                    .toString()
-                                    .padStart(2, "0")}
+                                  {dayjs(evaluationEndTime).tz(TIMEZONE).format('HH[h]mm')}
                                 </span>
                               </small>
                             </div>
@@ -1602,11 +1228,7 @@ export default function Dashboard() {
                               aria-controls={`upcoming-eval-details-${evaluation._id}`}
                             >
                               <i
-                                className={`bi bi-chevron-${
-                                  expandedFeedback[evaluation._id]
-                                    ? "up"
-                                    : "down"
-                                }`}
+                                className={`bi bi-chevron-${expandedFeedback[evaluation._id] ? "up" : "down"}`}
                               ></i>
                             </button>
                           </div>
@@ -1617,10 +1239,10 @@ export default function Dashboard() {
                             >
                               <small className="d-flex align-items-center mt-1">
                                 <i className="bi bi-person me-1"></i> Apprenant:{" "}
-                                {evaluation.student.name}
+                                {evaluation.student?.name || "N/A"}
                               </small>
-                              {evaluation.project.repoUrl && (
-                                <p className="d-flex align-items-center mt-1">
+                              {evaluation.project?.repoUrl && (
+                                <small className="d-flex align-items-center mt-1">
                                   <i className="bi bi-github me-1"></i> Dépôt:{" "}
                                   <a
                                     href={evaluation.project.repoUrl}
@@ -1630,316 +1252,302 @@ export default function Dashboard() {
                                   >
                                     {evaluation.project.repoUrl}
                                   </a>
-                                </p>
+                                </small>
+                              )}
+                              {evaluation.project?.githubPagesUrl && (
+                                <small className="d-flex align-items-center mt-1">
+                                  <i className="bi bi-globe me-1"></i> GitHub Pages:{" "}
+                                  <a
+                                    href={evaluation.project.githubPagesUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary text-decoration-none"
+                                  >
+                                    {evaluation.project.githubPagesUrl}
+                                  </a>
+                                </small>
                               )}
                               <button
-                                onClick={() =>
-                                  handleOpenEvaluationModal(evaluation)
-                                }
+                                onClick={() => handleOpenEvaluationModal(evaluation)}
                                 disabled={!isEvaluationActive}
-                                className={`btn btn-sm mt-3 ${
-                                  isEvaluationActive
-                                    ? "btn-warning"
-                                    : "btn-secondary disabled"
-                                }`}
+                                className={`btn btn-sm mt-3 ${isEvaluationActive ? "btn-warning" : "btn-secondary disabled"}`}
                               >
                                 {buttonText}
                               </button>
                             </div>
                           )}
-                        </li>
+                        </div>
                       );
                     })
-                  ) : // Affichage pour le staff/admin
-                  allPendingEvaluationsForStaff.filter((evaluation) => {
-                      // Vérifier si evaluation.slot existe avant d'accéder à ses propriétés
+                  ) : (
+                    allPendingEvaluationsForStaff.filter((evaluation) => {
                       const evaluationEndTime = evaluation.slot
-                        ? new Date(evaluation.slot.endTime)
+                        ? dayjs.utc(evaluation.slot.endTime)
                         : null;
-                      // Filtrer seulement si le slot et l'heure de fin sont valides
                       if (!evaluationEndTime) return false;
-
-                      const twoHoursAfterEndTime = new Date(
-                        evaluationEndTime.getTime() + 2 * 60 * 60 * 1000
-                      ); // Ajoute 2 heures en millisecondes
-                      const currentTime = new Date();
-                      return currentTime < twoHoursAfterEndTime;
+                      const twoHoursAfterEndTime = evaluationEndTime.add(2, 'hour');
+                      const currentTime = dayjs.utc();
+                      return currentTime.isBefore(twoHoursAfterEndTime);
                     }).length > 0 ? (
-                    // Regrouper les évaluations par projet
-                    Object.values(
-                      allPendingEvaluationsForStaff
-                        .filter((evaluation) => {
-                          // Vérifier si evaluation.slot existe avant d'accéder à ses propriétés
-                          const evaluationEndTime = evaluation.slot
-                            ? new Date(evaluation.slot.endTime)
-                            : null;
-                          // Filtrer seulement si le slot et l'heure de fin sont valides
-                          if (!evaluationEndTime) return false;
-
-                          const twoHoursAfterEndTime = new Date(
-                            evaluationEndTime.getTime() + 2 * 60 * 60 * 1000
-                          );
-                          const currentTime = new Date();
-                          return currentTime < twoHoursAfterEndTime;
-                        })
-                        .reduce((acc, evaluation) => {
-                          const projectId = evaluation.project._id;
-                          if (!acc[projectId]) {
-                            acc[projectId] = {
-                              project: evaluation.project,
-                              evaluations: [],
-                            };
-                          }
-                          acc[projectId].evaluations.push(evaluation);
-                          return acc;
-                        }, {})
-                    ).map((projectGroup) => (
-                      <li
-                        key={projectGroup.project._id}
-                        className="list-group-item d-flex flex-column align-items-start flex-wrap mb-3 py-3"
-                      >
-                        <div className="d-flex justify-content-between align-items-center w-100">
-                          <div className="d-flex flex-column">
-                            <h5 className="mb-1">
-                              <i className="bi bi-journals me-2"></i> Projet:{" "}
-                              {projectGroup.project.title} (Soumis par:{" "}
-                              {projectGroup.evaluations[0]?.studentName ||
-                                "N/A"}
-                              )
-                            </h5>
-                            <small className="d-flex align-items-center mt-1">
-                              Statut du projet:{" "}
-                              <span className="badge bg-info ms-1 rounded-pill">
-                                {(projectGroup.project.status || "").replace(
-                                  /_/g,
-                                  " "
-                                )}
-                              </span>
-                            </small>
-                            <p className="d-flex align-items-center mt-1">
-                              Dépôt:{" "}
-                              <a
-                                href={projectGroup.project.repoUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary text-decoration-none"
-                              >
-                                {projectGroup.project.repoUrl}
-                              </a>
-                            </p>
+                      Object.values(
+                        allPendingEvaluationsForStaff
+                          .filter((evaluation) => {
+                            const evaluationEndTime = evaluation.slot
+                              ? dayjs.utc(evaluation.slot.endTime)
+                              : null;
+                            if (!evaluationEndTime) return false;
+                            const twoHoursAfterEndTime = evaluationEndTime.add(2, 'hour');
+                            const currentTime = dayjs.utc();
+                            return currentTime.isBefore(twoHoursAfterEndTime);
+                          })
+                          .reduce((acc, evaluation) => {
+                            const projectId = evaluation.project._id;
+                            if (!acc[projectId]) {
+                              acc[projectId] = {
+                                project: evaluation.project,
+                                evaluations: [],
+                              };
+                            }
+                            acc[projectId].evaluations.push(evaluation);
+                            return acc;
+                          }, {})
+                      ).map((projectGroup) => (
+                        <div key={projectGroup.project._id} className="list-group-item d-flex flex-column align-items-start flex-wrap mb-3 py-3">
+                          <div className="d-flex justify-content-between align-items-center w-100">
+                            <div className="d-flex flex-column">
+                              <h5 className="mb-1">
+                                <i className="bi bi-journals me-2"></i> Projet:{" "}
+                                {projectGroup.project.title} (Soumis par:{" "}
+                                {projectGroup.evaluations[0]?.studentName || "N/A"})
+                              </h5>
+                              <small className="d-flex align-items-center mt-1">
+                                Statut du projet:{" "}
+                                <span className="badge bg-info ms-1 rounded-pill">
+                                  {(projectGroup.project.status || "").replace(/_/g, " ")}
+                                </span>
+                              </small>
+                              <p className="d-flex align-items-center mt-1">
+                                Dépôt:{" "}
+                                <a
+                                  href={projectGroup.project.repoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary text-decoration-none"
+                                >
+                                  {projectGroup.project.repoUrl}
+                                </a>
+                              </p>
+                              {projectGroup.project.githubPagesUrl && (
+                                <p className="d-flex align-items-center mt-1">
+                                  GitHub Pages:{" "}
+                                  <a
+                                    href={projectGroup.project.githubPagesUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary text-decoration-none"
+                                  >
+                                    {projectGroup.project.githubPagesUrl}
+                                  </a>
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={() =>
+                                setExpandedProjectEvaluations((prev) => ({
+                                  ...prev,
+                                  [projectGroup.project._id]: !prev[projectGroup.project._id],
+                                }))
+                              }
+                              aria-expanded={expandedProjectEvaluations[projectGroup.project._id]}
+                              aria-controls={`project-evals-details-${projectGroup.project._id}`}
+                            >
+                              <i
+                                className={`bi bi-chevron-${expandedProjectEvaluations[projectGroup.project._id] ? "up" : "down"}`}
+                              ></i>
+                            </button>
                           </div>
-                          <button
-                            className="btn btn-sm btn-outline-secondary"
-                            onClick={() =>
-                              setExpandedProjectEvaluations((prev) => ({
-                                ...prev,
-                                [projectGroup.project._id]:
-                                  !prev[projectGroup.project._id],
-                              }))
-                            }
-                            aria-expanded={
-                              expandedProjectEvaluations[
-                                projectGroup.project._id
-                              ]
-                            }
-                            aria-controls={`project-evals-details-${projectGroup.project._id}`}
-                          >
-                            <i
-                              className={`bi bi-chevron-${
-                                expandedProjectEvaluations[
-                                  projectGroup.project._id
-                                ]
-                                  ? "up"
-                                  : "down"
-                              }`}
-                            ></i>
-                          </button>
-                        </div>
-                        {expandedProjectEvaluations[
-                          projectGroup.project._id
-                        ] && (
-                          <div
-                            id={`project-evals-details-${projectGroup.project._id}`}
-                            className="collapse show mt-3 w-100 ps-3 border-start border-info border-2"
-                          >
-                            <strong>Évaluations des pairs :</strong>
-                            <ul className="list-group mt-2">
-                              {projectGroup.evaluations.map((evalItem) => {
-                                const now = new Date(); // Ajouter cette ligne
-                                // Vérifier si evalItem.slot existe avant d'accéder à ses propriétés
-                                const evaluationTime = evalItem.slot
-                                  ? new Date(evalItem.slot.endTime)
-                                  : null; // Heure de fin du slot
+                          {expandedProjectEvaluations[projectGroup.project._id] && (
+                            <div
+                              id={`project-evals-details-${projectGroup.project._id}`}
+                              className="collapse show mt-3 w-100 ps-3 border-start border-info border-2"
+                            >
+                              <strong>Évaluations des pairs :</strong>
+                              <ul className="mt-2">
+                                {projectGroup.evaluations.map((evalItem) => {
+                                  const now = dayjs.utc();
+                                  const evaluationTime = evalItem.slot
+                                    ? dayjs.utc(evalItem.slot.endTime)
+                                    : null;
 
-                                // Gérer le cas où evaluationTime est null
-                                if (!evaluationTime) {
-                                  return (
-                                    <li
-                                      key={evalItem._id}
-                                      className="list-group-item d-flex justify-content-between align-items-center flex-wrap"
-                                    >
-                                      <span className="d-flex align-items-center">
-                                        <i className="bi bi-person-check me-2"></i>{" "}
-                                        Évaluateur:{" "}
-                                        <strong>
-                                          {evalItem.evaluator.name}
-                                        </strong>{" "}
-                                        ({evalItem.evaluator.email})
-                                      </span>
-                                      <div>
-                                        <span className="badge bg-danger me-2 rounded-pill">
-                                          Créneau manquant
+                                  if (!evaluationTime) {
+                                    return (
+                                      <li key={evalItem._id} className="d-flex justify-content-between align-items-center flex-wrap border p-2 mb-2">
+                                        <span className="d-flex align-items-center">
+                                          <i className="bi bi-person-check me-2"></i>{" "}
+                                          Évaluateur:{" "}
+                                          <strong>{evalItem.evaluator.name}</strong>{" "}
+                                          ({evalItem.evaluator.email})
                                         </span>
+                                        <div>
+                                          <span className="badge bg-danger me-2 rounded-pill">
+                                            Créneau manquant
+                                          </span>
+                                        </div>
+                                      </li>
+                                    );
+                                  }
+                                  const submissionTime = evalItem.submissionDate
+                                    ? dayjs.utc(evalItem.submissionDate)
+                                    : null;
+                                  const gracePeriodEnd = evaluationTime.add(1, 'hour');
+
+                                  let statusText = "En attente";
+                                  let statusBadgeClass = "bg-warning";
+                                  let timeStatus = "N/A";
+                                  if (evalItem.status === "accepted") {
+                                    statusText = "Acceptée";
+                                    statusBadgeClass = "bg-success";
+                                    if (submissionTime && submissionTime.isSameOrBefore(gracePeriodEnd)) {
+                                      timeStatus = "Dans les temps";
+                                    } else if (submissionTime) {
+                                      timeStatus = "En retard";
+                                    }
+                                  } else if (evalItem.status === "rejected") {
+                                    statusText = "Rejetée";
+                                    statusBadgeClass = "bg-danger";
+                                    if (submissionTime && submissionTime.isSameOrBefore(gracePeriodEnd)) {
+                                      timeStatus = "Dans les temps";
+                                    } else if (submissionTime) {
+                                      timeStatus = "En retard";
+                                    }
+                                  }
+                                  return (
+                                    <li key={evalItem._id} className="list-group-item d-flex flex-column align-items-start flex-wrap mb-2 p-3 border rounded">
+                                      <div className="d-flex justify-content-between w-100 flex-wrap mb-2">
+                                        <span className="d-flex align-items-center me-3">
+                                          <i className="bi bi-person-check me-2"></i>{" "}
+                                          Évaluateur:{" "}
+                                          <strong>{evalItem.evaluator.name}</strong>{" "}
+                                          ({evalItem.evaluator.email})
+                                        </span>
+                                        <div className="d-flex align-items-center">
+                                          <span className={`badge me-2 rounded-pill ${statusBadgeClass}`}>
+                                            {statusText}
+                                          </span>
+                                          {submissionTime && (
+                                            <span className="ms-2 text-muted fst-italic">
+                                              Soumis le:{" "}
+                                              {submissionTime.format("DD/MM/YYYY HH:mm")}
+                                            </span>
+                                          )}
+                                          {(evalItem.status === "rejected" || (evalItem.status === "pending" && now.isAfter(gracePeriodEnd))) && (
+                                            <button
+                                              onClick={() => handleReassignEvaluation(evalItem._id)}
+                                              className="btn btn-info btn-sm ms-2"
+                                            >
+                                              Réassigner
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
+                                      {(evalItem.status === "accepted" || evalItem.status === "rejected") && evalItem.feedback && (
+                                        <div className="mt-2 w-100 border-top pt-2">
+                                          <h6 className="text-info">Feedback de l'évaluateur :</h6>
+                                          <ul className="list-unstyled ps-3">
+                                            {Object.entries(evalItem.feedback).map(([key, value]) => (
+                                              <li key={key}>
+                                                <strong>{key.replace(/_/g, " ").split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}:</strong> {value}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
                                     </li>
                                   );
-                                }
-                                const submissionTime = evalItem.submissionDate
-                                  ? new Date(evalItem.submissionDate)
-                                  : null;
-                                const gracePeriodEnd = new Date(
-                                  evaluationTime.getTime() + 60 * 60 * 1000
-                                ); // 1 heure après l'heure de fin
-
-                                let statusText = "En attente";
-                                let statusBadgeClass = "bg-warning";
-                                let timeStatus = "N/A";
-                                if (evalItem.status === "accepted") {
-                                  statusText = "Acceptée";
-                                  statusBadgeClass = "bg-success";
-                                  if (
-                                    submissionTime &&
-                                    submissionTime <= gracePeriodEnd
-                                  ) {
-                                    timeStatus = "Dans les temps";
-                                  } else if (submissionTime) {
-                                    timeStatus = "En retard";
-                                  }
-                                } else if (evalItem.status === "rejected") {
-                                  statusText = "Rejetée";
-                                  statusBadgeClass = "bg-danger";
-                                  if (
-                                    submissionTime &&
-                                    submissionTime <= gracePeriodEnd
-                                  ) {
-                                    timeStatus = "Dans les temps";
-                                  } else if (submissionTime) {
-                                    timeStatus = "En retard";
-                                  }
-                                }
-                                return (
-                                  <li
-                                    key={evalItem._id}
-                                    className="list-group-item d-flex justify-content-between align-items-center flex-wrap"
-                                  >
-                                    <span className="d-flex align-items-center">
-                                      <i className="bi bi-person-check me-2"></i>{" "}
-                                      Évaluateur:{" "}
-                                      <strong>{evalItem.evaluator.name}</strong>{" "}
-                                      ({evalItem.evaluator.email})
-                                    </span>
-                                    <div>
-                                      <span
-                                        className={`badge me-2 rounded-pill ${statusBadgeClass}`}
-                                      >
-                                        {statusText}
-                                      </span>
-                                      <span className="badge bg-secondary rounded-pill">
-                                        {timeStatus}
-                                      </span>
-                                      {(evalItem.status === "rejected" ||
-                                        (evalItem.status === "pending" &&
-                                          now > gracePeriodEnd)) && (
-                                        <button
-                                          onClick={() =>
-                                            handleReassignEvaluation(
-                                              evalItem._id
-                                            )
-                                          }
-                                          className="btn btn-info btn-sm ms-2"
-                                        >
-                                          Réassigner
-                                        </button>
-                                      )}
-                                    </div>
+                                })}
+                                {projectGroup.evaluations.length === 0 && (
+                                  <li className="list-group-item text-muted">
+                                    Aucune évaluation pour ce projet.
                                   </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        )}
-                      </li>
-                    ))
-                  ) : (
-                    <p className="text-center py-3">
-                      Aucune évaluation en attente pour le moment.
-                    </p>
+                                )}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className={styles.emptyState}>
+                        <i className="bi bi-inbox"></i>
+                        <p className={styles.emptyStateText}>
+                          Aucune évaluation en attente pour le moment.
+                        </p>
+                      </div>
+                    )
                   )}
-                </ul>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-      {/* Nouveau: Section pour les projets en attente de révision finale du personnel */}
-      {me &&
-        (me.role === "staff" || me.role === "admin") &&
-        projectsAwaitingStaffReview.length > 0 && (
+        {/* Section des projets en attente de révision finale */}
+        {me && (me.role === "staff" || me.role === "admin") && projectsAwaitingStaffReview.length > 0 && (
           <div className="row mb-4">
             <div className="col-12">
-              <div className="thm-bg p-3 rounded-3 thm-shadow-s">
-                <div className="text-white mb-3 d-flex align-items-center">
-                  <i className="bi bi-file-earmark-check me-2"></i>
-                  <h2 className="h5 mb-0">
-                    Projets en Attente de Révision Finale (Personnel)
+              <div className={styles.cardGreen}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-file-earmark-check"></i>
+                    Projets en Attente de Révision Finale
                   </h2>
+                  <span className={styles.sectionCount}>{projectsAwaitingStaffReview.length}</span>
                 </div>
-                <div className="thm-bg-light p-3 rounded-3">
-                  <ul>
-                    {projectsAwaitingStaffReview.map((project) => (
-                      <li
-                        key={project._id}
-                        className="d-flex justify-content-between align-items-center flex-wrap"
-                      >
-                        <div>
-                          <h5 className="mb-1 text-danger">
-                            <i className="bi bi-exclamation-triangle me-2"></i>{" "}
-                            Projet: {project.title}
+                <div>
+                  {projectsAwaitingStaffReview.map((project) => (
+                    <div key={project._id} className={styles.listItem}>
+                      <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                        <div className="flex-grow-1">
+                          <h5 className={styles.listItemTitle}>
+                            <i className="bi bi-exclamation-triangle"></i>
+                            {project.title}
+                            <span className={`${styles.badge} ${styles.badgeOrange}`}>
+                              <i className="bi bi-person-workspace"></i>
+                              En Attente
+                            </span>
                           </h5>
-                          <span className="d-flex align-items-center mt-1">
-                            <i className="bi bi-person me-1"></i> Soumis par:{" "}
-                            {project.student.name}
-                          </span>
-                          <span className="d-flex align-items-center mt-1">
-                            Statut actuel:{" "}
-                            <span className="badge bg-info ms-1 rounded-pill">
-                              En Attente Staff
-                            </span>
-                          </span>
-                          {project.repoUrl && (
-                            <span className="d-flex align-items-center mt-1">
-                              <i className="bi bi-github me-1"></i> Dépôt:{" "}
-                              <a
-                                href={project.repoUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary text-decoration-none"
-                              >
-                                {project.repoUrl}
-                              </a>
-                            </span>
-                          )}
-                          <span className="d-flex align-items-center mt-1">
-                            <i className="bi bi-calendar-event me-1"></i> Date
-                            de soumission:{" "}
-                            {new Date(
-                              project.submissionDate
-                            ).toLocaleDateString()}
-                          </span>
+                          <div className={styles.projectInfo}>
+                            <div className={styles.projectInfoItem}>
+                              <i className="bi bi-person"></i>
+                              Soumis par: <strong>{project.student.name}</strong>
+                            </div>
+                            {project.repoUrl && (
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-github"></i>
+                                Dépôt: <a href={project.repoUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                                  {project.repoUrl}
+                                </a>
+                              </div>
+                            )}
+                            {project.githubPagesUrl && (
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-globe"></i>
+                                GitHub Pages: <a href={project.githubPagesUrl} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                                  {project.githubPagesUrl}
+                                </a>
+                              </div>
+                            )}
+                            {project.submissionDate && (
+                              <div className={styles.projectInfoItem}>
+                                <i className="bi bi-calendar-event"></i>
+                                Date de soumission: <strong>{dayjs.utc(project.submissionDate).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}</strong>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="d-flex flex-column flex-md-row mt-2 mt-md-0">
+                        <div className={styles.buttonGroup}>
                           <button
-                            className="btn btn-sm btn-success mt-2 mt-md-0 me-md-2"
+                            className={`${styles.btnSmall} ${styles.btnSuccess}`}
                             onClick={() =>
                               token &&
                               handleFinalStaffReview(
@@ -1949,11 +1557,11 @@ export default function Dashboard() {
                               )
                             }
                           >
-                            <i className="bi bi-check-circle me-1"></i>{" "}
+                            <i className="bi bi-check-circle"></i>
                             Approuver
                           </button>
                           <button
-                            className="btn btn-sm btn-danger mt-2 mt-md-0"
+                            className={`${styles.btnSmall} ${styles.btnDanger}`}
                             onClick={() =>
                               token &&
                               handleFinalStaffReview(
@@ -1963,165 +1571,97 @@ export default function Dashboard() {
                               )
                             }
                           >
-                            <i className="bi bi-x-circle me-1"></i> Rejeter
+                            <i className="bi bi-x-circle"></i>
+                            Rejeter
                           </button>
                         </div>
-                      </li>
-                    ))}
-                  </ul>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         )}
 
-      {/* Nouveau: Section pour la liste des apprenants (pour staff/admin) */}
-      {me &&
-        (me.role === "staff" || me.role === "admin") &&
-        learners.length > 0 && (
+        {/* Section liste des apprenants */}
+        {me && (me.role === "staff" || me.role === "admin") && learners.length > 0 && (
           <div className="row mb-4">
             <div className="col-12">
-              <div className="thm-bg rounded-3 p-3 thm-shadow-s">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <h3>
-                    <i className="bi bi-people fa-2"></i>
-                  </h3>
-                  <h2 className="h5 mb-0">Liste des Apprenants</h2>
+              <div className={styles.card}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-people"></i>
+                    Liste des Apprenants
+                  </h2>
+                  <span className={styles.sectionCount}>{learners.length}</span>
                 </div>
-
-                <div className="table-responsive">
-                  <table className="table table-hover table-dark table-striped  table-sm caption-top align-middle">
-                    <thead className="table-dark">
+                <div className={styles.tableResponsiveWrapper}>
+                  <table className={styles.modernTable}>
+                    <thead>
                       <tr>
-                        <th>Nom</th>
-                        <th>Email</th>
-                        <th className="text-center">Niveau</th>
-                        <th className="text-center">Jours Restants</th>
-                        <th>Projet Assigné</th>
-                        <th className="text-center">Actions</th>
+                        <th><i className="bi bi-person-fill me-2"></i>Nom</th>
+                        <th><i className="bi bi-envelope-fill me-2"></i>Email</th>
+                        <th className="text-center"><i className="bi bi-bar-chart-fill me-2"></i>Niveau</th>
+                        <th className="text-center"><i className="bi bi-hourglass-split me-2"></i>Jours</th>
+                        <th><i className="bi bi-folder-fill me-2"></i>Projet Assigné</th>
+                        <th className="text-center"><i className="bi bi-gear-fill me-2"></i>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {learners.map((learner) => (
                         <React.Fragment key={learner._id}>
                           <tr>
-                            <td>{learner.name}</td>
-                            <td>{learner.email}</td>
+                            <td><strong>{learner.name}</strong></td>
+                            <td style={{ fontSize: '12px' }} title={learner.email}>{learner.email}</td>
                             <td className="text-center">
-                              <span className="badge bg-primary">
+                              <span className={`${styles.badge} ${styles.badgeGreen}`}>
+                                <i className="bi bi-bar-chart"></i>
                                 {learner.level}
                               </span>
                             </td>
                             <td className="text-center">
-                              <span className="badge bg-info">
+                              <span className={`${styles.badge} ${styles.badgeOrange}`}>
+                                <i className="bi bi-hourglass-split"></i>
                                 {learner.daysRemaining}
                               </span>
                             </td>
                             <td>
                               {learner.assignedProject ? (
-                                <span
-                                  className={`badge rounded-pill bg-${(() => {
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "assigned"
-                                    )
-                                      return "primary";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "submitted"
-                                    )
-                                      return "warning text-dark";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "pending_review"
-                                    )
-                                      return "info";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "approved"
-                                    )
-                                      return "success";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "rejected"
-                                    )
-                                      return "danger";
-                                    return "secondary"; // Fallback
-                                  })()}`}
-                                >
-                                  <i
-                                    className={`bi bi-${(() => {
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "assigned"
-                                      )
-                                        return "clock";
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "submitted"
-                                      )
-                                        return "hourglass-split";
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "pending_review"
-                                      )
-                                        return "person-workspace";
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "approved"
-                                      )
-                                        return "check-circle";
-                                      if (
-                                        learner.assignedProject.status ===
-                                        "rejected"
-                                      )
-                                        return "x-circle";
-                                      return "question-circle";
-                                    })()} me-1`}
-                                  ></i>
-                                  {(() => {
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "assigned"
-                                    )
-                                      return "Assigné";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "submitted"
-                                    )
-                                      return "Soumis (en attente)";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "pending_review"
-                                    )
-                                      return "En attente Staff";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "approved"
-                                    )
-                                      return "Approuvé";
-                                    if (
-                                      learner.assignedProject.status ===
-                                      "rejected"
-                                    )
-                                      return "Rejeté";
-                                    return "Statut Inconnu";
-                                  })()}
-                                  : {learner.assignedProject.title}
+                                <span className={`${styles.statusBadge} ${
+                                  learner.assignedProject.status === "assigned" ? styles.statusAssigned :
+                                  learner.assignedProject.status === "submitted" ? styles.statusSubmitted :
+                                  learner.assignedProject.status === "pending_review" ? styles.statusPendingReview :
+                                  learner.assignedProject.status === "approved" ? styles.statusApproved :
+                                  learner.assignedProject.status === "rejected" ? styles.statusRejected :
+                                  learner.assignedProject.status === "cancelled" ? styles.statusCancelled :
+                                  styles.statusDefault
+                                }`}>
+                                  <i className={`bi bi-${
+                                    learner.assignedProject.status === "assigned" ? "clock" :
+                                    learner.assignedProject.status === "submitted" ? "hourglass-split" :
+                                    learner.assignedProject.status === "pending_review" ? "person-workspace" :
+                                    learner.assignedProject.status === "approved" ? "check-circle" :
+                                    learner.assignedProject.status === "rejected" ? "x-circle" :
+                                    learner.assignedProject.status === "cancelled" ? "ban" :
+                                    "question-circle"
+                                  }`}></i>
+                                  <span title={learner.assignedProject.title}>
+                                    {learner.assignedProject.title.length > 25 ? learner.assignedProject.title.substring(0, 25) + '...' : learner.assignedProject.title}
+                                  </span>
                                 </span>
                               ) : (
-                                <span className="badge rounded-pill bg-secondary">
+                                <span className={`${styles.badge} ${styles.badgeGray}`}>
+                                  <i className="bi bi-x"></i>
                                   Aucun
                                 </span>
                               )}
                             </td>
                             <td className="text-center">
                               <button
-                                className="btn btn-sm btn-outline-secondary py-0 px-1"
+                                className={styles.expandButton}
                                 onClick={() => {
-                                  const newExpandedLearners = {
-                                    ...expandedLearners,
-                                  };
+                                  const newExpandedLearners = { ...expandedLearners };
                                   if (newExpandedLearners[learner._id]) {
                                     delete newExpandedLearners[learner._id];
                                   } else {
@@ -2131,103 +1671,44 @@ export default function Dashboard() {
                                 }}
                                 aria-expanded={expandedLearners[learner._id]}
                                 aria-controls={`learner-details-${learner._id}`}
-                                title={
-                                  expandedLearners[learner._id]
-                                    ? "Masquer les détails"
-                                    : "Voir les détails"
-                                }
+                                title={expandedLearners[learner._id] ? "Masquer les détails" : "Voir les détails"}
                               >
-                                <i
-                                  className={`bi bi-chevron-${
-                                    expandedLearners[learner._id]
-                                      ? "up"
-                                      : "down"
-                                  }`}
-                                ></i>
+                                <i className={`bi bi-chevron-${expandedLearners[learner._id] ? "up" : "down"}`}></i>
                               </button>
                             </td>
                           </tr>
                           {expandedLearners[learner._id] && (
                             <tr>
                               <td colSpan="6" className="p-0 border-0">
-                                <div
-                                  className="collapse show"
-                                  id={`learner-details-${learner._id}`}
-                                >
-                                  <div className="bg-light p-3 border-start border-primary border-3 ms-3 mb-2 me-3 shadow-sm rounded">
-                                    <h6 className="text-primary mb-2">
-                                      Détails du Projet Assigné:
-                                    </h6>
+                                <div className="collapse show" id={`learner-details-${learner._id}`}>
+                                  <div className="thm-bg-light p-3 border-start border-primary border-3 ms-3 mb-2 me-3 shadow-sm rounded">
+                                    <h6 className="mb-2">Détails du Projet Assigné:</h6>
                                     {learner.assignedProject ? (
                                       <>
                                         <p className="mb-1 d-flex align-items-center">
                                           <i className="bi bi-journal-text me-2 text-primary"></i>{" "}
                                           Titre:{" "}
-                                          <strong>
-                                            {learner.assignedProject.title}
-                                          </strong>
+                                          <strong>{learner.assignedProject.title}</strong>
                                         </p>
                                         <p className="mb-1 d-flex align-items-center">
                                           <i className="bi bi-info-circle me-2 text-info"></i>{" "}
                                           Statut:
-                                          <span
-                                            className={`badge bg-${(() => {
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "assigned"
-                                              )
-                                                return "primary";
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "submitted"
-                                              )
-                                                return "warning text-dark";
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "pending_review"
-                                              )
-                                                return "info";
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "approved"
-                                              )
-                                                return "success";
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "rejected"
-                                              )
-                                                return "danger";
-                                              return "secondary"; // Fallback
-                                            })()} ms-1`}
-                                          >
-                                            {(() => {
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "assigned"
-                                              )
-                                                return "Assigné";
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "submitted"
-                                              )
-                                                return "Soumis (en attente)";
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "pending_review"
-                                              )
-                                                return "En attente Staff";
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "approved"
-                                              )
-                                                return "Approuvé";
-                                              if (
-                                                learner.assignedProject
-                                                  .status === "rejected"
-                                              )
-                                                return "Rejeté";
-                                              return "Statut Inconnu";
-                                            })()}
+                                          <span className={`badge bg-${
+                                            learner.assignedProject.status === "assigned" ? "primary" :
+                                            learner.assignedProject.status === "submitted" ? "warning text-dark" :
+                                            learner.assignedProject.status === "pending_review" ? "info" :
+                                            learner.assignedProject.status === "approved" ? "success" :
+                                            learner.assignedProject.status === "rejected" ? "danger" :
+                                            learner.assignedProject.status === "cancelled" ? "secondary" :
+                                            "secondary"
+                                          } ms-1`}>
+                                            {learner.assignedProject.status === "assigned" ? "Assigné" :
+                                             learner.assignedProject.status === "submitted" ? "Soumis (en attente)" :
+                                             learner.assignedProject.status === "pending_review" ? "En attente Staff" :
+                                             learner.assignedProject.status === "approved" ? "Approuvé" :
+                                             learner.assignedProject.status === "rejected" ? "Rejeté" :
+                                             learner.assignedProject.status === "cancelled" ? "Annulé" :
+                                             "Statut Inconnu"}
                                           </span>
                                         </p>
                                         {learner.assignedProject.repoUrl && (
@@ -2235,9 +1716,7 @@ export default function Dashboard() {
                                             <i className="bi bi-github me-2 text-dark"></i>{" "}
                                             Dépôt:{" "}
                                             <a
-                                              href={
-                                                learner.assignedProject.repoUrl
-                                              }
+                                              href={learner.assignedProject.repoUrl}
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               className="text-primary text-decoration-none"
@@ -2246,19 +1725,30 @@ export default function Dashboard() {
                                             </a>
                                           </p>
                                         )}
-                                        {learner.assignedProject
-                                          .submissionDate && (
+                                        {learner.assignedProject.githubPagesUrl && (
+                                          <p className="mb-1 d-flex align-items-center">
+                                            <i className="bi bi-globe me-2 text-dark"></i>{" "}
+                                            GitHub Pages:{" "}
+                                            <a
+                                              href={learner.assignedProject.githubPagesUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-primary text-decoration-none"
+                                            >
+                                              {learner.assignedProject.githubPagesUrl}
+                                            </a>
+                                          </p>
+                                        )}
+                                        {learner.assignedProject.submissionDate && (
                                           <p className="mb-1 d-flex align-items-center">
                                             <i className="bi bi-calendar-event me-2 text-muted"></i>{" "}
                                             Date de soumission:{" "}
-                                            {new Date(
-                                              learner.assignedProject.submissionDate
-                                            ).toLocaleDateString()}
+                                            <strong>{new Date(learner.assignedProject.submissionDate).toUTCString()}</strong>
                                           </p>
                                         )}
                                       </>
                                     ) : (
-                                      <p className="text-muted d-flex align-items-center">
+                                      <p className="d-flex align-items-center">
                                         <i className="bi bi-x-circle me-2"></i>{" "}
                                         Aucun projet actuellement assigné.
                                       </p>
@@ -2278,116 +1768,118 @@ export default function Dashboard() {
           </div>
         )}
 
-      {/* Nouveau: Section pour la liste de tous les projets (pour staff/admin) */}
-      {me && (me.role === "staff" || me.role === "admin") && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-header bg-gradient bg-success text-white d-flex justify-content-between align-items-center">
-                <i className="bi bi-journals me-2"></i>
-                <h2 className="h5 mb-0">Gestion des Projets</h2>
-                <div className="d-flex">
-                  <button
-                    className="btn btn-light btn-sm me-2"
-                    onClick={() => router.push("/hackathons")}
-                  >
-                    <i className="bi bi-lightbulb me-1"></i> Gérer les
-                    Hackathons
-                  </button>
-                  <button
-                    className="btn btn-light btn-sm me-2"
-                    onClick={() => router.push("/admin/users")}
-                  >
-                    <i className="bi bi-people me-1"></i> Gérer les Utilisateurs
-                  </button>
-                  <button
-                    className="btn btn-light btn-sm"
-                    onClick={() => router.push("/projects?openAddProject=true")}
-                  >
-                    <i className="bi bi-plus-circle me-1"></i> Ajouter un Projet
-                  </button>
+        {/* Section gestion des projets */}
+        {me && (me.role === "staff" || me.role === "admin") && (
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className={styles.card}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>
+                    <i className="bi bi-journals"></i>
+                    Gestion des Projets
+                  </h2>
+                  <div className={styles.buttonGroup}>
+                    <button
+                      className={styles.actionButtonSecondary}
+                      onClick={() => router.push("/hackathons")}
+                    >
+                      <i className="bi bi-lightbulb"></i>
+                      Hackathons
+                    </button>
+                    <button
+                      className={styles.actionButtonSecondary}
+                      onClick={() => router.push("/admin/users")}
+                    >
+                      <i className="bi bi-people"></i>
+                      Utilisateurs
+                    </button>
+                    <button
+                      className={styles.actionButton}
+                      onClick={() => router.push("/projects?openAddProject=true")}
+                    >
+                      <i className="bi bi-plus-circle"></i>
+                      Ajouter un Projet
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="card-body">
                 {allProjects.length === 0 ? (
-                  <p>Aucun projet disponible.</p>
+                  <div className={styles.emptyState}>
+                    <i className="bi bi-inbox"></i>
+                    <p className={styles.emptyStateText}>Aucun projet disponible.</p>
+                  </div>
                 ) : (
-                  <div className="table-responsive">
-                    <table className="table table-striped table-hover align-middle">
-                      <thead className="table-light">
+                  <div className={styles.tableResponsiveWrapper}>
+                    <table className={`${styles.modernTable} ${styles.modernTableProjects}`}>
+                      <thead>
                         <tr>
-                          <th>Titre</th>
-                          <th>Description</th>
-                          <th>Étudiant</th>
-                          <th>Statut</th>
-                          <th className="text-center">Actions</th>
+                          <th><i className="bi bi-journal-text me-2"></i>Titre</th>
+                          <th><i className="bi bi-text-paragraph me-2"></i>Description</th>
+                          <th><i className="bi bi-person-fill me-2"></i>Étudiant</th>
+                          <th><i className="bi bi-check-circle-fill me-2"></i>Statut</th>
+                          <th className="text-center"><i className="bi bi-gear-fill me-2"></i>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {allProjects.map((project) => (
                           <tr key={project._id}>
-                            <td>
-                              <i className="bi bi-journal-text me-2"></i>
-                              {project.title}
+                            <td title={project.title}>
+                              <strong>
+                                <i className="bi bi-journal-text me-2" style={{ color: '#F36F35' }}></i>
+                                {project.title.length > 30 ? project.title.substring(0, 30) + '...' : project.title}
+                              </strong>
                             </td>
-                            <td>{project.description.substring(0, 50)}...</td>
+                            <td style={{ fontSize: '12px' }} title={project.description}>
+                              {project.description.substring(0, 80)}...
+                            </td>
                             <td>
                               {project.student ? (
-                                <span className="badge bg-secondary">
-                                  <i className="bi bi-person me-1"></i>
+                                <span className={`${styles.badge} ${styles.badgeOrange}`}>
+                                  <i className="bi bi-person"></i>
                                   {project.student.name}
                                 </span>
                               ) : (
-                                <span className="badge bg-dark">Template</span>
+                                <span className={`${styles.badge} ${styles.badgeGreen}`}>
+                                  <i className="bi bi-file-earmark"></i>
+                                  Template
+                                </span>
                               )}
                             </td>
                             <td>
-                              <span
-                                className={`badge bg-${
-                                  project.status === "approved"
-                                    ? "success"
-                                    : project.status === "rejected"
-                                    ? "danger"
-                                    : project.status === "template"
-                                    ? "dark"
-                                    : "warning"
-                                } rounded-pill`}
-                              >
-                                <i
-                                  className={`bi bi-${
-                                    project.status === "approved"
-                                      ? "check-circle"
-                                      : project.status === "rejected"
-                                      ? "x-circle"
-                                      : project.status === "template"
-                                      ? "file-earmark"
-                                      : "hourglass-split"
-                                  } me-1`}
-                                ></i>
-                                {project.status === "approved"
-                                  ? "Approuvé"
-                                  : project.status === "rejected"
-                                  ? "Rejeté"
-                                  : project.status === "template"
-                                  ? "Modèle"
-                                  : "En attente"}
+                              <span className={`${styles.statusBadge} ${
+                                project.status === "approved" ? styles.statusApproved :
+                                project.status === "rejected" ? styles.statusRejected :
+                                project.status === "template" ? styles.badgeGreen :
+                                styles.statusSubmitted
+                              }`}>
+                                <i className={`bi bi-${
+                                  project.status === "approved" ? "check-circle" :
+                                  project.status === "rejected" ? "x-circle" :
+                                  project.status === "template" ? "file-earmark" :
+                                  "hourglass-split"
+                                }`}></i>
+                                {project.status === "approved" ? "Approuvé" :
+                                 project.status === "rejected" ? "Rejeté" :
+                                 project.status === "template" ? "Modèle" :
+                                 "En attente"}
                               </span>
                             </td>
                             <td className="text-center">
-                              <button
-                                className="btn btn-sm btn-outline-info me-2"
-                                onClick={() => handleEditProject(project)}
-                                title="Modifier le projet"
-                              >
-                                <i className="bi bi-pencil-square"></i>
-                              </button>
-                              <button
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleDeleteProject(project._id)}
-                                title="Supprimer le projet"
-                              >
-                                <i className="bi bi-trash"></i>
-                              </button>
+                              <div className={styles.buttonGroup}>
+                                <button
+                                  className={`${styles.btnSmall} ${styles.btnSuccess}`}
+                                  onClick={() => handleEditProject(project)}
+                                  title="Modifier le projet"
+                                >
+                                  <i className="bi bi-pencil-square"></i>
+                                </button>
+                                <button
+                                  className={`${styles.btnSmall} ${styles.btnDanger}`}
+                                  onClick={() => handleDeleteProject(project._id)}
+                                  title="Supprimer le projet"
+                                >
+                                  <i className="bi bi-trash"></i>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -2398,108 +1890,219 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Modale pour créer un slot de disponibilité */}
-      {showCreateSlotModal && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog">
-            <div className="modal-content thm-bg-light">
-              <div className="modal-header thm-bg text-white">
-                <h5 className="modal-title">Créer un Slot de Disponibilité</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowCreateSlotModal(false)}
-                ></button>
+
+{/* Section Hackathons et Badges (pour apprenant) */}
+{me && me.role === "apprenant" && mySubmittedEvaluations.length > 0 && (
+  <div className="row mb-4">
+    <div className="col-12">
+      <div className={styles.cardGreen}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>
+            <i className="bi bi-chat-left-text"></i>
+            Feedback sur Mes Projets Soumis
+          </h2>
+          <span className={styles.sectionCount}>{mySubmittedEvaluations.length}</span>
+        </div>
+        <div>
+          {mySubmittedEvaluations.map((evaluation) => (
+            <div key={evaluation._id}>
+              <div className="d-flex justify-content-between align-items-center flex-wrap">
+                <h5 className="mb-2 d-flex align-items-center">
+                  <i className="bi bi-journal-check me-2"></i> Projet:{" "}
+                  {evaluation.project.title}
+                  <span
+                    className={`badge bg-${
+                      evaluation.status === "accepted"
+                        ? "success"
+                        : evaluation.status === "pending"
+                        ? "info"
+                        : "danger"
+                    } ms-2`}
+                  >
+                    {evaluation.status === "accepted"
+                      ? "Accepté"
+                      : evaluation.status === "pending"
+                      ? "En attente"
+                      : "Rejeté"}
+                  </span>
+                </h5>
+                {evaluation.feedback && (
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() =>
+                      setExpandedFeedback((prev) => ({
+                        ...prev,
+                        [evaluation._id]: !prev[evaluation._id],
+                      }))
+                    }
+                    aria-expanded={!!expandedFeedback[evaluation._id]}
+                    aria-controls={`feedback-details-${evaluation._id}`}
+                  >
+                    <i
+                      className={`bi bi-chevron-${
+                        expandedFeedback[evaluation._id] ? "up" : "down"
+                      }`}
+                    ></i>
+                  </button>
+                )}
               </div>
-              <div className="modal-body">
+              {expandedFeedback[evaluation._id] && (
+                <div
+                  id={`feedback-details-${evaluation._id}`}
+                  className="collapse show mt-3"
+                >
+                  <p className="mb-1">
+                    <strong>
+                      <i className="bi bi-person me-2"></i>Évaluateur:
+                    </strong>{" "}
+                    {evaluation.evaluator.name}
+                  </p>
+                  {evaluation.slot && (
+                    <p className="mb-1">
+                      <strong>
+                        <i className="bi bi-calendar-event me-2"></i>
+                        Date d'évaluation:
+                      </strong>{" "}
+                      {dayjs.utc(evaluation.slot.startTime).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')}
+                    </p>
+                  )}
+                  {evaluation.feedback && (
+                    <div className="border rounded p-2 mt-2">
+                      <h6>
+                        <i className="bi bi-chat-dots me-2"></i>Détails
+                        du Feedback:
+                      </h6>
+                      {evaluation.feedback.assiduite && (
+                        <p className="mb-1">
+                          <strong>Assiduité:</strong>{" "}
+                          {evaluation.feedback.assiduite}
+                        </p>
+                      )}
+                      {evaluation.feedback.comprehension && (
+                        <p className="mb-1">
+                          <strong>Compréhension:</strong>{" "}
+                          {evaluation.feedback.comprehension}
+                        </p>
+                      )}
+                      {evaluation.feedback.specifications && (
+                        <p className="mb-1">
+                          <strong>Spécifications:</strong>{" "}
+                          {evaluation.feedback.specifications}
+                        </p>
+                      )}
+                      {evaluation.feedback.maitrise_concepts && (
+                        <p className="mb-1">
+                          <strong>Maîtrise des concepts:</strong>{" "}
+                          {evaluation.feedback.maitrise_concepts}
+                        </p>
+                      )}
+                      {evaluation.feedback.capacite_expliquer && (
+                        <p className="mb-1">
+                          <strong>Capacité à expliquer:</strong>{" "}
+                          {evaluation.feedback.capacite_expliquer}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              <hr />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+
+        {/* Modales */}
+        {showCreateSlotModal && (
+          <div className={styles.modalOverlay} onClick={() => setShowCreateSlotModal(false)}>
+            <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+              <div className={`${styles.modalHeader} ${styles.modalHeaderGreen}`}>
+                <h5 className={styles.modalTitle}>
+                  <i className="bi bi-calendar-plus"></i>
+                  Créer un Slot de Disponibilité
+                </h5>
+                <button type="button" className={styles.closeBtn} onClick={() => setShowCreateSlotModal(false)}>
+                  <i className="bi bi-x"></i>
+                </button>
+              </div>
+              <div className={styles.modalBody}>
                 {error && (
-                  <div className="alert alert-danger mb-3" role="alert">
+                  <div className={`${styles.alert} ${styles.alertDanger}`}>
+                    <i className="bi bi-exclamation-triangle-fill"></i>
                     {error}
                   </div>
                 )}
                 {success && (
-                  <div className="alert alert-success mb-3" role="alert">
+                  <div className={`${styles.alert} ${styles.alertSuccess}`}>
+                    <i className="bi bi-check-circle-fill"></i>
                     {success}
                   </div>
                 )}
                 <form onSubmit={handleCreateSlot}>
-                  <div className="mb-3">
-                    <label htmlFor="slotDate" className="form-label">
-                      <span>Date</span> <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="slotDate" className={styles.formLabel}>
+                      Date <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="date"
-                      className="form-control"
+                      className={styles.formControl}
                       id="slotDate"
                       value={slotDate}
                       onChange={(e) => setSlotDate(e.target.value)}
                       required
                     />
                   </div>
-                  <div className="mb-3">
-                    <label htmlFor="slotStartTime" className="form-label">
-                      <span>Heure de début</span>{" "}
-                      <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      id="slotStartTime"
-                      value={slotStartTime}
-                      onChange={(e) => {
-                        const newStartTime = e.target.value;
-                        setSlotStartTime(newStartTime);
-                        // Calculer l'heure de fin en ajoutant 30 minutes
-                        const [hours, minutes] = newStartTime
-                          .split(":")
-                          .map(Number);
-                        const date = new Date();
-                        date.setHours(hours, minutes + 30, 0, 0);
-                        const newEndTime = date.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hourCycle: "h23",
-                        });
-                        setSlotEndTime(newEndTime);
-                      }}
-                      required
-                    />
+                  <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label htmlFor="slotStartTime" className={styles.formLabel}>
+                        Heure de début <span style={{ color: '#dc3545' }}>*</span>
+                      </label>
+                      <input
+                        type="time"
+                        className={styles.formControl}
+                        id="slotStartTime"
+                        value={slotStartTime}
+                        onChange={(e) => {
+                          const newStartTime = e.target.value;
+                          setSlotStartTime(newStartTime);
+                          const [hours, minutes] = newStartTime.split(":").map(Number);
+                          const date = dayjs(`${slotDate}T${newStartTime}`, TIMEZONE);
+                          const newEndTime = date.add(30, 'minutes').format('HH:mm');
+                          setSlotEndTime(newEndTime);
+                        }}
+                        required
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label htmlFor="slotEndTime" className={styles.formLabel}>
+                        Heure de fin <span style={{ color: '#dc3545' }}>*</span>
+                      </label>
+                      <input
+                        type="time"
+                        className={styles.formControl}
+                        id="slotEndTime"
+                        value={slotEndTime}
+                        onChange={(e) => setSlotEndTime(e.target.value)}
+                        required
+                        readOnly
+                      />
+                    </div>
                   </div>
-                  <div className="mb-3">
-                    <label htmlFor="slotEndTime" className="form-label">
-                      <span>Heure de fin</span>{" "}
-                      <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="time"
-                      className="form-control"
-                      id="slotEndTime"
-                      value={slotEndTime}
-                      onChange={(e) => setSlotEndTime(e.target.value)}
-                      required
-                      readOnly // Rendre l'heure de fin non modifiable manuellement
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn thm-bg-primary text-white d-flex align-items-center"
-                    disabled={isLoading}
-                  >
+                  <button type="submit" className={styles.actionButton} disabled={isLoading}>
                     {isLoading ? (
                       <>
-                        <span
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                          aria-hidden="true"
-                        ></span>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         Création...
                       </>
                     ) : (
                       <>
-                        <i className="bi bi-plus-circle me-2 text-white"></i>{" "}
+                        <i className="bi bi-plus-circle"></i>
                         Créer le slot
                       </>
                     )}
@@ -2508,48 +2111,41 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-      {showCreateSlotModal && <div className="modal-backdrop fade show"></div>}
+        )}
 
-      {/* Modale pour l'évaluation de projet */}
-      {showEvaluationModal && currentEvaluationToSubmit && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-warning text-dark">
-                <h5 className="modal-title">
-                  Évaluer le Projet: {currentEvaluationToSubmit.project.title}
+        {showEvaluationModal && currentEvaluationToSubmit && (
+          <div className={styles.modalOverlay} onClick={handleCloseEvaluationModal}>
+            <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+              <div className={`${styles.modalHeader} ${styles.modalHeaderYellow}`}>
+                <h5 className={styles.modalTitle}>
+                  <i className="bi bi-clipboard-check"></i>
+                  Évaluer: {currentEvaluationToSubmit.project.title}
                 </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={handleCloseEvaluationModal}
-                ></button>
+                <button type="button" className={styles.closeBtn} onClick={handleCloseEvaluationModal}>
+                  <i className="bi bi-x"></i>
+                </button>
               </div>
-              <div className="modal-body">
+              <div className={styles.modalBody}>
                 {error && (
-                  <div className="alert alert-danger mt-3" role="alert">
+                  <div className={`${styles.alert} ${styles.alertDanger}`}>
+                    <i className="bi bi-exclamation-triangle-fill"></i>
                     {error}
                   </div>
                 )}
                 {success && (
-                  <div className="alert alert-success mt-3" role="alert">
+                  <div className={`${styles.alert} ${styles.alertSuccess}`}>
+                    <i className="bi bi-check-circle-fill"></i>
                     {success}
                   </div>
                 )}
 
                 <p className="d-flex align-items-center mb-1">
-                  <strong>
-                    <i className="bi bi-person me-2"></i>Apprenant:
-                  </strong>{" "}
+                  <strong><i className="bi bi-person me-2"></i>Apprenant:</strong>{" "}
                   {currentEvaluationToSubmit.student.name}
                 </p>
                 {currentEvaluationToSubmit.project.repoUrl && (
                   <p className="d-flex align-items-center mb-3">
-                    <strong>
-                      <i className="bi bi-github me-2"></i>URL Dépôt GitHub:
-                    </strong>{" "}
+                    <strong><i className="bi bi-github me-2"></i>URL Dépôt GitHub:</strong>{" "}
                     <a
                       href={currentEvaluationToSubmit.project.repoUrl}
                       target="_blank"
@@ -2567,30 +2163,26 @@ export default function Dashboard() {
                 </p>
 
                 <form>
-                  <div className="mb-3">
-                    <label htmlFor="feedbackAssiduite" className="form-label">
-                      Assiduité <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackAssiduite" className={styles.formLabel}>
+                      Assiduité <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackAssiduite"
                       name="assiduite"
                       rows="3"
                       value={feedback.assiduite}
                       onChange={handleFeedbackChange}
-                      required={true} // Rendre obligatoire si statut accepté
+                      required={true}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="feedbackComprehension"
-                      className="form-label"
-                    >
-                      Compréhension des projets{" "}
-                      <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackComprehension" className={styles.formLabel}>
+                      Compréhension des projets <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackComprehension"
                       name="comprehension"
                       rows="3"
@@ -2599,16 +2191,12 @@ export default function Dashboard() {
                       required={true}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="feedbackSpecifications"
-                      className="form-label"
-                    >
-                      Respect des spécifications{" "}
-                      <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackSpecifications" className={styles.formLabel}>
+                      Respect des spécifications <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackSpecifications"
                       name="specifications"
                       rows="3"
@@ -2617,16 +2205,12 @@ export default function Dashboard() {
                       required={true}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="feedbackMaitriseConcepts"
-                      className="form-label"
-                    >
-                      Maîtrise des concepts{" "}
-                      <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackMaitriseConcepts" className={styles.formLabel}>
+                      Maîtrise des concepts <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackMaitriseConcepts"
                       name="maitrise_concepts"
                       rows="3"
@@ -2635,16 +2219,12 @@ export default function Dashboard() {
                       required={true}
                     ></textarea>
                   </div>
-                  <div className="mb-3">
-                    <label
-                      htmlFor="feedbackCapaciteExpliquer"
-                      className="form-label"
-                    >
-                      Capacité à expliquer{" "}
-                      <span className="text-danger">*</span>
+                  <div className={styles.formGroup}>
+                    <label htmlFor="feedbackCapaciteExpliquer" className={styles.formLabel}>
+                      Capacité à expliquer <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <textarea
-                      className="form-control"
+                      className={styles.formControl}
                       id="feedbackCapaciteExpliquer"
                       name="capacite_expliquer"
                       rows="3"
@@ -2655,77 +2235,63 @@ export default function Dashboard() {
                   </div>
                 </form>
               </div>
-              <div className="modal-footer">
+              <div className={styles.modalFooter}>
                 <button
                   type="button"
-                  className="btn btn-danger d-flex align-items-center"
+                  className={`${styles.btnSmall} ${styles.btnDanger}`}
                   onClick={() => handleSubmitFeedback("rejected")}
                   disabled={isLoading}
+                  style={{ padding: '12px 24px' }}
                 >
                   {isLoading ? (
                     <>
-                      <span
-                        className="spinner-border spinner-border-sm me-2"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
-                      Rejet en cours...
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      Rejet...
                     </>
                   ) : (
                     <>
-                      <i className="bi bi-x-circle me-2"></i> Refuser le projet
+                      <i className="bi bi-x-circle"></i>
+                      Refuser
                     </>
                   )}
                 </button>
                 <button
                   type="button"
-                  className="btn btn-success d-flex align-items-center"
+                  className={`${styles.btnSmall} ${styles.btnSuccess}`}
                   onClick={() => handleSubmitFeedback("accepted")}
-                  disabled={
-                    isLoading ||
-                    Object.values(feedback).some((value) => value.trim() === "")
-                  }
+                  disabled={isLoading || Object.values(feedback).some((value) => value.trim() === "")}
+                  style={{ padding: '12px 24px' }}
                 >
                   {isLoading ? (
                     <>
-                      <span
-                        className="spinner-border spinner-border-sm me-2"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                       Acceptation...
                     </>
                   ) : (
                     <>
-                      <i className="bi bi-check-circle me-2"></i> Accepter le
-                      projet
+                      <i className="bi bi-check-circle"></i>
+                      Accepter
                     </>
                   )}
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-      {showEvaluationModal && <div className="modal-backdrop fade show"></div>}
+        )}
 
-      {/* Modale pour ajouter un utilisateur (staff/admin) */}
-      {showAddUserModal && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-gradient bg-primary text-white">
-                <h5 className="modal-title">
-                  <i className="bi bi-person-plus me-2"></i> Ajouter un Nouvel
-                  Utilisateur
+        {showAddUserModal && (
+          <div className={styles.modalOverlay} onClick={() => setShowAddUserModal(false)}>
+            <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+              <div className={`${styles.modalHeader} ${styles.modalHeaderGreen}`}>
+                <h5 className={styles.modalTitle}>
+                  <i className="bi bi-person-plus"></i>
+                  Ajouter un Nouvel Utilisateur
                 </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowAddUserModal(false)}
-                ></button>
+                <button type="button" className={styles.closeBtn} onClick={() => setShowAddUserModal(false)}>
+                  <i className="bi bi-x"></i>
+                </button>
               </div>
-              <div className="modal-body">
+              <div className={styles.modalBody}>
                 {error && (
                   <div className="alert alert-danger mb-3" role="alert">
                     {error}
@@ -2794,22 +2360,19 @@ export default function Dashboard() {
                   </div>
                   <button
                     type="submit"
-                    className="btn btn-primary d-flex align-items-center"
+                    className={styles.actionButton}
                     disabled={isLoading}
+                    style={{ width: '100%', justifyContent: 'center' }}
                   >
                     {isLoading ? (
                       <>
-                        <span
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                          aria-hidden="true"
-                        ></span>
+                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                         Ajout en cours...
                       </>
                     ) : (
                       <>
-                        <i className="bi bi-person-plus me-2"></i> Ajouter
-                        l'utilisateur
+                        <i className="bi bi-person-plus"></i>
+                        Ajouter l'utilisateur
                       </>
                     )}
                   </button>
@@ -2817,159 +2380,99 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-      {showAddUserModal && <div className="modal-backdrop fade show"></div>}
+        )}
 
-      {/* Section Hackathons et Badges (pour apprenant) */}
-      {me && me.role === "apprenant" && mySubmittedEvaluations.length > 0 && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="thm-shadow-s rounded-3 thm-bg p-3">
-              <div className="d-flex align-items-center">
-                <i className="bi bi-chat-left-text me-2"></i>
-                <h2 className="h5 mb-0">Feedback sur Mes Projets Soumis</h2>
-              </div>
-              <div>
-                <hr />
-                {mySubmittedEvaluations.map((evaluation) => (
-                  <div>
-                    <div key={evaluation._id} className="">
-                      <div className="d-flex justify-content-between align-items-center flex-wrap">
-                        <h5 className="mb-2 d-flex align-items-center">
-                          <i className="bi bi-journal-check me-2"></i> Projet:{" "}
-                          {evaluation.project.title}
-                          <span
-                            className={`badge bg-${
-                              evaluation.status === "accepted"
-                                ? "success"
-                                : evaluation.status === "pending"
-                                ? "info"
-                                : "danger"
-                            } ms-2`}
-                          >
-                            {evaluation.status === "accepted"
-                              ? "Accepté"
-                              : evaluation.status === "pending"
-                              ? "En attente"
-                              : "Rejeté"}
-                          </span>
-                        </h5>
-                        {evaluation.feedback && (
-                          <button
-                            className="btn btn-sm btn-outline-secondary"
-                            onClick={() =>
-                              setExpandedFeedback((prev) => ({
-                                ...prev,
-                                [evaluation._id]: !prev[evaluation._id],
-                              }))
-                            }
-                            aria-expanded={!!expandedFeedback[evaluation._id]}
-                            aria-controls={`feedback-details-${evaluation._id}`}
-                          >
-                            <i
-                              className={`bi bi-chevron-${
-                                expandedFeedback[evaluation._id] ? "up" : "down"
-                              }`}
-                            ></i>
-                          </button>
-                        )}
-                      </div>
-                      {expandedFeedback[evaluation._id] && (
-                        <div
-                          id={`feedback-details-${evaluation._id}`}
-                          className="collapse show mt-3"
-                        >
-                          <p className="mb-1">
-                            <strong>
-                              <i className="bi bi-person me-2"></i>Évaluateur:
-                            </strong>{" "}
-                            {evaluation.evaluator.name}
-                          </p>
-                          {evaluation.slot && (
-                            <p className="mb-1">
-                              <strong>
-                                <i className="bi bi-calendar-event me-2"></i>
-                                Date d'évaluation:
-                              </strong>{" "}
-                              {new Date(
-                                evaluation.slot.startTime
-                              ).toLocaleString()}
-                            </p>
-                          )}
-                          {evaluation.feedback && (
-                            <div className="border rounded p-2 mt-2">
-                              <h6>
-                                <i className="bi bi-chat-dots me-2"></i>Détails
-                                du Feedback:
-                              </h6>
-                              {evaluation.feedback.assiduite && (
-                                <p className="mb-1">
-                                  <strong>Assiduité:</strong>{" "}
-                                  {evaluation.feedback.assiduite}
-                                </p>
-                              )}
-                              {evaluation.feedback.comprehension && (
-                                <p className="mb-1">
-                                  <strong>Compréhension:</strong>{" "}
-                                  {evaluation.feedback.comprehension}
-                                </p>
-                              )}
-                              {evaluation.feedback.specifications && (
-                                <p className="mb-1">
-                                  <strong>Spécifications:</strong>{" "}
-                                  {evaluation.feedback.specifications}
-                                </p>
-                              )}
-                              {evaluation.feedback.maitrise_concepts && (
-                                <p className="mb-1">
-                                  <strong>Maîtrise des concepts:</strong>{" "}
-                                  {evaluation.feedback.maitrise_concepts}
-                                </p>
-                              )}
-                              {evaluation.feedback.capacite_expliquer && (
-                                <p className="mb-1">
-                                  <strong>Capacité à expliquer:</strong>{" "}
-                                  {evaluation.feedback.capacite_expliquer}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
+        {showSubmitHackathonProjectModal && (
+          <div className="modal" tabIndex="-1" style={{ display: "block" }}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header bg-gradient bg-primary text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-upload me-2"></i> Soumettre le Projet pour
+                    Hackathon: {currentHackathonToSubmit?.title}
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={handleCloseSubmitHackathonModal}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {error && (
+                    <div className="alert alert-danger mb-3" role="alert">
+                      {error}
                     </div>
-                    <hr />
-                  </div>
-                ))}
+                  )}
+                  {success && (
+                    <div className="alert alert-success mb-3" role="alert">
+                      {success}
+                    </div>
+                  )}
+                  <form onSubmit={handleSubmitHackathonProject}>
+                    <div className="mb-3">
+                      <label htmlFor="hackathonSubmissionRepoUrl" className="form-label">
+                        URL du Dépôt GitHub <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="url"
+                        className="form-control"
+                        id="hackathonSubmissionRepoUrl"
+                        value={hackathonSubmissionRepoUrl}
+                        onChange={(e) => setHackathonSubmissionRepoUrl(e.target.value)}
+                        placeholder="Ex: https://github.com/mon-equipe/mon-projet-hackathon"
+                        required
+                      />
+                      <small className="form-text text-muted">
+                        Veuillez fournir l'URL de votre dépôt GitHub pour le
+                        projet de hackathon.
+                      </small>
+                    </div>
+                    <div className="mb-3">
+                      <p className="mb-1">
+                        <strong>Hackathon:</strong>{" "}
+                        {currentHackathonToSubmit?.title}
+                      </p>
+                      <p className="mb-1">
+                        <strong>Votre équipe:</strong> {currentTeamToSubmit?.name}
+                      </p>
+                    </div>
+                    <button
+                      type="submit"
+                      className="btn btn-primary d-flex align-items-center"
+                      disabled={isLoading || !hackathonSubmissionRepoUrl}
+                    >
+                      {isLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Soumission en cours...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-upload me-2"></i> Soumettre le Projet
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+        {showSubmitHackathonProjectModal && <div className="modal-backdrop fade show"></div>}
 
-      {/* Modale de confirmation de suppression de slot */}
-      {showDeleteSlotModal.show && (
-        <div className="modal" tabIndex="-1" style={{ display: "block" }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-danger text-white">
-                <h5 className="modal-title">
-                  <i className="bi bi-exclamation-triangle me-2"></i> Confirmer
-                  la Suppression du Slot
+        {showDeleteSlotModal.show && (
+          <div className={styles.modalOverlay} onClick={handleCloseDeleteSlotModal}>
+            <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+              <div className={`${styles.modalHeader} ${styles.modalHeaderRed}`}>
+                <h5 className={styles.modalTitle}>
+                  <i className="bi bi-exclamation-triangle"></i>
+                  Confirmer la Suppression du Slot
                 </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() =>
-                    setShowDeleteSlotModal({
-                      show: false,
-                      slotId: null,
-                      slotStartTime: null,
-                    })
-                  }
-                ></button>
+                <button type="button" className={styles.closeBtn} onClick={handleCloseDeleteSlotModal}>
+                  <i className="bi bi-x"></i>
+                </button>
               </div>
-              <div className="modal-body">
+              <div className={styles.modalBody}>
                 {error && (
                   <div className="alert alert-danger mb-3" role="alert">
                     {error}
@@ -2980,149 +2483,122 @@ export default function Dashboard() {
                   commençant le
                 </p>
                 <p>
-                  <strong>
-                    {showDeleteSlotModal.slotStartTime?.toLocaleString()}
-                  </strong>{" "}
-                  ?
+                  <strong>{formatUTCHourMinute(showDeleteSlotModal.slotStartTime)}</strong> ?
                 </p>
                 <p className="text-danger">
                   Cette action est irréversible et ne peut être faite que si le
                   slot n'est pas réservé.
                 </p>
               </div>
-              <div className="modal-footer">
+              <div className={styles.modalFooter}>
                 <button
                   type="button"
-                  className="btn btn-secondary"
-                  onClick={() =>
-                    setShowDeleteSlotModal({
-                      show: false,
-                      slotId: null,
-                      slotStartTime: null,
-                    })
-                  }
+                  className={`${styles.btnSmall} ${styles.btnOutline}`}
+                  onClick={handleCloseDeleteSlotModal}
+                  style={{ padding: '12px 24px', color: '#6c757d', borderColor: '#6c757d' }}
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
-                  className="btn btn-danger"
+                  className={`${styles.btnSmall} ${styles.btnDanger}`}
                   onClick={handleDeleteSlot}
                   disabled={isLoading}
+                  style={{ padding: '12px 24px' }}
                 >
                   {isLoading ? (
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                   ) : (
-                    <i className="bi bi-trash me-2"></i>
+                    <i className="bi bi-trash"></i>
                   )}
                   Supprimer
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-      {showDeleteSlotModal.show && (
-        <div className="modal-backdrop fade show"></div>
-      )}
+        )}
 
-      {/* Modale de réassignation d'évaluation */}
-      {showReassignModal && currentEvaluationToReassign && (
-        <div className="modal fade show d-block" tabIndex="-1" role="dialog">
-          <div className="modal-dialog modal-dialog-centered" role="document">
-            <div className="modal-content">
-              <div className="modal-header bg-warning text-dark">
-                <h5 className="modal-title">Réassigner l'évaluation</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  aria-label="Close"
-                  onClick={() => setShowReassignModal(false)}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <p>
-                  Réassigner l'évaluation du projet:
-                  <span className="fw-bold">
-                    {" "}
-                    {currentEvaluationToReassign.project?.title || "N/A"}{" "}
-                  </span>
-                  pour l'apprenant
-                  <span className="fw-bold">
-                    {" "}
-                    {currentEvaluationToReassign.student?.name || "N/A"}
-                  </span>
-                  .
-                </p>
-
-                <div className="mb-3">
-                  <label htmlFor="slotDate" className="form-label">
-                    Date des nouveaux slots
-                  </label>
-                  <input
-                    type="date"
-                    id="slotDate"
-                    className="form-control"
-                    value={reassignSlotDate}
-                    onChange={(e) => setReassignSlotDate(e.target.value)}
-                  />
+        {showReassignModal && currentEvaluationToReassign && (
+          <div className="modal fade show d-block" tabIndex="-1" role="dialog">
+            <div className="modal-dialog modal-dialog-centered" role="document">
+              <div className="modal-content">
+                <div className="modal-header bg-warning text-dark">
+                  <h5 className="modal-title">Réassigner l'évaluation</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    aria-label="Close"
+                    onClick={() => setShowReassignModal(false)}
+                  ></button>
                 </div>
+                <div className="modal-body">
+                  <p>
+                    Réassigner l'évaluation du projet:
+                    <span className="fw-bold"> {currentEvaluationToReassign.project?.title || "N/A"} </span>
+                    pour l'apprenant
+                    <span className="fw-bold"> {currentEvaluationToReassign.student?.name || "N/A"}</span>.
+                  </p>
 
-                {availableSlotsForReassign.length > 0 && (
                   <div className="mb-3">
-                    <label className="form-label">Slots disponibles</label>
-                    {availableSlotsForReassign.map((slot) => (
-                      <div key={slot._id} className="form-check">
-                        <input
-                          className="form-check-input"
-                          type="radio"
-                          name="reassignSlot"
-                          id={`slot-${slot._id}`}
-                          value={slot._id}
-                          checked={selectedSlots.includes(slot._id)} // Ici, on utilise includes
-                          onChange={() => handleSlotSelection(slot._id)} // Nouvelle fonction pour gérer la sélection multiple
-                        />
-                        <label
-                          className="form-check-label"
-                          htmlFor={`slot-${slot._id}`}
-                        >
-                          {new Date(slot.startTime).toLocaleString()} -{" "}
-                          {new Date(slot.endTime).toLocaleString()} (
-                          {slot.evaluator.name})
-                        </label>
-                      </div>
-                    ))}
+                    <label htmlFor="slotDate" className="form-label">
+                      Date des nouveaux slots
+                    </label>
+                    <input
+                      type="date"
+                      id="slotDate"
+                      className="form-control"
+                      value={reassignSlotDate}
+                      onChange={(e) => setReassignSlotDate(e.target.value)}
+                    />
                   </div>
-                )}
 
-                <p className="text-danger">{error}</p>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowReassignModal(false)}
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-warning"
-                  onClick={handleConfirmReassign}
-                  disabled={selectedSlots.length !== 2} // Désactiver si le nombre de slots sélectionnés n'est pas 2
-                >
-                  Confirmer la réassignation
-                </button>
+                  {availableSlotsForReassign.length > 0 && (
+                    <div className="mb-3">
+                      <label className="form-label">Slots disponibles</label>
+                      {availableSlotsForReassign.map((slot) => (
+                        <div key={slot._id} className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="radio"
+                            name="reassignSlot"
+                            id={`slot-${slot._id}`}
+                            value={slot._id}
+                            checked={selectedSlots.includes(slot._id)}
+                            onChange={() => handleSlotSelection(slot._id)}
+                          />
+                          <label className="form-check-label" htmlFor={`slot-${slot._id}`}>
+                            {formatUTCHourMinute(slot.startTime)} - {formatUTCHourMinute(slot.endTime)} ({slot.evaluator.name})
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-danger">{error}</p>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowReassignModal(false)}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-warning"
+                    onClick={handleConfirmReassign}
+                    disabled={selectedSlots.length !== 2}
+                  >
+                    Confirmer la réassignation
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-      {showReassignModal && <div className="modal-backdrop fade show"></div>}
+        )}
+        {showReassignModal && <div className="modal-backdrop fade show"></div>}
+      </div>
     </div>
   );
 }

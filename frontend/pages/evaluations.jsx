@@ -1,8 +1,18 @@
-import { useEffect, useState, useCallback } from 'react'; // Ajout de useCallback
-import { useRouter } from 'next/router';
-import { getAuthToken } from '../utils/auth'; // Assurez-vous d'importer getAuthToken
+import { useEffect, useState, useCallback } from "react"; // Ajout de useCallback
+import { useRouter } from "next/router";
+import { getAuthToken } from "../utils/auth"; // Assurez-vous d'importer getAuthToken
+import Loader from "../components/Loader";
+import HtmlRenderer from "../utils/HtmlRenderer";
+import styles from "../styles/evaluations.module.css";
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const TIMEZONE = 'Africa/Niamey';
 
 export default function EvaluationPage() {
   const router = useRouter();
@@ -19,7 +29,10 @@ export default function EvaluationPage() {
   const [success, setSuccess] = useState(null);
   const [isLoading, setIsLoading] = useState(true); // État de chargement global
   const [token, setToken] = useState(null);
-  const [cancelledProjectsForReassignment, setCancelledProjectsForReassignment] = useState([]); // Nouveau: Projets annulés pour réassignation
+  const [
+    cancelledProjectsForReassignment,
+    setCancelledProjectsForReassignment,
+  ] = useState([]); // Nouveau: Projets annulés pour réassignation
   const [expandedRows, setExpandedRows] = useState({}); // id d'évaluation => bool (affichage feedbacks pairs)
 
   // Nouveaux états pour les champs de feedback détaillés
@@ -45,7 +58,7 @@ export default function EvaluationPage() {
   const fetchData = useCallback(async () => {
     const storedToken = getAuthToken();
     if (!storedToken) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
     setToken(storedToken);
@@ -53,47 +66,70 @@ export default function EvaluationPage() {
     setError(null);
 
     try {
-      const userRes = await fetch(`${API}/users/me`, { headers: { Authorization: `Bearer ${storedToken}` } });
-      if (!userRes.ok) throw new Error('Failed to fetch user data');
+      const userRes = await fetch(`${API}/users/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      });
+      if (!userRes.ok) throw new Error("Failed to fetch user data");
       const userData = await userRes.json();
       setMe(userData);
 
-      if (userData.role === 'staff' || userData.role === 'admin') {
+      if (userData.role === "staff" || userData.role === "admin") {
         // Fetch all evaluations for staff/admin
-        const allEvalsRes = await fetch(`${API}/evaluations/all-for-staff`, { headers: { Authorization: `Bearer ${storedToken}` } });
-        if (!allEvalsRes.ok) throw new Error('Failed to fetch all evaluations for staff');
+        const allEvalsRes = await fetch(`${API}/evaluations/all-for-staff`, {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        if (!allEvalsRes.ok)
+          throw new Error("Failed to fetch all evaluations for staff");
         const allEvalsData = await allEvalsRes.json();
         setEvaluations(allEvalsData);
 
         // Fetch all evaluators (toujours utile pour l'affichage)
-        const evaluatorsRes = await fetch(`${API}/users/evaluators`, { headers: { Authorization: `Bearer ${storedToken}` } });
-        if (!evaluatorsRes.ok) throw new Error('Failed to fetch evaluators');
+        const evaluatorsRes = await fetch(`${API}/users/evaluators`, {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        if (!evaluatorsRes.ok) throw new Error("Failed to fetch evaluators");
         const evaluatorsData = await evaluatorsRes.json();
         setEvaluators(evaluatorsData);
 
         // Fetch cancelled projects for reassignation
-        const cancelledProjectsRes = await fetch(`${API}/projects/cancelled`, { headers: { Authorization: `Bearer ${storedToken}` } });
-        if (!cancelledProjectsRes.ok) throw new Error('Failed to fetch cancelled projects');
+        const cancelledProjectsRes = await fetch(`${API}/projects/cancelled`, {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        if (!cancelledProjectsRes.ok)
+          throw new Error("Failed to fetch cancelled projects");
         const cancelledProjectsData = await cancelledProjectsRes.json();
         setCancelledProjectsForReassignment(cancelledProjectsData);
-
-      } else if (userData.role === 'apprenant') {
+      } else if (userData.role === "apprenant") {
         // Pour l'apprenant, récupérer toutes ses évaluations (soumises par lui ou à faire par lui)
-        const mySubmittedEvalRes = await fetch(`${API}/evaluations/mine`, { headers: { Authorization: `Bearer ${storedToken}` } });
-        if (!mySubmittedEvalRes.ok) throw new Error('Failed to fetch my submitted evaluations');
+        const mySubmittedEvalRes = await fetch(`${API}/evaluations/mine`, {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        if (!mySubmittedEvalRes.ok)
+          throw new Error("Failed to fetch my submitted evaluations");
         const mySubmittedEvalData = await mySubmittedEvalRes.json();
 
-        const myPendingAsEvaluatorRes = await fetch(`${API}/evaluations/pending-as-evaluator`, { headers: { Authorization: `Bearer ${storedToken}` } });
-        if (!myPendingAsEvaluatorRes.ok) throw new Error('Failed to fetch my pending evaluations as evaluator');
+        const myPendingAsEvaluatorRes = await fetch(
+          `${API}/evaluations/pending-as-evaluator`,
+          { headers: { Authorization: `Bearer ${storedToken}` } }
+        );
+        if (!myPendingAsEvaluatorRes.ok)
+          throw new Error(
+            "Failed to fetch my pending evaluations as evaluator"
+          );
         const myPendingAsEvaluatorData = await myPendingAsEvaluatorRes.json();
 
         // Fusionner les deux listes d'évaluations
-        const allMyEvaluations = [...mySubmittedEvalData, ...myPendingAsEvaluatorData];
+        const allMyEvaluations = [
+          ...mySubmittedEvalData,
+          ...myPendingAsEvaluatorData,
+        ];
         setEvaluations(allMyEvaluations);
 
         // Si un ID d'évaluation est spécifié dans l'URL, pré-sélectionner cette évaluation
         if (queryEvaluationId) {
-          const preselectedEval = allMyEvaluations.find(evalItem => evalItem._id === queryEvaluationId);
+          const preselectedEval = allMyEvaluations.find(
+            (evalItem) => evalItem._id === queryEvaluationId
+          );
           if (preselectedEval) {
             setSelectedEvaluation(preselectedEval);
             // Initialiser les champs de feedback si déjà existants
@@ -104,8 +140,8 @@ export default function EvaluationPage() {
             // setFeedbackCapaciteExpliquer(preselectedEval.feedback?.capacite_expliquer || '');
             // setComments(preselectedEval.comments || ''); // Toujours initialiser les commentaires
             if (preselectedEval.slot) {
-              setStartTime(new Date(preselectedEval.slot.startTime));
-              setEndTime(new Date(preselectedEval.slot.endTime));
+              setStartTime(dayjs(preselectedEval.slot.startTime).tz(TIMEZONE));
+              setEndTime(dayjs(preselectedEval.slot.endTime).tz(TIMEZONE));
             }
           }
         }
@@ -140,7 +176,10 @@ export default function EvaluationPage() {
   };
 
   const toggleRowExpanded = (evaluationId) => {
-    setExpandedRows(prev => ({ ...prev, [evaluationId]: !prev[evaluationId] }));
+    setExpandedRows((prev) => ({
+      ...prev,
+      [evaluationId]: !prev[evaluationId],
+    }));
   };
 
   // Nouvelle fonction pour récupérer TOUS les slots disponibles (sans filtre par évaluateur)
@@ -150,15 +189,16 @@ export default function EvaluationPage() {
       return;
     }
     try {
-      const res = await fetch(`${API}/availability/all-available-slots`, { // Nouvelle route backend
-            headers: { Authorization: `Bearer ${token}` },
-          });
-      if (!res.ok) throw new Error('Failed to fetch all available slots');
+      const res = await fetch(`${API}/availability/all-available-slots`, {
+        // Nouvelle route backend
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch all available slots");
       const data = await res.json();
       setAvailableSlots(data);
     } catch (e) {
       console.error("Error fetching all available slots:", e);
-      setError('Erreur lors du chargement de tous les slots disponibles.');
+      setError("Erreur lors du chargement de tous les slots disponibles.");
       setAvailableSlots([]);
     }
   }, [token]);
@@ -177,39 +217,49 @@ export default function EvaluationPage() {
     setIsLoading(true);
 
     if (!evaluationToReassign || selectedSlots.length === 0) {
-      setError('Veuillez sélectionner au moins un slot de disponibilité.');
+      setError("Veuillez sélectionner au moins un slot de disponibilité.");
       setIsLoading(false);
       return;
     }
 
     try {
       // Le backend devra extraire le newEvaluatorId à partir du newSlotId
-      const res = await fetch(`${API}/evaluations/${evaluationToReassign._id}/reassign`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ newSlotIds: selectedSlots }), // Envoyer tous les newSlotIds sélectionnés
-      });
-          const data = await res.json();
+      const res = await fetch(
+        `${API}/evaluations/${evaluationToReassign._id}/reassign`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ newSlotIds: selectedSlots }), // Envoyer tous les newSlotIds sélectionnés
+        }
+      );
+      const data = await res.json();
       if (res.ok) {
-        setSuccess('Évaluation réassignée avec succès !');
+        setSuccess("Évaluation réassignée avec succès !");
         handleCloseReassignModal();
         // Mettre à jour le statut de l'évaluation réassignée à 'cancelled' immédiatement dans l'UI
-        setEvaluations(prevEvals => prevEvals.map(evalItem =>
-          evalItem._id === evaluationToReassign._id
-            ? { ...evalItem, status: 'cancelled' }
-            : evalItem
-        ));
+        setEvaluations((prevEvals) =>
+          prevEvals.map((evalItem) =>
+            evalItem._id === evaluationToReassign._id
+              ? { ...evalItem, status: "cancelled" }
+              : evalItem
+          )
+        );
         fetchData(); // Recharger toutes les évaluations pour assurer la cohérence
       } else {
-        throw new Error(data.error || 'Échec de la réassignation de l\'évaluation.');
-          }
-        } catch (e) {
+        throw new Error(
+          data.error || "Échec de la réassignation de l'évaluation."
+        );
+      }
+    } catch (e) {
       console.error("Error reassigning evaluation:", e);
-          setError(e.message);
+      setError(e.message);
     } finally {
       setIsLoading(false);
-        }
-      };
+    }
+  };
 
   // const handleSubmit = async (e) => {
   //   e.preventDefault();
@@ -257,42 +307,85 @@ export default function EvaluationPage() {
   // };
 
   if (isLoading) {
-    return <div className="text-center mt-5"><p className="lead">Chargement des évaluations...</p></div>;
+    return <Loader message="Chargement des évaluations..." />;
   }
 
   if (!me) {
-    return <div className="text-center mt-5"><p className="lead">Non autorisé.</p></div>;
+    return (
+      <div className="text-center mt-5">
+        <p className="lead">Non autorisé.</p>
+      </div>
+    );
   }
 
   // Rendu pour le rôle staff/admin
-  if (me.role === 'staff' || me.role === 'admin') {
+  if (me.role === "staff" || me.role === "admin") {
     return (
-      <div className="container-fluid mt-4 pt-5 px-4">
-        <h1 className="mb-4">Gestion des Évaluations</h1>
-        {error && <div className="alert alert-danger mt-3" role="alert">{error}</div>}
-        {success && <div className="alert alert-success mt-3" role="alert">{success}</div>}
+      <div className={styles.container}>
+        <div className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>
+            <i className="bi bi-clipboard-check"></i>
+            Gestion des Évaluations
+          </h1>
+        </div>
+
+        {error && (
+          <div className={`${styles.alert} ${styles.alertDanger}`}>
+            <i className="bi bi-exclamation-triangle-fill"></i>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className={`${styles.alert} ${styles.alertSuccess}`}>
+            <i className="bi bi-check-circle-fill"></i>
+            {success}
+          </div>
+        )}
 
         {cancelledProjectsForReassignment.length > 0 && (
-          <div className="card shadow-sm mb-4 border-warning">
-            <div className="card-header bg-gradient bg-warning text-dark d-flex align-items-center">
-              <i className="bi bi-arrow-repeat me-2"></i>
-              <h2 className="h5 mb-0">Projets Annulés Nécessitant Réassignation</h2>
+          <div className={`${styles.card} ${styles.cardWarning}`}>
+            <div className={`${styles.cardHeader} ${styles.cardHeaderWarning}`}>
+              <h2 className={styles.cardTitle}>
+                <i className="bi bi-arrow-repeat"></i>
+                Projets Annulés Nécessitant Réassignation
+              </h2>
             </div>
-            <div className="card-body">
-              <p className="text-muted">Les projets ci-dessous ont été annulés et peuvent être réassignés à un autre évaluateur.</p>
+            <div className={styles.cardBody}>
+              <p className="text-muted">
+                Les projets ci-dessous ont été annulés et peuvent être
+                réassignés à un autre évaluateur.
+              </p>
               <ul className="list-group list-group-flush">
-                {cancelledProjectsForReassignment.map(project => (
-                  <li key={project._id} className="list-group-item d-flex justify-content-between align-items-center flex-wrap py-3">
+                {cancelledProjectsForReassignment.map((project) => (
+                  <li
+                    key={project._id}
+                    className="list-group-item d-flex justify-content-between align-items-center flex-wrap py-3"
+                  >
                     <div>
-                      <h5 className="mb-1 text-warning"><i className="bi bi-exclamation-triangle me-2"></i> Projet: {project.title}</h5>
-                      <small className="text-muted d-flex align-items-center mt-1"><i className="bi bi-person me-1"></i> Apprenant: {project.studentName || 'N/A'}</small>
-                      <small className="text-muted d-flex align-items-center mt-1"><i className="bi bi-calendar-x me-1"></i> Statut: Annulé</small>
+                      <h5 className="mb-1 text-warning">
+                        <i className="bi bi-exclamation-triangle me-2"></i>{" "}
+                        Projet: {project.title}
+                      </h5>
+                      <small className="text-muted d-flex align-items-center mt-1">
+                        <i className="bi bi-person me-1"></i> Apprenant:{" "}
+                        {project.studentName || "N/A"}
+                      </small>
+                      <small className="text-muted d-flex align-items-center mt-1">
+                        <i className="bi bi-calendar-x me-1"></i> Statut: Annulé
+                      </small>
                     </div>
                     <button
-                      className="btn btn-sm btn-warning"
-                      onClick={() => handleOpenReassignModal({ _id: project._id, project: { title: project.title }, studentName: project.studentName })}
+                      className={styles.btnReassign}
+                      onClick={() =>
+                        handleOpenReassignModal({
+                          _id: project._id,
+                          project: { title: project.title },
+                          studentName: project.studentName,
+                        })
+                      }
                     >
-                      <i className="bi bi-arrow-repeat me-1"></i> Réassigner
+                      <i className="bi bi-arrow-repeat"></i>
+                      Réassigner
                     </button>
                   </li>
                 ))}
@@ -301,16 +394,17 @@ export default function EvaluationPage() {
           </div>
         )}
 
-        <div className="card shadow-sm mb-4">
-          <div className="card-header bg-gradient bg-primary text-white d-flex align-items-center">
-            <i className="bi bi-list-check me-2"></i>
-            <h2 className="h5 mb-0">Toutes les Évaluations</h2>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>
+              <i className="bi bi-list-check"></i>
+              Toutes les Évaluations
+            </h2>
           </div>
-          <div className="card-body">
-            <div className="table-responsive">
-              <table className="table table-hover table-striped table-sm caption-top align-middle">
-                <caption>Liste complète des évaluations</caption>
-                <thead className="table-light">
+          <div className={styles.cardBody}>
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
                   <tr>
                     <th></th>
                     <th>Projet</th>
@@ -323,109 +417,229 @@ export default function EvaluationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {evaluations.length > 0 ? ( 
+                  {evaluations.length > 0 ? (
                     evaluations.map((evalItem) => {
-                      const isLate = evalItem.slot && new Date() > new Date(evalItem.slot.endTime);
-                      const rowClass = isLate ? 'table-danger' : (evalItem.status === 'cancelled' ? 'table-warning' : '');
+                      const isLate =
+                        evalItem.slot &&
+                        dayjs().tz(TIMEZONE).isAfter(dayjs(evalItem.slot.endTime).tz(TIMEZONE));
+                      const rowClass = isLate
+                        ? styles.rowDanger
+                        : evalItem.status === "cancelled"
+                        ? styles.rowWarning
+                        : "";
                       return (
                         <>
                           <tr key={evalItem._id} className={rowClass}>
                             <td className="text-center" style={{ width: 40 }}>
                               <button
-                                className="btn btn-link p-0"
+                                className={styles.expandBtn}
                                 onClick={() => toggleRowExpanded(evalItem._id)}
                                 title="Afficher les feedbacks des pairs"
                               >
-                                <i className={`bi ${expandedRows[evalItem._id] ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                <i
+                                  className={`bi ${
+                                    expandedRows[evalItem._id]
+                                      ? "bi-chevron-up"
+                                      : "bi-chevron-down"
+                                  }`}
+                                ></i>
                               </button>
                               {Array.isArray(evalItem.peersFeedback) && (
-                                <span className={`badge ms-1 ${evalItem.peersFeedback.length > 0 ? 'bg-secondary' : 'bg-light text-muted'}`}>{evalItem.peersFeedback.length}</span>
+                                <span
+                                  className={`badge ms-1 ${
+                                    evalItem.peersFeedback.length > 0
+                                      ? "bg-secondary"
+                                      : "bg-light text-muted"
+                                  }`}
+                                >
+                                  {evalItem.peersFeedback.length}
+                                </span>
                               )}
                             </td>
                             <td>
-                              {evalItem.project?.title || '[Projet Inconnu]'}
+                              {evalItem.project?.title || "[Projet Inconnu]"}
                               {evalItem.assignment?.repoUrl && (
-                                <p className="mb-0"><small><a href={evalItem.assignment.repoUrl} target="_blank" rel="noopener noreferrer">Dépôt GitHub</a></small></p>
+                                <p className="mb-0 d-flex align-items-center">
+                                  <small>
+                                    <i className="bi bi-github me-1"></i> Dépôt:{" "}
+                                    <a
+                                      href={evalItem.assignment.repoUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-primary text-decoration-none"
+                                    >
+                                      {evalItem.assignment.repoUrl}
+                                    </a>
+                                  </small>
+                                </p>
+                              )}
+                              {evalItem.assignment?.githubPagesUrl && (
+                                <p className="mb-0 d-flex align-items-center">
+                                  <small>
+                                    <i className="bi bi-globe me-1"></i> GitHub Pages:{" "}
+                                    <a
+                                      href={evalItem.assignment.githubPagesUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-primary text-decoration-none"
+                                    >
+                                      {evalItem.assignment.githubPagesUrl}
+                                    </a>
+                                  </small>
+                                </p>
                               )}
                             </td>
-                            <td>{evalItem.studentName || '[Apprenant Inconnu]'}</td>
-                            <td>{evalItem.evaluator?.name || '[Évaluateur Inconnu]'}</td>
                             <td>
-                              <span className={`badge bg-${evalItem.status === 'pending' ? 'info' : evalItem.status === 'accepted' ? 'success' : evalItem.status === 'rejected' ? 'danger' : 'secondary'}`}>
+                              {evalItem.studentName || "[Apprenant Inconnu]"}
+                            </td>
+                            <td>
+                              {evalItem.evaluator?.name ||
+                                "[Évaluateur Inconnu]"}
+                            </td>
+                            <td>
+                              <span
+                                className={`${styles.badge} ${
+                                  evalItem.status === "pending"
+                                    ? styles.badgePending
+                                    : evalItem.status === "accepted"
+                                    ? styles.badgeAccepted
+                                    : evalItem.status === "rejected"
+                                    ? styles.badgeRejected
+                                    : evalItem.status === "cancelled"
+                                    ? styles.badgeCancelled
+                                    : styles.badge
+                                }`}
+                              >
+                                <i className={`bi bi-${
+                                  evalItem.status === "pending" ? "hourglass-split" :
+                                  evalItem.status === "accepted" ? "check-circle" :
+                                  evalItem.status === "rejected" ? "x-circle" :
+                                  evalItem.status === "cancelled" ? "x-octagon" :
+                                  "question-circle"
+                                }`}></i>
                                 {evalItem.status}
                               </span>
-                              {isLate && evalItem.status === 'pending' && <span className="badge bg-danger ms-1">EN RETARD</span>}
+                              {isLate && evalItem.status === "pending" && (
+                                <span className={`${styles.badge} ${styles.badgeLate}`}>
+                                  <i className="bi bi-clock-fill"></i>
+                                  EN RETARD
+                                </span>
+                              )}
                             </td>
                             <td>
-                              <span className={`badge bg-${evalItem.assignment?.status === 'assigned' ? 'primary' : evalItem.assignment?.status === 'submitted' ? 'warning text-dark' : evalItem.assignment?.status === 'pending_review' ? 'info' : evalItem.assignment?.status === 'approved' ? 'success' : evalItem.assignment?.status === 'rejected' ? 'danger' : 'secondary'}`}>
-                                {evalItem.assignment?.status || 'N/A'}
+                              <span
+                                className={`${styles.badge} ${
+                                  evalItem.assignment?.status === "assigned"
+                                    ? styles.badgeAssigned
+                                    : evalItem.assignment?.status === "submitted"
+                                    ? styles.badgeSubmitted
+                                    : evalItem.assignment?.status === "pending_review"
+                                    ? styles.badgePendingReview
+                                    : evalItem.assignment?.status === "approved"
+                                    ? styles.badgeApproved
+                                    : evalItem.assignment?.status === "rejected"
+                                    ? styles.badgeRejected
+                                    : styles.badge
+                                }`}
+                              >
+                                <i className={`bi bi-${
+                                  evalItem.assignment?.status === "assigned" ? "clock" :
+                                  evalItem.assignment?.status === "submitted" ? "hourglass-split" :
+                                  evalItem.assignment?.status === "pending_review" ? "person-workspace" :
+                                  evalItem.assignment?.status === "approved" ? "check-circle" :
+                                  evalItem.assignment?.status === "rejected" ? "x-circle" :
+                                  "question-circle"
+                                }`}></i>
+                                {evalItem.assignment?.status || "N/A"}
                               </span>
                             </td>
-                            <td>{evalItem.slot?.startTime ? new Date(evalItem.slot.startTime).toLocaleString() : 'N/A'}</td>
+                            <td>
+                              {evalItem.slot?.startTime
+                                ? dayjs(evalItem.slot.startTime).tz(TIMEZONE).format()
+                                : "N/A"}
+                            </td>
                             <td className="text-center">
-                              { ((isLate && evalItem.status === 'pending') || evalItem.status === 'cancelled') && evalItem.status !== 'approved' && (
-                                <button
-                                  className="btn btn-sm btn-warning"
-                                  onClick={() => handleOpenReassignModal(evalItem)}
-                                >
-                                  <i className="bi bi-arrow-repeat me-1"></i> Réassigner
-                                </button>
-                              )}
+                              {((isLate && evalItem.status === "pending") ||
+                                evalItem.status === "cancelled") &&
+                                evalItem.status !== "approved" && (
+                                  <button
+                                    className={styles.btnReassign}
+                                    onClick={() =>
+                                      handleOpenReassignModal(evalItem)
+                                    }
+                                  >
+                                    <i className="bi bi-arrow-repeat"></i>
+                                    Réassigner
+                                  </button>
+                                )}
                             </td>
                           </tr>
                           {expandedRows[evalItem._id] && (
-                            <tr className="table-active">
+                            <tr className={styles.rowExpanded}>
                               <td></td>
                               <td colSpan="7">
                                 <div className="p-3 bg-light border rounded">
-                                  <h6 className="mb-3 d-flex align-items-center"><i className="bi bi-people me-2"></i> Feedback de l'évaluation + feedbacks des pairs</h6>
+                                  <h6 className="mb-3 d-flex align-items-center">
+                                    <i className="bi bi-people me-2"></i>{" "}
+                                    Feedback de l'évaluation
+                                  </h6>
                                   {/* Feedback de l'évaluation courante (évaluateur actif: staff, admin ou apprenant) */}
-                                  {evalItem.feedback || typeof evalItem.score === 'number' || evalItem.comments ? (
-                                    <div className="mb-3 p-3 bg-white border rounded">
-                                      <h6 className="mb-2"><i className="bi bi-chat-right-quote me-2"></i> Feedback de l'évaluateur courant</h6>
+                                  {evalItem.feedback ||
+                                  typeof evalItem.score === "number" ||
+                                  evalItem.comments ? (
+                                    <div className={styles.feedbackCard}>
+                                      <h6 className={styles.feedbackCardTitle}>
+                                        <i className="bi bi-chat-right-quote"></i>
+                                        Feedback de l'évaluateur courant
+                                      </h6>
                                       <div>
-                                        {evalItem.feedback?.assiduite && <div><small><strong>Assiduité:</strong> {evalItem.feedback.assiduite}</small></div>}
-                                        {evalItem.feedback?.comprehension && <div><small><strong>Compréhension:</strong> {evalItem.feedback.comprehension}</small></div>}
-                                        {evalItem.feedback?.specifications && <div><small><strong>Spécifications:</strong> {evalItem.feedback.specifications}</small></div>}
-                                        {evalItem.feedback?.maitrise_concepts && <div><small><strong>Maîtrise des concepts:</strong> {evalItem.feedback.maitrise_concepts}</small></div>}
-                                        {evalItem.feedback?.capacite_expliquer && <div><small><strong>Capacité à expliquer:</strong> {evalItem.feedback.capacite_expliquer}</small></div>}
-                                        {typeof evalItem.score === 'number' && <div><small><strong>Score:</strong> {evalItem.score}/100</small></div>}
-                                        {evalItem.comments && <div><small><strong>Commentaires:</strong> {evalItem.comments}</small></div>}
+                                        {evalItem.feedback?.assiduite && (
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Assiduité:</strong> {evalItem.feedback.assiduite}
+                                          </div>
+                                        )}
+                                        {evalItem.feedback?.comprehension && (
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Compréhension:</strong> {evalItem.feedback.comprehension}
+                                          </div>
+                                        )}
+                                        {evalItem.feedback?.specifications && (
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Spécifications:</strong> {evalItem.feedback.specifications}
+                                          </div>
+                                        )}
+                                        {evalItem.feedback?.maitrise_concepts && (
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Maîtrise des concepts:</strong> {evalItem.feedback.maitrise_concepts}
+                                          </div>
+                                        )}
+                                        {evalItem.feedback?.capacite_expliquer && (
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Capacité à expliquer:</strong> {evalItem.feedback.capacite_expliquer}
+                                          </div>
+                                        )}
+                                        {typeof evalItem.score === "number" && (
+                                          <div>
+                                            <small>
+                                              <strong>Score:</strong>{" "}
+                                              <span className="badge bg-primary">
+                                                {evalItem.score}/100
+                                              </span>
+                                            </small>
+                                          </div>
+                                        )}
+                                        {evalItem.comments && (
+                                          <div className={styles.feedbackItem}>
+                                            <strong>Commentaires:</strong> {evalItem.comments}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   ) : (
-                                    <p className="text-muted">Aucun feedback saisi par l'évaluateur courant.</p>
-                                  )}
-                                  {Array.isArray(evalItem.peersFeedback) && evalItem.peersFeedback.length > 0 ? (
-                                    <ul className="list-group list-group-flush">
-                                      {evalItem.peersFeedback.map((pf, idx) => (
-                                        <li key={idx} className="list-group-item">
-                                          <div className="d-flex justify-content-between align-items-start flex-wrap">
-                                            <div>
-                                              <strong>{pf.evaluator?.name || 'Apprenant'}</strong>
-                                              {pf.evaluator?.email && <small className="text-muted ms-2">{pf.evaluator.email}</small>}
-                                              <div className="mt-1">
-                                                <span className={`badge bg-${pf.status === 'accepted' ? 'success' : pf.status === 'rejected' ? 'danger' : pf.status === 'pending' ? 'info' : 'secondary'}`}>{pf.status}</span>
-                                                {pf.createdAt && <small className="text-muted ms-2">{new Date(pf.createdAt).toLocaleString()}</small>}
-                                              </div>
-                                            </div>
-                                          </div>
-                                          {pf.feedback && (
-                                            <div className="mt-2">
-                                              {pf.feedback.assiduite && <div><small><strong>Assiduité:</strong> {pf.feedback.assiduite}</small></div>}
-                                              {pf.feedback.comprehension && <div><small><strong>Compréhension:</strong> {pf.feedback.comprehension}</small></div>}
-                                              {pf.feedback.specifications && <div><small><strong>Spécifications:</strong> {pf.feedback.specifications}</small></div>}
-                                              {pf.feedback.maitrise_concepts && <div><small><strong>Maîtrise des concepts:</strong> {pf.feedback.maitrise_concepts}</small></div>}
-                                              {pf.feedback.capacite_expliquer && <div><small><strong>Capacité à expliquer:</strong> {pf.feedback.capacite_expliquer}</small></div>}
-                                              {typeof pf.score === 'number' && <div><small><strong>Score:</strong> {pf.score}/100</small></div>}
-                                              {pf.comments && <div><small><strong>Commentaires:</strong> {pf.comments}</small></div>}
-                                            </div>
-                                          )}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-muted mb-0">Aucun feedback pair pour cette évaluation.</p>
+                                    <p className="text-muted">
+                                      Aucun feedback saisi par l'évaluateur
+                                      courant.
+                                    </p>
                                   )}
                                 </div>
                               </td>
@@ -436,7 +650,14 @@ export default function EvaluationPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan="7" className="text-center py-3">Aucune évaluation à afficher.</td>
+                      <td colSpan="8" style={{ border: 'none' }}>
+                        <div className={styles.emptyState}>
+                          <i className="bi bi-clipboard-x"></i>
+                          <p className={styles.emptyStateText}>
+                            Aucune évaluation à afficher.
+                          </p>
+                        </div>
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -444,153 +665,308 @@ export default function EvaluationPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Modal de Réassignation */}
         {showReassignModal && evaluationToReassign && (
-          <div className="modal" tabIndex="-1" style={{ display: 'block' }}>
-            <div className="modal-dialog modal-lg">
-              <div className="modal-content">
-                <div className="modal-header bg-warning text-dark">
-                  <h5 className="modal-title"><i className="bi bi-arrow-repeat me-2"></i> Réassigner l'Évaluation</h5>
-                  <button type="button" className="btn-close" onClick={handleCloseReassignModal}></button>
-                </div>
-                <div className="modal-body">
-                  {error && <div className="alert alert-danger mb-3">{error}</div>}
-                  {success && <div className="alert alert-success mb-3">{success}</div>}
-                  <p><strong>Projet:</strong> {evaluationToReassign.project?.title}</p>
-                  <p><strong>Apprenant:</strong> {evaluationToReassign.studentName}</p>
-                  <p><strong>Ancien Évaluateur:</strong> {evaluationToReassign.evaluator?.name || 'N/A'}</p>
-                  <hr />
+          <div className={styles.modalOverlay} onClick={handleCloseReassignModal}>
+            <div className={styles.modalDialog} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h5 className={styles.modalTitle}>
+                  <i className="bi bi-arrow-repeat"></i>
+                  Réassigner l'Évaluation
+                </h5>
+                <button
+                  type="button"
+                  className={styles.closeBtn}
+                  onClick={handleCloseReassignModal}
+                >
+                  <i className="bi bi-x"></i>
+                </button>
+              </div>
+              <div className={styles.modalBody}>
+                  {error && (
+                    <div className={`${styles.alert} ${styles.alertDanger}`}>
+                      <i className="bi bi-exclamation-triangle-fill"></i>
+                      {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className={`${styles.alert} ${styles.alertSuccess}`}>
+                      <i className="bi bi-check-circle-fill"></i>
+                      {success}
+                    </div>
+                  )}
+                  <div className={styles.modalInfo}>
+                  <p>
+                      <strong>Projet:</strong> {evaluationToReassign.project?.title}
+                  </p>
+                  <p>
+                      <strong>Apprenant:</strong> {evaluationToReassign.studentName}
+                  </p>
+                  <p>
+                      <strong>Ancien Évaluateur:</strong> {evaluationToReassign.evaluator?.name || "N/A"}
+                  </p>
+                  </div>
                   <form onSubmit={handleReassignEvaluation}>
-                    <div className="mb-3">
-                      <label className="form-label">Sélectionner deux Slots de Disponibilité</label>
+                    <div>
+                      <label style={{ 
+                        color: '#179349', 
+                        fontWeight: '600', 
+                        fontSize: '14px', 
+                        marginBottom: '15px',
+                        display: 'block'
+                      }}>
+                        Sélectionner deux Slots de Disponibilité
+                      </label>
                       {availableSlots.length > 0 ? (
-                        <div className="list-group">
-                          {availableSlots.map(slot => (
-                            <label key={slot._id} className={`list-group-item list-group-item-action d-flex justify-content-between align-items-center ${selectedSlots.includes(slot._id) ? 'active' : ''}`}>
+                        <div className={styles.slotList}>
+                          {availableSlots.map((slot) => (
+                            <label
+                              key={slot._id}
+                              className={`${styles.slotItem} ${
+                                selectedSlots.includes(slot._id) ? styles.active : ""
+                              }`}
+                            >
                               <input
-                                className="form-check-input me-3"
+                                className={styles.slotCheckbox}
                                 type="checkbox"
                                 value={slot._id}
                                 checked={selectedSlots.includes(slot._id)}
                                 onChange={() => {
-                                  setSelectedSlots(prevSelectedSlots => {
+                                  setSelectedSlots((prevSelectedSlots) => {
                                     if (prevSelectedSlots.includes(slot._id)) {
-                                      return prevSelectedSlots.filter(id => id !== slot._id);
+                                      return prevSelectedSlots.filter(
+                                        (id) => id !== slot._id
+                                      );
                                     } else {
                                       if (prevSelectedSlots.length < 2) {
                                         return [...prevSelectedSlots, slot._id];
                                       } else {
-                                        setError('Vous ne pouvez sélectionner que deux slots.');
+                                        setError(
+                                          "Vous ne pouvez sélectionner que deux slots."
+                                        );
                                         return prevSelectedSlots;
                                       }
                                     }
                                   });
                                 }}
                               />
-                              <div>
-                                {new Date(slot.startTime).toLocaleString()} - {new Date(slot.endTime).toLocaleString()} (Évaluateur: {slot.evaluator?.name || 'N/A'})
+                              <div className={styles.slotInfo}>
+                                <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
+                                  {dayjs(slot.startTime).tz(TIMEZONE).format('DD/MM/YYYY HH[h]mm')} - {dayjs(slot.endTime).tz(TIMEZONE).format('HH[h]mm')}
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#666' }}>
+                                  <i className="bi bi-person-fill" style={{ marginRight: '5px' }}></i>
+                                  Évaluateur: {slot.evaluator?.name || "N/A"}
+                                </div>
                               </div>
                             </label>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-muted">Aucun slot disponible.</p>
+                        <div className={styles.emptyState}>
+                          <i className="bi bi-inbox"></i>
+                          <p className={styles.emptyStateText}>Aucun slot disponible.</p>
+                        </div>
                       )}
                     </div>
-                    <button type="submit" className="btn btn-primary" disabled={isLoading || selectedSlots.length !== 2}>
-                      {isLoading ? 'Réassignation en cours...' : 'Confirmer la Réassignation'}
+                    <button
+                      type="submit"
+                      className={styles.btnSubmit}
+                      disabled={isLoading || selectedSlots.length !== 2}
+                    >
+                      {isLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                          Réassignation en cours...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-check-circle"></i>
+                          Confirmer la Réassignation
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>
               </div>
             </div>
-          </div>
         )}
-        {showReassignModal && <div className="modal-backdrop fade show"></div>}
       </div>
     );
   }
 
   // Rendu par défaut pour l'apprenant (vue d'une seule évaluation)
-  if (me.role === 'apprenant') {
-    return (
-      <div className="container-fluid mt-4 pt-5 px-4">
-        <h1 className="mb-4">Mes Évaluations</h1>
-        {error && <div className="alert alert-danger mt-3" role="alert">{error}</div>}
-        {success && <div className="alert alert-success mt-3" role="alert">{success}</div>}
+  if (me.role === "apprenant") {
+    const formatTime = (date) => {
+      if (!date) return "N/A";
+      return dayjs(date).tz(TIMEZONE).format('HH[h]mm');
+    };
 
-        <div className="card shadow-sm mb-4">
-          <div className="card-header bg-gradient bg-primary text-white d-flex align-items-center">
-            <i className="bi bi-list-check me-2"></i>
-            <h2 className="h5 mb-0">Toutes mes Évaluations</h2>
+    return (
+      <div className={styles.container}>
+        <div className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>
+            <i className="bi bi-clipboard-check"></i>
+            Mes Évaluations
+          </h1>
+        </div>
+
+        {error && (
+          <div className={`${styles.alert} ${styles.alertDanger}`}>
+            <i className="bi bi-exclamation-triangle-fill"></i>
+            {error}
           </div>
-          <div className="card-body">
-            <div className="table-responsive">
-              <table className="table table-hover table-striped caption-top align-middle">
-                <caption>Liste de toutes mes évaluations</caption>
-                <thead className="table-light">
+        )}
+        {success && (
+          <div className={`${styles.alert} ${styles.alertSuccess}`}>
+            <i className="bi bi-check-circle-fill"></i>
+            {success}
+          </div>
+        )}
+
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>
+              <i className="bi bi-list-check"></i>
+              Toutes mes Évaluations
+            </h2>
+          </div>
+          <div className={styles.cardBody}>
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
                   <tr>
                     <th>Projet</th>
                     <th>Évaluateur</th>
                     <th>Date</th>
                     <th>Statut</th>
-                    
                   </tr>
                 </thead>
                 <tbody>
                   {evaluations.length > 0 ? (
                     evaluations.map((evalItem) => {
-                      const slotStartTime = evalItem.slot?.startTime ? new Date(evalItem.slot.startTime) : null;
-                      const slotEndTime = evalItem.slot?.endTime ? new Date(evalItem.slot.endTime) : null;
-                      const isPendingAndActive = evalItem.status === 'pending' && slotStartTime && slotEndTime && (new Date() >= slotStartTime && new Date() <= (slotEndTime.getTime() + 60 * 60 * 1000));
+                      const slotStartTime = evalItem.slot?.startTime
+                        ? dayjs(evalItem.slot.startTime).tz(TIMEZONE)
+                        : null;
+                      const slotEndTime = evalItem.slot?.endTime
+                        ? dayjs(evalItem.slot.endTime).tz(TIMEZONE)
+                        : null;
+                      const isPendingAndActive =
+                        evalItem.status === "pending" &&
+                        slotStartTime &&
+                        slotEndTime &&
+                        dayjs().tz(TIMEZONE).isSameOrAfter(slotStartTime) && // Ajuster new Date() à UTC+1
+                        dayjs().tz(TIMEZONE).isSameOrBefore(slotEndTime.add(1, 'hour')); // 1 heure après l'heure de fin
 
-                      let statusBadgeClass = 'bg-secondary';
+                      let statusBadgeClass = "bg-secondary";
                       switch (evalItem.status) {
-                        case 'pending':
-                          statusBadgeClass = 'bg-info';
+                        case "pending":
+                          statusBadgeClass = "bg-info";
                           break;
-                        case 'accepted':
-                          statusBadgeClass = 'bg-success';
+                        case "accepted":
+                          statusBadgeClass = "bg-success";
                           break;
-                        case 'rejected':
-                          statusBadgeClass = 'bg-danger';
+                        case "rejected":
+                          statusBadgeClass = "bg-danger";
                           break;
-                        case 'cancelled':
-                          statusBadgeClass = 'bg-warning text-dark';
+                        case "cancelled":
+                          statusBadgeClass = "bg-warning text-dark";
                           break;
                         default:
-                          statusBadgeClass = 'bg-secondary';
+                          statusBadgeClass = "bg-secondary";
                       }
 
                       return (
                         <tr key={evalItem._id}>
                           <td>
-                            <strong>{evalItem.project?.title || '[Projet Inconnu]'}</strong>
-                            {evalItem.project?.description && <p className="text-muted mb-0"><small>{evalItem.project.description}</small></p>}
+                            {/*<strong>
+                              {evalItem.project?.title || "[Projet Inconnu]"}
+                            </strong> commenter parceque dans la description des projets il y'a déja le titre*/}
+                            {evalItem.project?.description && (
+                              <p className="text-muted mb-0">
+                                <small>
+                                  <HtmlRenderer
+                                    htmlContent={
+                                      evalItem.project.description.substring(
+                                        0,
+                                        70
+                                      ) + " ..."
+                                    }
+                                  />
+                                </small>
+                              </p>
+                            )}
                             {evalItem.project?.repoUrl && (
-                              <p className="mb-0"><small><a href={evalItem.project.repoUrl} target="_blank" rel="noopener noreferrer">Dépôt GitHub</a></small></p>
+                              <p className="mb-0">
+                                <small>
+                                  <a
+                                    href={evalItem.project.repoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    Dépôt GitHub
+                                  </a>
+                                </small>
+                              </p>
+                            )}
+                            {evalItem.project?.githubPagesUrl && (
+                              <p className="mb-0">
+                                <small>
+                                  <a
+                                    href={evalItem.project.githubPagesUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    GitHub Pages
+                                  </a>
+                                </small>
+                              </p>
                             )}
                           </td>
-                          <td>{evalItem.evaluator?.name || 'N/A'}</td>
+                          <td>{evalItem.evaluator?.name || "N/A"}</td>
                           <td>
-                            {slotStartTime ? 
-                              `${slotStartTime.toLocaleDateString()} de ${slotStartTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} à ${slotEndTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                              : 'N/A'
-                            }
+                            {slotStartTime
+                              ? `${slotStartTime.format('DD/MM/YYYY')} de ${formatTime(slotStartTime)} à ${formatTime(slotEndTime)}`
+                              : "N/A"}
                           </td>
                           <td>
-                            <span className={`badge ${statusBadgeClass}`}>
+                            <span
+                              className={`${styles.badge} ${
+                                evalItem.status === "pending"
+                                  ? styles.badgePending
+                                  : evalItem.status === "accepted"
+                                  ? styles.badgeAccepted
+                                  : evalItem.status === "rejected"
+                                  ? styles.badgeRejected
+                                  : evalItem.status === "cancelled"
+                                  ? styles.badgeCancelled
+                                  : styles.badge
+                              }`}
+                            >
+                              <i className={`bi bi-${
+                                evalItem.status === "pending" ? "hourglass-split" :
+                                evalItem.status === "accepted" ? "check-circle" :
+                                evalItem.status === "rejected" ? "x-circle" :
+                                evalItem.status === "cancelled" ? "x-octagon" :
+                                "question-circle"
+                              }`}></i>
                               {evalItem.status}
                             </span>
                           </td>
-                          
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan="4" className="text-center py-3">Aucune évaluation à afficher.</td>
+                      <td colSpan="4" style={{ border: 'none' }}>
+                        <div className={styles.emptyState}>
+                          <i className="bi bi-clipboard-x"></i>
+                          <p className={styles.emptyStateText}>
+                            Aucune évaluation à afficher.
+                          </p>
+                        </div>
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -603,6 +979,14 @@ export default function EvaluationPage() {
   }
 
   // Si ni staff/admin ni apprenant avec toutes les évals, et pas d'évaluation sélectionnée
-  return <div className="text-center mt-5"><p className="lead">Aucune évaluation à afficher ou non autorisé.</p></div>;
+  return (
+    <div className={styles.container}>
+      <div className={styles.emptyState} style={{ minHeight: '60vh' }}>
+        <i className="bi bi-clipboard-x"></i>
+        <p className={styles.emptyStateText}>
+          Aucune évaluation à afficher ou non autorisé.
+        </p>
+      </div>
+    </div>
+  );
 }
-

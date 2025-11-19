@@ -1,0 +1,6 @@
+# Ignore all profile pictures
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp

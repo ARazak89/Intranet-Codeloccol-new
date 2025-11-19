@@ -1,0 +1,188 @@
+/* BadgeDisplay Styles */
+
+.card {
+  background: white;
+  border-radius: 15px;
+  padding: 5px; /* Réduire le padding de la carte */
+  box-shadow: 0 4px 12px rgba(23, 147, 73, 0.15);
+  border-left: 4px solid #179349;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 6px 20px rgba(23, 147, 73, 0.25);
+}
+.cardImg {
+  display: flex;            /* d-flex */
+  flex-direction: column;   /* flex-column */
+  justify-content: center;  /* justify-content-center */
+  align-items: center; 
+  padding: 5px;
+  
+}
+:global(.themed:not(.light)) .card {
+  background: var(--bg);
+  box-shadow: 0 4px 12px rgba(23, 147, 73, 0.3);
+  border-left-color: #1db558;
+}
+
+:global(.themed:not(.light)) .card:hover {
+  box-shadow: 0 6px 20px rgba(23, 147, 73, 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+:global(.themed:not(.light)) .header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.title {
+  color: #179349;
+  font-weight: 700;
+  font-size: 22px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+:global(.themed:not(.light)) .title {
+  color: #1db558;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  color: #ddd;
+  margin-bottom: 15px;
+  display: block;
+}
+
+:global(.themed:not(.light)) .emptyIcon {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.emptyText {
+  font-size: 15px;
+  color: #666;
+  margin: 0;
+}
+
+:global(.themed:not(.light)) .emptyText {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.badgeImage {
+  width: 100%; /* Remplir toute la largeur de la carte */
+  max-width: 150px; /* Limiter la taille maximale de l'image */
+  height: auto; /* Ajuster la hauteur automatiquement */
+  object-fit: contain; /* Ajuster l'image sans la couper */
+  margin-bottom: 5px; /* Espacement réduit avec le titre */
+  border-radius: 50px;
+}
+
+.badge-title {
+  font-size: 10px; /* Réduire la taille de la police du titre */
+  font-weight: 400; /* Garder une bonne visibilité */
+  color: #333;
+}
+
+:global(.themed:not(.light)) .badge-title {
+  color: var(--text);
+}
+
+/* Styles pour la modale des badges */
+.customModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.modalContentCustom {
+  background: white;
+  border-radius: 15px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1051;
+  overflow: hidden;
+}
+
+:global(.themed:not(.light)) .modalContentCustom {
+  background: var(--bg-light);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.modalHeaderCustom {
+  background: linear-gradient(135deg, #179349 0%, #1db558 100%);
+  color: white;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalBodyCustom {
+  padding: 20px;
+  text-align: center;
+}
+
+:global(.themed:not(.light)) .modalBodyCustom {
+  background: var(--bg);
+}
+
+.closeBtnCustom {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 18px;
+}
+
+.closeBtnCustom:hover {
+  background: #F36F35;
+  transform: rotate(90deg);
+}
+
+.badgeImageLarge {
+  width: 250px; /* Agrandir l'image dans la modale */
+  height: 250px;
+  object-fit: contain;
+  margin-bottom: 15px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1040;
+}

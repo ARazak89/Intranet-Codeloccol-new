@@ -2,7 +2,7 @@
 import "bootstrap-icons/font/bootstrap-icons.css"; // Importez les icônes Bootstrap
 import "../styles/global.css"; // Importez vos styles globaux ici
 import "bootstrap/dist/css/bootstrap.min.css";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Layout from "../components/Layout"; // Importez le nouveau Layout
@@ -11,6 +11,32 @@ const publicPaths = ["/", "/login"]; // Définissez les chemins publics ici
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      return savedTheme ? savedTheme === 'dark' : false; // Default to dark if no preference
+    }
+    return false; // Default to dark on server
+  });
+  const boxRef = useRef(null);
+
+  // Fonction pour changer le thème
+  const toggleTheme = () => {
+    setIsDark(prevIsDark => !prevIsDark);
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      if (boxRef.current) {
+        if (isDark) {
+          boxRef.current.classList.remove('light');
+        } else {
+          boxRef.current.classList.add('light');
+        }
+      }
+    }
+  }, [isDark]);
 
   // Le useEffect pour la redirection est maintenant géré dans le composant Layout
   // Pour les pages publiques, pas de redirection ici.
@@ -24,21 +50,52 @@ export default function App({ Component, pageProps }) {
     }
   }, [router.pathname]);
 
-  // Si la page est publique, ne pas utiliser le Layout
+  // Si la page est publique, utiliser un wrapper simple avec support du thème
   if (publicPaths.includes(router.pathname)) {
     return (
-      <>
-        <div>
-          <Component {...pageProps} />
-        </div>
-      </>
+      <div ref={boxRef} className="themed thm-bg min-vh-100">
+        {/* Bouton de changement de thème pour les pages publiques */}
+        <button
+          onClick={toggleTheme}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            zIndex: 1000,
+            background: 'rgba(23, 147, 73, 0.9)',
+            border: 'none',
+            borderRadius: '50%',
+            width: '50px',
+            height: '50px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '20px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(243, 111, 53, 0.9)';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(23, 147, 73, 0.9)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          <i className={`bi bi-${isDark ? 'sun' : 'moon'}-fill`}></i>
+        </button>
+        <Component {...pageProps} />
+      </div>
     );
   }
 
   // Pour les pages non publiques (protégées), utiliser le Layout
   return (
-    <Layout>
-      <Component {...pageProps} />
+    <Layout isDark={isDark} toggleTheme={toggleTheme} boxRef={boxRef}>
+      <Component {...pageProps} isDark={isDark} toggleTheme={toggleTheme} />
     </Layout>
   );
 }

@@ -14,6 +14,7 @@ export const requireAuth = async (req, res, next) => {
       return res.status(403).json({ error: "Account is blocked" });
     
     req.user = user;
+    console.log(`[AUTH] User ${user.email} (ID: ${user._id}) with role '${user.role}' authenticated successfully.`);
     next();
   } catch (e) {
     return res.status(401).json({ error: "Invalid token" });
@@ -23,6 +24,7 @@ export const requireAuth = async (req, res, next) => {
 export const requireRole =
   (roles = []) =>
   (req, res, next) => {
+    console.log(`[ROLE] Checking roles for user ${req.user?.email || 'N/A'}. Required roles: ${roles.join(', ')}, User role: ${req.user?.role}`);
     if (!roles.includes(req.user?.role))
       return res.status(403).json({ error: "Forbidden" });
     next();

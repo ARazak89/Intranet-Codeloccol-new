@@ -8,6 +8,7 @@ const assignmentSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   status: { type: String, enum: ['assigned', 'submitted', 'pending_review', 'awaiting_staff_review', 'approved', 'rejected', 'cancelled'], default: 'assigned' },
   repoUrl: { type: String },
+  githubPagesUrl: { type: String }, // Nouveau champ pour l'URL GitHub Pages
   submissionDate: { type: Date },
   evaluations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Evaluation' }],
   peerEvaluators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Réfère aux étudiants qui évalueront ce projet.
@@ -34,6 +35,7 @@ const projectSchema = new mongoose.Schema({
   markdownFilePath: { type: String }, // Chemin relatif vers le fichier Markdown détaillé du projet.
   order: { type: Number }, // Ordre numérique du projet dans le cursus ou pour l'affichage.
   assignments: [assignmentSchema], // Tableau de sous-documents `assignmentSchema` pour les assignations à des étudiants.
+  student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Champ pour les projets de hackathon.
 }, { timestamps: true }); // Ajoute automatiquement `createdAt` et `updatedAt`.
 
 const Project = mongoose.model('Project', projectSchema);

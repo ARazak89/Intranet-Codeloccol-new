@@ -4,15 +4,17 @@ import {
   markAsRead,
   deleteNotification,
   getNotificationsCount,
+  markAllAsRead,
 } from "../controllers/notificationController.js";
 import { requireAuth } from "../middlewares/authMiddleware.js";
 
-const r = Router();
+const router = Router();
 
-r.get("/", requireAuth, listNotifications);
-r.get("/mine", requireAuth, listNotifications); // Nouvelle route pour les notifications de l'utilisateur
-r.get("/count", requireAuth, getNotificationsCount);
-r.put("/:id/read", requireAuth, markAsRead);
-r.delete("/:id", requireAuth, deleteNotification);
+router.get("/", requireAuth, listNotifications);
+router.get("/mine", requireAuth, listNotifications);
+router.get("/count", requireAuth, getNotificationsCount);
+router.put("/:id/read", requireAuth, markAsRead);
+router.put("/all/read", requireAuth, markAllAsRead);
+router.delete("/:id", requireAuth, deleteNotification);
 
-export default r;
+export default router;

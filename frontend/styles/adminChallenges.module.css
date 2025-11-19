@@ -1,0 +1,356 @@
+.container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: var(--bg-dark);
+  color: var(--text-muted);
+  border-radius: 8px;
+  box-shadow: var(--shadow-l);
+}
+
+.pageTitle {
+  color: var(--primary);
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-size: 2.5rem;
+}
+
+.createButton {
+  display: inline-block;
+  background-color: var(--primary);
+  color: var(--bg-dark);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-s);
+}
+
+.createButton:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-m);
+}
+
+.challengesTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+  background-color: var(--bg);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-m);
+}
+
+.tableHeader {
+  background-color: var(--bg-light);
+  font-weight: 700;
+  color: var(--text);
+  font-size: 0.95rem;
+  padding: 1rem;
+  border-bottom: 2px solid var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tableCell {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--bg-light);
+  color: var(--text-muted);
+}
+
+.tableRow:hover {
+  background-color: var(--bg-light);
+  transform: scale(1.01);
+  transition: all 0.2s ease-in-out;
+}
+
+.tableLink {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.tableLink:hover {
+  text-decoration: underline;
+}
+
+.actionButton {
+  background-color: var(--bg-light);
+  color: var(--text);
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--bg);
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  text-decoration: none;
+  font-size: 1rem; /* Adjusted for better icon visibility */
+  transition: all 0.2s ease;
+  display: inline-flex; /* Permet un bon alignement des icônes */
+  align-items: center;
+  justify-content: center;
+  width: 36px; /* Taille fixe pour les boutons icônes */
+  height: 36px;
+  padding: 0; /* Réinitialiser le padding pour les icônes */
+}
+
+.actionButton:hover {
+  background-color: var(--primary);
+  color: var(--bg-dark);
+  box-shadow: var(--shadow-s);
+}
+
+.deleteButton {
+  background-color: #dc3545;
+  color: white;
+  border: 1px solid #dc3545;
+}
+
+.deleteButton:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+  color: white;
+}
+
+.backButton {
+  display: inline-block;
+  background-color: var(--bg-light);
+  color: var(--text);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  background-color: var(--bg);
+  color: var(--primary);
+}
+
+.errorMessage {
+  background-color: var(--danger-light);
+  color: var(--danger-dark);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.form {
+  background-color: var(--bg);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow-m);
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inputField,
+.textareaField,
+.selectField {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--bg-light);
+  border-radius: 6px;
+  background-color: var(--bg-dark);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.inputField:focus,
+.textareaField:focus,
+.selectField:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.25);
+}
+
+.submitButton {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  background-color: var(--primary);
+  color: var(--bg-dark);
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-s);
+}
+
+.submitButton:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-m);
+}
+
+.submitButton:disabled {
+  background-color: var(--bg-light);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.filtersContainer {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.statsContainer {
+  background-color: var(--bg);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow-m);
+  margin-bottom: 2rem;
+}
+
+.statsContainer h3 {
+  color: var(--primary);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.statCard {
+  background-color: var(--bg-dark);
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow-s);
+  text-align: center;
+  color: var(--text);
+}
+
+.statCard strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+}
+
+.reviewGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 992px) {
+  .reviewGrid {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+
+.reviewInfoCard,
+.reviewFormCard {
+  background-color: var(--bg);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow-m);
+}
+
+.reviewInfoCard h2,
+.reviewFormCard h2 {
+  color: var(--primary);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.imagePreviewContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: 8px;
+  background-color: var(--bg-dark);
+}
+
+.imagePreview {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--bg-light);
+}
+
+.imagePreviewWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.removeImageButton {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 1rem;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.removeImageButton:hover {
+  background-color: var(--danger-dark);
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.infoIcon {
+  font-size: 1.2rem;
+  margin-right: 1rem;
+  color: var(--primary);
+}
+
+.infoContent {
+  flex-grow: 1;
+}
+
+.infoLabel {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.infoValue {
+  color: var(--text-muted);
+}
+
+.actionButtonsContainer {
+  display: flex;
+  gap: 0.5rem; /* Espace entre les boutons */
+  flex-wrap: wrap; /* Permet aux boutons de passer à la ligne si l'espace est insuffisant */
+  justify-content: flex-start;
+}

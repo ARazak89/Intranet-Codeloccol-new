@@ -17,6 +17,15 @@
   /* text-colors */
   --text: hsl(0, 0%, 95%);
   --text-muted: hsl(0, 0%, 69%);
+  /* Nouvelles variables pour les couleurs de survol en mode sombre */
+  --primary-dark: #1db558; /* Vert plus clair */
+  --yellow-dark: #ffcd38; /* Jaune plus clair */
+  --red-dark: #f06575; /* Rouge plus clair */
+  --orange-dark: #ff8556; /* Orange plus clair */
+  --text-color-dark: var(--text);
+  /* sidebar colors - mode sombre (même que navbar) */
+  --sidebar-bg: hsl(0, 0%, 15%);
+  --sidebar-link-active: hsl(0, 0%, 20%);
   /* shadows */
   --shadow-s: inset 0 1px 2px #ffffff30, /* top highlight */ 0 1px 2px #00000030,
     /* dark shadow */ 0 2px 4px #00000015; /* soft shadow */
@@ -28,12 +37,15 @@
 .themed.light {
   --primary: hsl(120, 40%, 30%);
   /* bg-colors */
-  --bg-dark: hsl(0, 0%, 90%);
-  --bg: hsl(0, 0%, 95%);
+  --bg-dark: hsl(0, 0%, 85%);
+  --bg: hsl(0, 0%, 90%);
   --bg-light: hsl(0, 0%, 100%);
   /* text-colors */
   --text: hsl(0, 0%, 4%);
   --text-muted: hsl(0, 0%, 28%);
+  /* sidebar colors - mode clair (vert et orange) */
+  --sidebar-bg: #179349;
+  --sidebar-link-active: #F36F35;
 }
 
 h1,
@@ -46,14 +58,30 @@ button {
   color: var(--text) !important;
 }
 
+td,
+th {
+  color: var(--text) !important;
+  background-color: var(--bg) !important;
+}
+
 .btn:hover {
-  padding-left: 1em;
+  background-color: var(--bg-dark) !important;
+}
+
+a {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis !important;
 }
 
 p,
 i,
 small,
-span {
+span,
+label,
+pre,
+li,
+caption {
   color: var(--text-muted);
 }
 .themed {
@@ -124,25 +152,205 @@ span {
   background-color: var(--bg) !important;
 }
 
-/*--------------------------------------Sidebar Stufff-------------------------------------*/
+/*--------------------------------------Navbar & Sidebar-------------------------------------*/
 
-/* Styles pour la sidebar mobile */
-.sidebar {
-  transform: translateX(-100%);
-  transition: transform 0.3s ease-in-out;
-  z-index: 100; /* Au-dessus du contenu principal et de l'overlay */
-  width: 300px; /* Largeur de la sidebar sur mobile */
+/* S'assurer que la navbar est au-dessus de la sidebar */
+.navbar.fixed-top {
+  z-index: 1050 !important;
 }
 
-.sidebar.sidebar-open {
+/* S'assurer que les modals sont au-dessus de tout */
+.modal {
+  z-index: 1060 !important;
+}
+
+.modal-backdrop {
+  z-index: 1055 !important;
+}
+
+/* Éviter le scroll horizontal sur toute la page */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Styles pour la sidebar personnalisée */
+.sidebar-custom {
+  background-color: var(--sidebar-bg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 1000; /* En dessous de la navbar (qui a z-index: 1050) */
+  top: 56px; /* Hauteur de la navbar Bootstrap par défaut */
+  left: 0;
+  transition: background-color 0.3s ease;
+}
+
+/* Styles pour les liens de la sidebar */
+.sidebar-link {
+  color: var(--text);
+  transition: all 0.3s ease;
+  font-weight: 400;
+  overflow: hidden;
+}
+
+/* Sur desktop et tablette, garder sur une ligne */
+@media (min-width: 768px) {
+  .sidebar-link {
+    white-space: nowrap;
+  }
+}
+
+/* Sur mobile, permettre le retour à la ligne si nécessaire */
+@media (max-width: 767px) {
+  .sidebar-link {
+    white-space: normal;
+  }
+  
+  .sidebar-text {
+    word-break: break-word;
+  }
+}
+
+.sidebar-link:hover {
+  background-color: var(--sidebar-link-active) !important;
+  color: #fff !important;
+  transform: translateX(2px);
+}
+
+.sidebar-link:hover .sidebar-icon,
+.sidebar-link:hover .sidebar-text {
+  color: #fff !important;
+}
+
+.sidebar-link.active {
+  background-color: var(--sidebar-link-active) !important;
+  color: #fff !important;
+}
+
+.sidebar-link.active .sidebar-icon {
+  color: #fff !important;
+}
+
+.sidebar-link.active .sidebar-text {
+  color: #fff !important;
+  font-weight: 500;
+}
+
+/* Styles pour les icônes et textes de la sidebar */
+.sidebar-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+  color: var(--text) !important;
+}
+
+.sidebar-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text) !important;
+}
+
+/* En mode light, forcer le texte en blanc (car fond vert) */
+.themed.light .sidebar-icon {
+  color: #fff !important;
+}
+
+.themed.light .sidebar-text {
+  color: #fff !important;
+}
+
+.themed.light .sidebar-link {
+  color: #fff !important;
+}
+
+/* Responsive pour petits écrans */
+@media (max-width: 576px) {
+  .sidebar-icon {
+    font-size: 1.05rem;
+    width: 22px;
+  }
+  
+  .sidebar-text {
+    font-size: 0.85rem;
+  }
+}
+
+/* Responsive pour tablettes */
+@media (min-width: 577px) and (max-width: 767px) {
+  .sidebar-icon {
+    font-size: 1.1rem;
+    width: 23px;
+  }
+  
+  .sidebar-text {
+    font-size: 0.875rem;
+  }
+}
+
+/* Desktop - plus d'espace */
+@media (min-width: 768px) {
+  .sidebar-icon {
+    font-size: 1.2rem;
+    width: 25px;
+  }
+  
+  .sidebar-text {
+    font-size: 0.95rem;
+  }
+}
+
+/* Styles pour la sidebar mobile */
+.sidebar-custom {
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+  width: 260px; /* Largeur de la sidebar sur mobile */
+  max-width: 75vw; /* Ne pas dépasser 75% de la largeur de l'écran */
+}
+
+.sidebar-custom.sidebar-open {
   transform: translateX(0);
+}
+
+/* Overlay pour fermer la sidebar sur mobile */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999; /* Juste en dessous de la sidebar */
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* Scrollbar customization pour la sidebar */
+.sidebar-custom::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-custom::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-custom::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.sidebar-custom::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 /* Sur les écrans desktop, la sidebar est toujours visible et l'overlay est caché */
 @media (min-width: 768px) {
-  .sidebar {
+  .sidebar-custom {
     transform: translateX(0); /* Toujours visible sur desktop */
     width: auto; /* Laisser Bootstrap gérer la largeur sur desktop */
+    max-width: none;
   }
 
   .sidebar-overlay {
@@ -152,6 +360,56 @@ span {
   /* S'assurer que le bouton hamburger est caché sur desktop */
   .navbar .d-md-none {
     display: none !important;
+  }
+}
+
+/* Amélioration responsive pour les petits écrans */
+@media (max-width: 576px) {
+  .sidebar-custom {
+    width: 240px;
+    max-width: 75vw;
+  }
+  
+  /* Ajuster les paddings sur très petits écrans */
+  .sidebar-custom .pt-4 {
+    padding-top: 1rem !important;
+  }
+}
+
+/* Pour très petits écrans (smartphones en portrait) */
+@media (max-width: 375px) {
+  .sidebar-custom {
+    width: 220px;
+    max-width: 70vw;
+  }
+  
+  .sidebar-text {
+    font-size: 0.8rem !important;
+  }
+  
+  .sidebar-icon {
+    font-size: 1rem !important;
+    width: 20px !important;
+  }
+}
+
+/* Assurer que la sidebar prend toute la hauteur moins la navbar */
+.sidebar-custom {
+  height: calc(100vh - 56px) !important;
+  top: 56px !important;
+}
+
+/* Styles pour le contenu principal responsive */
+main {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (max-width: 767px) {
+  main {
+    margin-left: 0 !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 }
 

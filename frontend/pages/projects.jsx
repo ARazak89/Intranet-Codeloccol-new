@@ -72,8 +72,7 @@ function ProjectsPage() {
   const [showSubmitProjectModal, setShowSubmitProjectModal] = useState(false); // Affiche la modale de soumission de projet.
   const [currentProjectToSubmit, setCurrentProjectToSubmit] = useState(null); // Projet en cours de soumission.
   const [projectSubmissionRepoUrl, setProjectSubmissionRepoUrl] = useState(""); // URL du dépôt GitHub pour la soumission.
-  const [projectSubmissionGithubPagesUrl, setProjectSubmissionGithubPagesUrl] =
-    useState(""); // URL GitHub Pages pour la soumission.
+  const [projectSubmissionGithubPagesUrl, setProjectSubmissionGithubPagesUrl] = useState(""); // URL GitHub Pages pour la soumission (conditionnel).
   const [success, setSuccess] = useState(null); // Message de succès.
 
   // États pour les popups d'erreur/avertissement personnalisés
@@ -660,8 +659,7 @@ function ProjectsPage() {
   const handleOpenSubmitProjectModal = async (project) => {
     setCurrentProjectToSubmit(project);
     setProjectSubmissionRepoUrl("");
-    setProjectSubmissionGithubPagesUrl(""); // Réinitialiser l'URL GitHub Pages
-    setError(null);
+    setProjectSubmissionGithubPagesUrl("");
     setSuccess(null);
 
     console.log("[handleOpenSubmitProjectModal] Projet soumis:", project);
@@ -747,12 +745,13 @@ function ProjectsPage() {
         }
       );
       const data = await res.json();
+
       if (res.ok) {
         setSuccess("Projet soumis avec succès ! Il sera évalué par vos pairs.");
         setShowSubmitProjectModal(false);
         setCurrentProjectToSubmit(null);
         setProjectSubmissionRepoUrl("");
-        setProjectSubmissionGithubPagesUrl(""); // Réinitialiser l'URL GitHub Pages
+        setProjectSubmissionGithubPagesUrl("");
         loadData(getAuthToken()); // Recharger les données pour refléter le changement de statut.
       } else {
         setErrorPopupMessage(data.error || "Échec de la soumission du projet.");
@@ -778,8 +777,7 @@ function ProjectsPage() {
     setShowSubmitProjectModal(false);
     setCurrentProjectToSubmit(null);
     setProjectSubmissionRepoUrl("");
-    setProjectSubmissionGithubPagesUrl(""); // Réinitialiser l'URL GitHub Pages
-    setError(null);
+    setProjectSubmissionGithubPagesUrl("");
     setSuccess(null);
     setShowErrorPopup(false);
     setErrorPopupMessage("");
@@ -842,10 +840,9 @@ function ProjectsPage() {
                     <tr>
                       <th>Ordre</th>
                       <th>Titre du Projet</th>
-                      <th>Description</th>
-                      <th>Type</th>
-                      <th>Étudiant Assigné</th>
-                      <th>Statut</th>
+                      <th className="text-start">Description</th>
+                      <th className="text-center">Assignations</th>
+                      <th className="text-center">Statut</th>
                       <th className="text-center">Actions</th>
                     </tr>
                   </thead>
@@ -863,11 +860,6 @@ function ProjectsPage() {
                           <td>
                             {(projectGroup.description || "").substring(0, 70)}
                             ...
-                          </td>
-                          <td>
-                            <span className="badge bg-dark rounded-pill">
-                              <i className="bi bi-gear me-1"></i> Maître
-                            </span>
                           </td>
                           <td>
                             <p>{projectGroup.assignments.length}</p>
@@ -1110,9 +1102,9 @@ function ProjectsPage() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if ((me?.evaluationPoints ?? 0) < 2) {
+                                    if ((me?.evaluationPoints ?? 0) < 1) {
                                       setErrorPopupMessage(
-                                        "Vous devez avoir au moins 2 points d'évaluation pour soumettre un projet."
+                                        "Vous devez avoir au moins 1 point d'évaluation pour soumettre un projet."
                                       );
                                       setPopupType("error");
                                       setShowErrorPopup(true);
@@ -1122,7 +1114,7 @@ function ProjectsPage() {
                                   }}
                                   className="btn btn-primary w-100 btn-sm"
                                   title="Soumettre ce projet"
-                                  disabled={(me?.evaluationPoints ?? 0) < 2}
+                                  disabled={(me?.evaluationPoints ?? 0) < 1}
                                 >
                                   <i className="bi bi-upload me-2"></i>
                                   Soumettre le Projet
@@ -1434,7 +1426,7 @@ function ProjectsPage() {
 
                     {/* Date de Soumission */}
                     {selectedProject.submissionDate && (
-                      <div className="card mb-3 shadow-sm">
+                      <div className="card thm-bg-light mb-3 shadow-sm">
                         <div className="card-body d-flex align-items-center">
                           <h6 className="mb-0 me-2 text-primary">
                             <i className="bi bi-calendar-event me-2"></i> Date
@@ -1456,7 +1448,7 @@ function ProjectsPage() {
                     )}
 
                     {selectedProject.repoUrl && (
-                      <div className="card mb-3 shadow-sm">
+                      <div className="card thm-bg-light mb-3 shadow-sm">
                         <div className="card-body d-flex align-items-center">
                           <h6 className="mb-0 me-2 text-primary">
                             <i className="bi bi-github me-2"></i> Dépôt du
@@ -1469,6 +1461,24 @@ function ProjectsPage() {
                             className="text-info text-decoration-none"
                           >
                             {selectedProject.repoUrl}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedProject.githubPagesUrl && (
+                      <div className="card thm-bg-light mb-3 shadow-sm">
+                        <div className="card-body d-flex align-items-center">
+                          <h6 className="mb-0 me-2 text-primary">
+                            <i className="bi bi-globe me-2"></i> GitHub Pages:
+                          </h6>
+                          <a
+                            href={selectedProject.githubPagesUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-info text-decoration-none"
+                          >
+                            {selectedProject.githubPagesUrl}
                           </a>
                         </div>
                       </div>
@@ -1533,25 +1543,6 @@ function ProjectsPage() {
                           </div>
                         </div>
                       )}
-
-                    {/* URL GitHub Pages */}
-                    {selectedProject.githubPagesUrl && (
-                      <div className="thm-bg-light p-3 rounded-3 mb-3 shadow-sm">
-                        <div className=" d-flex align-items-center">
-                          <h6 className="mb-0 me-2">
-                            <i className="bi bi-globe me-2"></i> GitHub Pages:
-                          </h6>
-                          <a
-                            href={selectedProject.githubPagesUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-info text-decoration-none"
-                          >
-                            {selectedProject.githubPagesUrl}
-                          </a>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1579,7 +1570,7 @@ function ProjectsPage() {
           <div className="modal" tabIndex="-1" style={{ display: "block" }}>
             <div className="modal-dialog modal-lg">
               <div className="modal-content">
-                <div className="modal-header bg-gradient bg-success text-white">
+                <div className="modal-header bg-gradient thm-bg text-white">
                   <h5 className="modal-title">
                     {currentProjectToEdit
                       ? "Modifier le Projet"
@@ -1595,7 +1586,7 @@ function ProjectsPage() {
                     }}
                   ></button>
                 </div>
-                <div className="modal-body">
+                <div className="modal-body thm-bg">
                   {error && (
                     <div className="alert alert-danger mb-3" role="alert">
                       {error}
@@ -1611,7 +1602,7 @@ function ProjectsPage() {
                     {/* Titre */}
                     <div className="mb-3">
                       <label htmlFor="projectTitle" className="form-label">
-                        Titre du Projet <span className="text-danger">*</span>
+                        Titre du Projet
                       </label>
                       <input
                         type="text"
@@ -1660,7 +1651,7 @@ function ProjectsPage() {
                       ))}
                       <button
                         type="button"
-                        className="btn btn-sm btn-outline-primary mt-2"
+                        className="btn btn-sm thm-bg-light thm-shadow-s mt-2"
                         onClick={() =>
                           setProjectObjectives([...projectObjectives, ""])
                         }
@@ -2094,7 +2085,7 @@ function ProjectsPage() {
           <div className="modal" tabIndex="-1" style={{ display: "block" }}>
             <div className="modal-dialog modal-lg">
               <div className="modal-content">
-                <div className="modal-header bg-gradient bg-primary text-white">
+                <div className="modal-header bg-gradient thm-bg">
                   <h5 className="modal-title">
                     <i className="bi bi-upload me-2"></i>
                     Soumettre le Projet: {currentProjectToSubmit.title}
@@ -2105,7 +2096,7 @@ function ProjectsPage() {
                     onClick={handleCloseSubmitProjectModal}
                   ></button>
                 </div>
-                <div className="modal-body">
+                <div className="modal-body thm-bg-light">
                   {error && (
                     <div className="alert alert-danger mb-3" role="alert">
                       {error}
@@ -2184,7 +2175,7 @@ function ProjectsPage() {
                     </div>
                   </form>
                 </div>
-                <div className="modal-footer">
+                <div className="modal-footer thm-bg">
                   <button
                     type="button"
                     className="btn btn-secondary"

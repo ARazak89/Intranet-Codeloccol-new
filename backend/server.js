@@ -21,7 +21,14 @@ import resourceRoutes from './routes/resourceRoutes.js'; // Importez les routes 
 import evaluationRoutes from './routes/evaluationRoutes.js'; // Importez les routes des évaluations
 import availabilityRoutes from './routes/availabilityRoutes.js'; // Importez les routes de disponibilité
 import teamRoutes from "./routes/teamRoutes.js"; // Importez les routes des équipes
+import ideProjectSubmissionRoutes from './routes/ideProjectSubmissionRoutes.js'; // Importer les nouvelles routes
 import activityRoutes from './routes/activityRoutes.js'; // Importez les routes des activités
+import eventRoutes from './routes/eventRoutes.js'; // Importez les routes des événements
+import challengeRoutes from './routes/challengeRoutes.js'; // Importer les routes des challenges
+import ideSubmissionReviewRoutes from './routes/ideSubmissionReviewRoutes.js'; // Importer les routes de revue des soumissions IDE
+import uploadRoutes from './routes/uploadRoutes.js'; // Importez les routes d'upload
+
+import { notFound, errorHandler } from './middlewares/errorMiddleware.js'; // Importer les middlewares d'erreur
 
 import {
   autoBlockInactiveUsers,
@@ -30,6 +37,7 @@ import {
 import startSlotCleaner from './cron/slotCleaner.js'; // Importez la tâche cron de nettoyage des slots
 import startDayDecrementer from './cron/dayDecrementer.js'; // Importez la tâche cron de décrémentation des jours
 import startEvaluationReminder from './cron/evaluationReminder.js'; // Importez la tâche cron de rappel d'évaluation
+import startChallengeArchiver from './cron/challengeArchiver.js'; // Importez la nouvelle tâche cron
 import passportConfig from './config/passport.js'; // Importer la configuration de Passport
 
 // Initialiser Passport avec les stratégies
@@ -39,7 +47,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL?.split(',') || true,
+    origin: ['http://localhost:3000', 'http://192.168.88.20:3000'],
     credentials: true,
   }),
 );
@@ -78,7 +86,16 @@ app.use('/api/resources', resourceRoutes); // Nouvelle route pour les ressources
 app.use('/api/evaluations', evaluationRoutes); // Nouvelle route pour les évaluations
 app.use('/api/availability', availabilityRoutes); // Nouvelle route pour les slots de disponibilité
 app.use('/api/teams', teamRoutes); // Nouvelle route pour la gestion des équipes
+app.use('/api/ide', ideProjectSubmissionRoutes); // Utiliser les nouvelles routes
 app.use('/api/activities', activityRoutes); // Route pour la gestion des activités utilisateur
+app.use('/api/events', eventRoutes); // Nouvelle route pour les événements du calendrier
+app.use('/api/challenges', challengeRoutes); // Utiliser les routes des challenges
+app.use('/api/ide-submissions', ideSubmissionReviewRoutes); // Utiliser les routes de revue des soumissions IDE
+app.use('/api/upload', uploadRoutes); // Utiliser les routes d'upload
+
+// Middlewares de gestion des erreurs
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 mongoose
@@ -93,6 +110,7 @@ mongoose
     startSlotCleaner(); // Démarrez la tâche cron de nettoyage des slots
     startDayDecrementer(); // Démarrez la tâche cron de décrémentation des jours restants
     startEvaluationReminder(); // Démarrez la tâche cron de rappel d'évaluation
+    startChallengeArchiver(); // Démarrez la tâche d'archivage des challenges
   })
   .catch((err) => {
     console.error('MongoDB connection error:', err);
