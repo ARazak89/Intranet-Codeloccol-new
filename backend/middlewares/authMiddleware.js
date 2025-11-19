@@ -8,7 +8,7 @@ export const requireAuth = async (req, res, next) => {
   if (!token) return res.status(401).json({ error: "Missing token" });
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(payload.id);
+    const user = await User.findById(payload.id).select('firstName lastName name email role status daysRemaining level evaluationPoints totalProjectsCompleted lastLogin profilePicture gender dateOfBirth nationality phoneNumber address emergencyContact'); // Sélectionner explicitement tous les champs nécessaires
     if (!user) return res.status(401).json({ error: "User not found" });
     if (user.status === "blocked")
       return res.status(403).json({ error: "Account is blocked" });
@@ -22,10 +22,11 @@ export const requireAuth = async (req, res, next) => {
 };
 
 export const requireRole =
-  (roles = []) =>
+  (roles) =>
   (req, res, next) => {
-    console.log(`[ROLE] Checking roles for user ${req.user?.email || 'N/A'}. Required roles: ${roles.join(', ')}, User role: ${req.user?.role}`);
-    if (!roles.includes(req.user?.role))
+    const rolesArray = Array.isArray(roles) ? roles : [roles].filter(Boolean);
+    console.log(`[ROLE] Checking roles for user ${req.user?.email || 'N/A'}. Required roles: ${rolesArray.join(', ')}, User role: ${req.user?.role}`);
+    if (!rolesArray.includes(req.user?.role))
       return res.status(403).json({ error: "Forbidden" });
     next();
   };

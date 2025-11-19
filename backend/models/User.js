@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   firstName: { type: String, default: '' },
+  lastName: { type: String, default: '' }, // Ajout du champ lastName
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['apprenant', 'staff', 'admin', 'evaluator'], default: 'apprenant' },

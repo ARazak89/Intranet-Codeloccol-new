@@ -6,6 +6,11 @@ const ideSubmissionSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  teamId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Team',
+    required: false, // Peut être requis si la soumission est faite en équipe
+  },
   challengeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Challenge', // Référence au modèle Challenge
@@ -26,6 +31,14 @@ const ideSubmissionSchema = new mongoose.Schema({
   jsCode: {
     type: String,
     required: true,
+  },
+  githubRepoUrl: {
+    type: String,
+    required: false, // Sera requis si c'est une soumission de projet
+  },
+  githubPagesUrl: {
+    type: String,
+    required: false, // Optionnel, pour le déploiement sur GitHub Pages
   },
   submissionDate: {
     type: Date,

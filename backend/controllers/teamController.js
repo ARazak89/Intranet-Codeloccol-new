@@ -1,6 +1,8 @@
 import Team from '../models/Team.js';
 import User from '../models/User.js';
 import Hackathon from '../models/Hackathon.js';
+import Challenge from '../models/Challenge.js';
+import IdeSubmission from '../models/IdeSubmission.js';
 
 // Créer une nouvelle équipe
 export async function createTeam(req, res) {
@@ -10,15 +12,19 @@ export async function createTeam(req, res) {
     return res.status(400).json({ message: 'Nom, membres et ID du hackathon sont requis.' });
   }
 
-  if (members.length < 3 || members.length > 5) {
-    return res.status(400).json({ message: 'Une équipe doit avoir entre 3 et 5 membres.' });
-  }
-
   try {
     // Vérifier l'existence du hackathon
     const hackathon = await Hackathon.findById(hackathonId);
     if (!hackathon) {
       return res.status(404).json({ message: 'Hackathon non trouvé.' });
+    }
+
+    const expectedTeamSize = hackathon.teamSize;
+    const minTeamSize = Math.max(1, expectedTeamSize - 1);
+    const maxTeamSize = expectedTeamSize + 1;
+
+    if (members.length < minTeamSize || members.length > maxTeamSize) {
+      return res.status(400).json({ message: `Une équipe doit avoir entre ${minTeamSize} et ${maxTeamSize} membres pour ce hackathon.` });
     }
 
     // Vérifier que tous les membres sont des apprenants et n'appartiennent pas déjà à une équipe pour ce hackathon
@@ -53,11 +59,44 @@ export async function createTeam(req, res) {
 export async function getTeamsByHackathon(req, res) {
   try {
     const { hackathonId } = req.params;
+    console.log(`Fetching teams for hackathonId: ${hackathonId}`);
     const teams = await Team.find({ hackathon: hackathonId }).populate('members', 'name email');
-    res.status(200).json(teams);
+    console.log(`Found ${teams.length} teams.`);
+
+    // Pour chaque équipe, récupérer la soumission si elle existe
+    const teamsWithSubmissions = await Promise.all(teams.map(async (team) => {
+      const challengeIds = (await Challenge.find({ hackathonId: hackathonId })).map(c => c._id);
+      const submission = await IdeSubmission.findOne({ teamId: team._id, challengeId: { $in: challengeIds } });
+      return { ...team.toObject(), submission: submission ? submission.toObject() : null };
+    }));
+
+    res.status(200).json(teamsWithSubmissions);
   } catch (error) {
     console.error('Erreur lors de la récupération des équipes:', error);
     res.status(500).json({ message: 'Erreur serveur lors de la récupération des équipes.' });
+  }
+}
+
+// Récupérer l'équipe d'un apprenant pour un hackathon donné
+export async function getMyTeamForHackathon(req, res) {
+  try {
+    const { hackathonId } = req.params;
+    const userId = req.user._id; // L'ID de l'utilisateur authentifié est disponible via req.user
+
+    if (!hackathonId) {
+      return res.status(400).json({ message: 'ID du hackathon est requis.' });
+    }
+
+    const team = await Team.findOne({ hackathon: hackathonId, members: userId }).populate('members', 'name email');
+
+    if (!team) {
+      return res.status(404).json({ message: 'Aucune équipe trouvée pour cet apprenant dans ce hackathon.' });
+    }
+
+    res.status(200).json(team);
+  } catch (error) {
+    console.error('Erreur lors de la récupération de l\'équipe de l\'apprenant:', error);
+    res.status(500).json({ message: 'Erreur serveur lors de la récupération de l\'équipe.' });
   }
 }
 
@@ -91,8 +130,12 @@ export async function addMemberToTeam(req, res) {
       return res.status(404).json({ message: 'Équipe non trouvée.' });
     }
 
-    if (team.members.length >= 5) {
-      return res.status(400).json({ message: 'L\'équipe a déjà le nombre maximum de membres (5).' });
+    const hackathon = await Hackathon.findById(team.hackathon);
+    const expectedTeamSize = hackathon.teamSize;
+    const maxTeamSize = expectedTeamSize + 1;
+
+    if (team.members.length >= maxTeamSize) {
+      return res.status(400).json({ message: `L\'équipe a déjà le nombre maximum de membres (${maxTeamSize}).` });
     }
 
     const user = await User.findById(memberId);
@@ -134,8 +177,12 @@ export async function removeMemberFromTeam(req, res) {
       return res.status(404).json({ message: 'Équipe non trouvée.' });
     }
 
-    if (team.members.length <= 3) {
-      return res.status(400).json({ message: 'Une équipe doit avoir au moins 3 membres. Impossible de supprimer ce membre.' });
+    const hackathon = await Hackathon.findById(team.hackathon);
+    const expectedTeamSize = hackathon.teamSize;
+    const minTeamSize = Math.max(1, expectedTeamSize - 1);
+
+    if (team.members.length <= minTeamSize) {
+      return res.status(400).json({ message: `Une équipe doit avoir au moins ${minTeamSize} membres. Impossible de supprimer ce membre.` });
     }
 
     team.members = team.members.filter(member => member.toString() !== memberId);
