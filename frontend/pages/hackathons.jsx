@@ -554,20 +554,15 @@ export default function Hackathons() {
     }
 
     try {
-      const r = await fetch(`${API}/ide/submit-project`, {
+      const r = await fetch(`${API}/hackathons/${selectedHackathon._id}/teams/${myTeam._id}/submit-project`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          challengeId: selectedHackathon.challenges[0]._id, // Assurez-vous d'avoir le bon challengeId
-          challengeTitle: selectedHackathon.title, // Utiliser le titre du hackathon comme titre de challenge
-          htmlCode: "", // Pas de code direct ici, seulement les URLs
-          cssCode: "",
-          jsCode: "",
-          githubRepoUrl: githubRepoUrl,
-          githubPagesUrl: githubPagesUrl,
+          repoUrl: githubRepoUrl, // Envoyer seulement repoUrl
+          githubPagesUrl: githubPagesUrl, // Envoyer githubPagesUrl si disponible
         }),
       });
 
@@ -581,6 +576,16 @@ export default function Hackathons() {
       setShowSubmissionModal(false);
       setGithubRepoUrl("");
       setGithubPagesUrl("");
+
+      // Mettre à jour l'état currentHackathonTeams directement pour refléter la soumission
+      setCurrentHackathonTeams(prevTeams =>
+        prevTeams.map(team =>
+          team._id === myTeam._id
+            ? { ...team, repoUrl: githubRepoUrl, githubPagesUrl: githubPagesUrl, submissionDate: new Date() }
+            : team
+        )
+      );
+
       // Recharger les données du hackathon pour refléter la soumission
       fetchHackathonsData();
     } catch (e) {
@@ -812,21 +817,19 @@ export default function Hackathons() {
                                   </li>
                                 ))}
                               </ul>
-                              {team.submission && (
+                              {team.repoUrl && (
                                 <div className="mt-2">
-                                  {team.submission.githubRepoUrl && (
+                                  <a
+                                    href={team.repoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="badge bg-primary text-decoration-none me-2"
+                                  >
+                                    Dépôt GitHub
+                                  </a>
+                                  {team.githubPagesUrl && (
                                     <a
-                                      href={team.submission.githubRepoUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="badge bg-primary text-decoration-none me-2"
-                                    >
-                                      Dépôt GitHub
-                                    </a>
-                                  )}
-                                  {team.submission.githubPagesUrl && (
-                                    <a
-                                      href={team.submission.githubPagesUrl}
+                                      href={team.githubPagesUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="badge bg-secondary text-decoration-none"

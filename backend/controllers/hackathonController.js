@@ -342,7 +342,7 @@ export async function constituteTeams(req, res) {
 export async function submitTeamProject(req, res) {
   try {
     const { hackathonId, teamId } = req.params;
-    const { repoUrl } = req.body;
+    const { repoUrl, githubPagesUrl } = req.body; // Récupérer githubPagesUrl
 
     if (!repoUrl) {
       return res.status(400).json({ error: 'L\'URL du dépôt GitHub est obligatoire.' });
@@ -357,13 +357,19 @@ export async function submitTeamProject(req, res) {
       return res.status(400).json({ error: 'L\'équipe n\'appartient pas à ce hackathon.' });
     }
 
+    // Vérifier si l'équipe a déjà soumis un projet
+    if (team.repoUrl) {
+      return res.status(400).json({ error: 'Projet déjà soumis pour ce hackathon.' });
+    }
+
     // Vérifier si l'utilisateur qui soumet est membre de l'équipe
     if (!team.members.some(member => member._id.toString() === req.user._id.toString())) {
       return res.status(403).json({ error: 'Vous n\'êtes pas autorisé à soumettre un projet pour cette équipe.' });
     }
 
-    // Mettre à jour l'équipe avec l'URL du dépôt et la date de soumission
+    // Mettre à jour l'équipe avec l'URL du dépôt, GitHub Pages et la date de soumission
     team.repoUrl = repoUrl;
+    if (githubPagesUrl) team.githubPagesUrl = githubPagesUrl; // Enregistrer githubPagesUrl si fourni
     team.submissionDate = new Date();
     await team.save();
 
