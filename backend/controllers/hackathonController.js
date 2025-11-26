@@ -30,6 +30,24 @@ export async function listHackathons(req, res) {
   res.json(list);
 }
 
+export async function getHackathonById(req, res) {
+  try {
+    const { id } = req.params;
+    const hackathon = await Hackathon.findById(id).populate(
+      "participants",
+      "firstName lastName email"
+    );
+
+    if (!hackathon) {
+      return res.status(404).json({ error: "Hackathon non trouvé." });
+    }
+
+    res.status(200).json(hackathon);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+}
+
 export async function joinHackathon(req, res) {
   const { id } = req.params;
   const h = await Hackathon.findById(id);
@@ -238,7 +256,18 @@ export async function getHackathonRankings(req, res) {
 
 export async function listAvailableLearners(req, res) {
   try {
-    const learners = await User.find({ role: 'apprenant' }).select('_id name email');
+    const { hackathonId } = req.query; // Récupérer le hackathonId des paramètres de requête
+
+    let takenLearnerIds = [];
+    if (hackathonId) {
+      const teams = await Team.find({ hackathon: hackathonId }).select('members');
+      takenLearnerIds = teams.flatMap(team => team.members);
+    }
+
+    const learners = await User.find({
+      role: 'apprenant',
+      _id: { $nin: takenLearnerIds } // Exclure les apprenants déjà pris
+    }).select('_id name email');
     res.status(200).json(learners);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -282,9 +311,9 @@ export async function constituteTeams(req, res) {
     if (existingTeamsForHackathon.length > 0) {
       // Optionnel: Gérer la mise à jour des équipes existantes ou interdire la re-constitution
       // Pour l'instant, on va vider les équipes existantes pour permettre une nouvelle constitution.
-      await Team.deleteMany({ hackathon: hackathonId });
-      hackathon.teams = [];
-      await hackathon.save();
+      // await Team.deleteMany({ hackathon: hackathonId });
+      // hackathon.teams = [];
+      // await hackathon.save();
     }
 
     const createdTeams = [];
@@ -297,7 +326,7 @@ export async function constituteTeams(req, res) {
       createdTeams.push(newTeam);
     }
 
-    hackathon.teams = createdTeams.map(team => team._id);
+    hackathon.teams = [...hackathon.teams, ...createdTeams.map(team => team._id)];
     // Mettre à jour la liste des participants du hackathon avec tous les membres des équipes
     hackathon.participants = [...new Set([...hackathon.participants.map(p => p.toString()), ...allTeamMemberIds.map(m => m.toString())])];
 
@@ -313,7 +342,7 @@ export async function constituteTeams(req, res) {
 export async function submitTeamProject(req, res) {
   try {
     const { hackathonId, teamId } = req.params;
-    const { repoUrl } = req.body;
+    const { repoUrl, githubPagesUrl } = req.body; // Récupérer githubPagesUrl
 
     if (!repoUrl) {
       return res.status(400).json({ error: 'L\'URL du dépôt GitHub est obligatoire.' });
@@ -328,13 +357,19 @@ export async function submitTeamProject(req, res) {
       return res.status(400).json({ error: 'L\'équipe n\'appartient pas à ce hackathon.' });
     }
 
+    // Vérifier si l'équipe a déjà soumis un projet
+    if (team.repoUrl) {
+      return res.status(400).json({ error: 'Projet déjà soumis pour ce hackathon.' });
+    }
+
     // Vérifier si l'utilisateur qui soumet est membre de l'équipe
     if (!team.members.some(member => member._id.toString() === req.user._id.toString())) {
       return res.status(403).json({ error: 'Vous n\'êtes pas autorisé à soumettre un projet pour cette équipe.' });
     }
 
-    // Mettre à jour l'équipe avec l'URL du dépôt et la date de soumission
+    // Mettre à jour l'équipe avec l'URL du dépôt, GitHub Pages et la date de soumission
     team.repoUrl = repoUrl;
+    if (githubPagesUrl) team.githubPagesUrl = githubPagesUrl; // Enregistrer githubPagesUrl si fourni
     team.submissionDate = new Date();
     await team.save();
 

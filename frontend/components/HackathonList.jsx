@@ -59,8 +59,8 @@ const HackathonList = ({ hackathons, me, onShowSubmitHackathonModal }) => {
               // Trouver l'équipe de l'apprenant pour ce hackathon
               (() => {
                 const myTeam = hackathon.teams.find((team) =>
-                  team.members.some((member) => member._id === me._id)
-                );
+                  team.members && team.members.some((member) => member._id === me.id)
+                ); // Comparer member._id avec me.id
                 if (myTeam) {
                   // Si l'équipe existe et n'a pas encore soumis, afficher le bouton
                   // Vérifier si le hackathon est toujours actif et si l'équipe n'a pas déjà soumis

@@ -22,6 +22,10 @@ const TeamSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  githubPagesUrl: { // Nouveau champ pour l'URL GitHub Pages
+    type: String,
+    trim: true,
+  },
   submissionDate: {
     type: Date,
   },
