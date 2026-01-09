@@ -45,9 +45,12 @@ passportConfig(passport);
 
 const app = express();
 
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'http://192.168.88.20:3000'],
+    origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL.split(',') : ['http://localhost:3000', 'http://192.168.88.20:3000'],
     credentials: true,
   }),
 );
