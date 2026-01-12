@@ -78,23 +78,23 @@ app.use(passport.session());
 app.use(attachLastSeen);
 
 app.use('/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/hackathons', hackathonRoutes);
-app.use('/api/settings', settingsRoutes); // Nouvelle route pour les paramètres globaux
-app.use('/api/notifications', notificationRoutes); // Nouvelle route pour les notifications
-app.use('/api/search', searchRoutes); // Nouvelle route pour la recherche avancée
-app.use('/api/curriculums', curriculumRoutes); // Nouvelle route pour les parcours de formation
-app.use('/api/resources', resourceRoutes); // Nouvelle route pour les ressources pédagogiques
-app.use('/api/evaluations', evaluationRoutes); // Nouvelle route pour les évaluations
-app.use('/api/availability', availabilityRoutes); // Nouvelle route pour les slots de disponibilité
-app.use('/api/teams', teamRoutes); // Nouvelle route pour la gestion des équipes
-app.use('/api/ide', ideProjectSubmissionRoutes); // Utiliser les nouvelles routes
-app.use('/api/activities', activityRoutes); // Route pour la gestion des activités utilisateur
-app.use('/api/events', eventRoutes); // Nouvelle route pour les événements du calendrier
-app.use('/api/challenges', challengeRoutes); // Utiliser les routes des challenges
-app.use('/api/ide-submissions', ideSubmissionReviewRoutes); // Utiliser les routes de revue des soumissions IDE
-app.use('/api/upload', uploadRoutes); // Utiliser les routes d'upload
+app.use('/users', userRoutes);
+app.use('/projects', projectRoutes);
+app.use('/hackathons', hackathonRoutes);
+app.use('/settings', settingsRoutes); // Nouvelle route pour les paramètres globaux
+app.use('/notifications', notificationRoutes); // Nouvelle route pour les notifications
+app.use('/search', searchRoutes); // Nouvelle route pour la recherche avancée
+app.use('/curriculums', curriculumRoutes); // Nouvelle route pour les parcours de formation
+app.use('/resources', resourceRoutes); // Nouvelle route pour les ressources pédagogiques
+app.use('/evaluations', evaluationRoutes); // Nouvelle route pour les évaluations
+app.use('/availability', availabilityRoutes); // Nouvelle route pour les slots de disponibilité
+app.use('/teams', teamRoutes); // Nouvelle route pour la gestion des équipes
+app.use('/ide', ideProjectSubmissionRoutes); // Utiliser les nouvelles routes
+app.use('/activities', activityRoutes); // Route pour la gestion des activités utilisateur
+app.use('/events', eventRoutes); // Nouvelle route pour les événements du calendrier
+app.use('/challenges', challengeRoutes); // Utiliser les routes des challenges
+app.use('/ide-submissions', ideSubmissionReviewRoutes); // Utiliser les routes de revue des soumissions IDE
+app.use('/upload', uploadRoutes); // Utiliser les routes d'upload
 
 // Middlewares de gestion des erreurs
 app.use(notFound);
