@@ -77,7 +77,7 @@ app.use(passport.session());
 // record last seen on each request (for authenticated users)
 app.use(attachLastSeen);
 
-app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/hackathons', hackathonRoutes);
