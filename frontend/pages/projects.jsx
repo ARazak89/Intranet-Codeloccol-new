@@ -36,6 +36,7 @@ function ProjectsPage() {
   const [projectMarkdownContent, setProjectMarkdownContent] = useState(""); // Contenu Markdown d'un projet sélectionné.
   const [allProjects, setAllProjects] = useState([]); // Stocke tous les projets maîtres pour le staff/admin.
   const [expandedProjectAssignments, setExpandedProjectAssignments] = useState({}); // Liste déroulante des apprenants par projet (fermée par défaut).
+  const [viewAsLearner, setViewAsLearner] = useState(false); // Staff/admin : prévisualiser la liste comme un apprenant.
   const allProjectsRef = useRef(allProjects); // Référence mutable pour accéder à `allProjects` dans les callbacks sans le lister comme dépendance.
 
   // Synchronisation de la référence avec l'état actuel d'allProjects.
@@ -805,11 +806,42 @@ function ProjectsPage() {
       </div>
     );
 
+  const isStaffOrAdmin = me && (me.role === "staff" || me.role === "admin");
+  const showAdminManagementView = isStaffOrAdmin && !viewAsLearner;
+  const showLearnerStyleView =
+    (me && me.role === "apprenant") || (isStaffOrAdmin && viewAsLearner);
+
+  // Vue "comme apprenant" pour staff/admin : projets templates regroupés par module (ordre croissant).
+  const staffPreviewGroupedByModule = (() => {
+    if (!isStaffOrAdmin || !viewAsLearner) return {};
+    const sorted = [...allProjects].sort(
+      (a, b) => (a.order || 0) - (b.order || 0)
+    );
+    return sorted.reduce((acc, project) => {
+      const moduleName = project.module || "Sans module";
+      if (!acc[moduleName]) acc[moduleName] = [];
+      acc[moduleName].push({
+        ...project,
+        projectId: project._id,
+        assignmentStatus: null,
+        templateProject: { order: project.order },
+      });
+      return acc;
+    }, {});
+  })();
+
+  const modulesForLearnerView =
+    me?.role === "apprenant"
+      ? groupedProjectsByModule
+      : staffPreviewGroupedByModule;
+
   return (
     <div className="container-fluid mt-4 pt-5 px-4">
       <h1 className="mb-4">
-        {me && (me.role === "staff" || me.role === "admin")
+        {showAdminManagementView
           ? "Gestion des Projets"
+          : viewAsLearner
+          ? "Mes Projets (vue apprenant)"
           : "Mes Projets"}
       </h1>
       {error && (
@@ -818,10 +850,21 @@ function ProjectsPage() {
         </div>
       )}
 
-      {me && (me.role === "staff" || me.role === "admin") ? (
+      {showAdminManagementView ? (
         // Vue pour Staff/Admin: Tableau de tous les projets avec fonctionnalités CRUD.
         <div className="row">
-          <div className="col-12 mb-3 d-flex justify-content-end">
+          <div className="col-12 mb-3 d-flex justify-content-end gap-2 flex-wrap">
+            <button
+              type="button"
+              className="btn btn-outline-success thm-shadow-s"
+              onClick={() => {
+                setSelectedModule(null);
+                setViewAsLearner(true);
+              }}
+            >
+              <i className="bi bi-eye me-2"></i>
+              Voir comme apprenant
+            </button>
             <button
               className="btn thm-bg-light thm-shadow-s"
               onClick={handleShowAddProjectModal}
@@ -1038,11 +1081,30 @@ function ProjectsPage() {
             )}
           </div>
         </div>
-      ) : (
-        // Vue pour Apprenant: Affichage des projets regroupés par modules.
+      ) : showLearnerStyleView ? (
+        // Vue pour Apprenant (ou prévisualisation staff/admin): projets regroupés par modules.
         <div className="row">
           <div className="col-12 mb-4">
-            <h3>Mes Projets</h3>
+            {viewAsLearner && (
+              <div className="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn thm-bg thm-shadow-s"
+                  onClick={() => {
+                    setSelectedModule(null);
+                    setViewAsLearner(false);
+                  }}
+                >
+                  <i className="bi bi-arrow-left me-2"></i>
+                  Retour à la gestion
+                </button>
+                <span className="badge bg-success rounded-pill">
+                  <i className="bi bi-eye me-1"></i>
+                  Mode aperçu apprenant
+                </span>
+              </div>
+            )}
+            <h3>{viewAsLearner ? "Liste des projets (aperçu)" : "Mes Projets"}</h3>
             {selectedModule ? (
               // Afficher les projets individuels pour le module sélectionné.
               <div className="mb-3">
@@ -1054,9 +1116,9 @@ function ProjectsPage() {
                 </button>
                 <h4>Projets du module : {selectedModule}</h4>
                 <div className="row mt-3">
-                  {groupedProjectsByModule[selectedModule] &&
-                  groupedProjectsByModule[selectedModule].length > 0 ? (
-                    groupedProjectsByModule[selectedModule].map((project) => (
+                  {modulesForLearnerView[selectedModule] &&
+                  modulesForLearnerView[selectedModule].length > 0 ? (
+                    modulesForLearnerView[selectedModule].map((project) => (
                       <div key={project._id} className="col-md-6 col-lg-4 mb-4">
                         <div
                           className="thm-bg thm-shadow-s rounded-3 p-3 h-100 shadow-hover-3d border-0"
@@ -1069,60 +1131,73 @@ function ProjectsPage() {
                                 <i className="bi bi-folder-check me-2"></i>{" "}
                                 {project.title}
                               </h5>
-                              {project.templateProject &&
-                                project.templateProject.order && (
+                              {(project.templateProject?.order ||
+                                project.order) && (
                                   <p className="card-text">
                                     <small>
-                                      (Projet {project.templateProject.order})
+                                      (Projet{" "}
+                                      {project.templateProject?.order ||
+                                        project.order}
+                                      )
                                     </small>
                                   </p>
                                 )}
                             </div>
                             <div className="mt-3 mb-3 d-flex align-items-center">
-                              <span
-                                className={`badge rounded-pill bg-${
-                                  project.assignmentStatus === "assigned"
-                                    ? "warning text-dark"
-                                    : project.assignmentStatus === "submitted"
-                                    ? "info"
-                                    : project.assignmentStatus === "approved"
-                                    ? "success"
-                                    : project.assignmentStatus === "rejected"
-                                    ? "danger"
-                                    : "secondary"
-                                } me-2`}
-                              >
-                                <i
-                                  className={`bi bi-${
-                                    project.assignmentStatus === "assigned"
-                                      ? "clock"
+                              {project.assignmentStatus ? (
+                                <>
+                                  <span
+                                    className={`badge rounded-pill bg-${
+                                      project.assignmentStatus === "assigned"
+                                        ? "warning text-dark"
+                                        : project.assignmentStatus === "submitted"
+                                        ? "info"
+                                        : project.assignmentStatus === "approved"
+                                        ? "success"
+                                        : project.assignmentStatus === "rejected"
+                                        ? "danger"
+                                        : "secondary"
+                                    } me-2`}
+                                  >
+                                    <i
+                                      className={`bi bi-${
+                                        project.assignmentStatus === "assigned"
+                                          ? "clock"
+                                          : project.assignmentStatus === "submitted"
+                                          ? "hourglass-split"
+                                          : project.assignmentStatus === "approved"
+                                          ? "check-circle"
+                                          : project.assignmentStatus === "rejected"
+                                          ? "x-circle"
+                                          : "question-circle"
+                                      } me-1`}
+                                    ></i>
+                                    {project.assignmentStatus === "assigned"
+                                      ? "Assigné"
                                       : project.assignmentStatus === "submitted"
-                                      ? "hourglass-split"
+                                      ? "Soumis (en attente d'évaluation)"
                                       : project.assignmentStatus === "approved"
-                                      ? "check-circle"
+                                      ? "Approuvé"
                                       : project.assignmentStatus === "rejected"
-                                      ? "x-circle"
-                                      : "question-circle"
-                                  } me-1`}
-                                ></i>
-                                {project.assignmentStatus === "assigned"
-                                  ? "Assigné"
-                                  : project.assignmentStatus === "submitted"
-                                  ? "Soumis (en attente d'évaluation)"
-                                  : project.assignmentStatus === "approved"
-                                  ? "Approuvé"
-                                  : project.assignmentStatus === "rejected"
-                                  ? "Rejeté"
-                                  : "Inconnu"}
-                              </span>
-                              {project.assignmentStatus === "approved" && (
-                                <span className="text-success small">
-                                  <i className="bi bi-trophy-fill me-1"></i>{" "}
-                                  Projet Approuvé !
+                                      ? "Rejeté"
+                                      : "Inconnu"}
+                                  </span>
+                                  {project.assignmentStatus === "approved" && (
+                                    <span className="text-success small">
+                                      <i className="bi bi-trophy-fill me-1"></i>{" "}
+                                      Projet Approuvé !
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="badge rounded-pill bg-secondary me-2">
+                                  <i className="bi bi-eye me-1"></i>
+                                  Aperçu
                                 </span>
                               )}
                             </div>
-                            {project.assignmentStatus === "assigned" && (
+                            {!viewAsLearner &&
+                              project.assignmentStatus === "assigned" && (
                               <div className="mt-auto">
                                 <button
                                   onClick={(e) => {
@@ -1159,9 +1234,9 @@ function ProjectsPage() {
                 </div>
               </div>
             ) : // Afficher les cartes de module.
-            Object.keys(groupedProjectsByModule).length > 0 ? (
+            Object.keys(modulesForLearnerView).length > 0 ? (
               <div className="row">
-                {Object.entries(groupedProjectsByModule).map(
+                {Object.entries(modulesForLearnerView).map(
                   ([moduleName, projectsInModule]) => (
                     <div key={moduleName} className="col-md-6 col-lg-4 mb-4">
                       <div
@@ -1185,18 +1260,23 @@ function ProjectsPage() {
               </div>
             ) : (
               <div className="alert alert-info text-center mt-3">
-                <i className="bi bi-info-circle me-2"></i> Aucun projet assigné
-                pour le moment.
+                <i className="bi bi-info-circle me-2"></i>{" "}
+                {viewAsLearner
+                  ? "Aucun projet disponible pour le moment."
+                  : "Aucun projet assigné pour le moment."}
               </div>
             )}
           </div>
 
           {/* Ancienne section "Corrections à Venir" supprimée pour éviter les erreurs de compilation */}
         </div>
-      )}
+      ) : null}
 
-      {/* Modale d'affichage des détails du projet (pour apprenant) */}
-      {me && me.role === "apprenant" && showProjectModal && selectedProject && (
+      {/* Modale d'affichage des détails du projet (pour apprenant / aperçu staff) */}
+      {me &&
+        (me.role === "apprenant" || viewAsLearner) &&
+        showProjectModal &&
+        selectedProject && (
         <div className="modal" tabIndex="-1" style={{ display: "block" }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
@@ -1584,7 +1664,9 @@ function ProjectsPage() {
           </div>
         </div>
       )}
-      {me && me.role === "apprenant" && showProjectModal && (
+      {me &&
+        (me.role === "apprenant" || viewAsLearner) &&
+        showProjectModal && (
         <div className="modal-backdrop fade show"></div>
       )}
 
