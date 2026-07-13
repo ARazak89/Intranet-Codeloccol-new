@@ -35,6 +35,7 @@ function ProjectsPage() {
   const [me, setMe] = useState(null); // Informations de l'utilisateur connecté (rôle, etc.).
   const [projectMarkdownContent, setProjectMarkdownContent] = useState(""); // Contenu Markdown d'un projet sélectionné.
   const [allProjects, setAllProjects] = useState([]); // Stocke tous les projets maîtres pour le staff/admin.
+  const [expandedProjectAssignments, setExpandedProjectAssignments] = useState({}); // Liste déroulante des apprenants par projet (fermée par défaut).
   const allProjectsRef = useRef(allProjects); // Référence mutable pour accéder à `allProjects` dans les callbacks sans le lister comme dépendance.
 
   // Synchronisation de la référence avec l'état actuel d'allProjects.
@@ -132,28 +133,30 @@ function ProjectsPage() {
           }
           const rawProjects = await allProjectsRes.json();
           // Assainir les projets maîtres et leurs assignations pour une meilleure cohérence des données.
-          const sanitizedProjects = rawProjects.map((project) => ({
-            ...sanitizeProjectArrays(project),
-            assignments: (project.assignments || []).map((assign) => ({
-              ...assign,
-              student: assign.student
-                ? {
-                    _id: assign.student._id,
-                    name: assign.student.name,
-                    email: assign.student.email,
-                  }
-                : null, // S'assurer que student est un objet simple.
-              evaluations: (assign.evaluations || []).map((evalItem) => ({
-                ...evalItem,
-                evaluator: evalItem.evaluator
+          const sanitizedProjects = rawProjects
+            .map((project) => ({
+              ...sanitizeProjectArrays(project),
+              assignments: (project.assignments || []).map((assign) => ({
+                ...assign,
+                student: assign.student
                   ? {
-                      _id: evalItem.evaluator._id,
-                      name: evalItem.evaluator.name,
+                      _id: assign.student._id,
+                      name: assign.student.name,
+                      email: assign.student.email,
                     }
-                  : null,
+                  : null, // S'assurer que student est un objet simple.
+                evaluations: (assign.evaluations || []).map((evalItem) => ({
+                  ...evalItem,
+                  evaluator: evalItem.evaluator
+                    ? {
+                        _id: evalItem.evaluator._id,
+                        name: evalItem.evaluator.name,
+                      }
+                    : null,
+                })),
               })),
-            })),
-          }));
+            }))
+            .sort((a, b) => (b.order || 0) - (a.order || 0)); // Ordre décroissant (numéro d'ordre)
           setAllProjects(sanitizedProjects); // Stocke tous les projets pour la vue admin.
           setProjects([]); // Cet état n'est pas directement utilisé pour le staff/admin dans la nouvelle structure.
         } else {
@@ -847,7 +850,13 @@ function ProjectsPage() {
                     </tr>
                   </thead>
                   <tbody className="">
-                    {allProjects.map((projectGroup) => (
+                    {allProjects.map((projectGroup) => {
+                      const isAssignmentsExpanded =
+                        !!expandedProjectAssignments[projectGroup._id];
+                      const assignmentsCount =
+                        projectGroup.assignments?.length || 0;
+
+                      return (
                       <React.Fragment key={projectGroup._id}>
                         <tr>
                           <td>
@@ -861,8 +870,32 @@ function ProjectsPage() {
                             {(projectGroup.description || "").substring(0, 70)}
                             ...
                           </td>
-                          <td>
-                            <p>{projectGroup.assignments.length}</p>
+                          <td className="text-center">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2"
+                              onClick={() => {
+                                setExpandedProjectAssignments((prev) => ({
+                                  ...prev,
+                                  [projectGroup._id]: !prev[projectGroup._id],
+                                }));
+                              }}
+                              aria-expanded={isAssignmentsExpanded}
+                              aria-controls={`project-assignments-${projectGroup._id}`}
+                              title={
+                                isAssignmentsExpanded
+                                  ? "Masquer les apprenants"
+                                  : "Afficher les apprenants"
+                              }
+                            >
+                              <i className="bi bi-people-fill"></i>
+                              <span>{assignmentsCount}</span>
+                              <i
+                                className={`bi bi-chevron-${
+                                  isAssignmentsExpanded ? "up" : "down"
+                                }`}
+                              ></i>
+                            </button>
                           </td>
                           <td>
                             <span className="badge bg-secondary rounded-pill">
@@ -894,119 +927,111 @@ function ProjectsPage() {
                             </div>
                           </td>
                         </tr>
-                        {projectGroup.assignments.length > 0 ? (
-                          projectGroup.assignments.map((assignedProject) => (
-                            <tr key={assignedProject._id}>
-                              <td></td> {/* Cellule vide pour l'alignement */}
-                              <td>
-                                <i className="bi bi-arrow-return-right me-2"></i>{" "}
-                                {assignedProject.title}
-                              </td>
-                              <td>
-                                <small>
-                                  {(
-                                    assignedProject.description || ""
-                                  ).substring(0, 50)}
-                                  ...
-                                </small>
-                              </td>
-                              <td>
-                                <span className="badge bg-success rounded-pill">
-                                  <i className="bi bi-person-check me-1"></i>{" "}
-                                  Apprenant
-                                </span>
-                              </td>
-                              <td>
-                                {assignedProject.student
-                                  ? assignedProject.student.name
-                                  : "N/A"}
-                              </td>
-                              <td>
-                                <span
-                                  className={`badge rounded-pill bg-${
-                                    assignedProject.status === "assigned"
-                                      ? "warning text-dark"
-                                      : assignedProject.status === "submitted"
-                                      ? "info"
-                                      : assignedProject.status ===
-                                        "awaiting_staff_review"
-                                      ? "primary"
-                                      : assignedProject.status === "approved"
-                                      ? "success"
-                                      : assignedProject.status === "rejected"
-                                      ? "danger"
-                                      : "secondary"
-                                  }`}
-                                >
-                                  <i
-                                    className={`bi bi-${
-                                      assignedProject.status === "assigned"
-                                        ? "clock"
-                                        : assignedProject.status === "submitted"
-                                        ? "hourglass-split"
-                                        : assignedProject.status ===
-                                          "awaiting_staff_review"
-                                        ? "person-workspace"
-                                        : assignedProject.status === "approved"
-                                        ? "check-circle"
-                                        : assignedProject.status === "rejected"
-                                        ? "x-circle"
-                                        : "question-circle"
-                                    } me-1`}
-                                  ></i>
-                                  {assignedProject.status === "assigned"
-                                    ? "Assigné"
-                                    : assignedProject.status === "submitted"
-                                    ? "Soumis (en attente des pairs)"
-                                    : assignedProject.status ===
-                                      "awaiting_staff_review"
-                                    ? "En attente de révision staff"
-                                    : assignedProject.status === "approved"
-                                    ? "Approuvé"
-                                    : assignedProject.status === "rejected"
-                                    ? "Rejeté"
-                                    : "Inconnu"}
-                                </span>
-                              </td>
-                              <td className="text-center">
-                                <div
-                                  className="btn-group btn-group-sm"
-                                  role="group"
-                                  aria-label="Actions pour projet d'apprenant"
-                                >
-                                  <button
-                                    className="btn btn-outline-info"
-                                    onClick={() =>
-                                      handleEditProject(assignedProject)
-                                    }
-                                    title="Modifier Projet de l'Apprenant"
-                                  >
-                                    <i className="bi bi-pencil-square"></i>
-                                  </button>
-                                  <button
-                                    className="btn btn-outline-danger"
-                                    onClick={() =>
-                                      handleDeleteProject(assignedProject)
-                                    }
-                                    title="Supprimer Projet de l'Apprenant"
-                                  >
-                                    <i className="bi bi-trash"></i>
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td></td>
-                            <td colSpan="5" className="text-center py-2">
-                              Aucun projet assigné pour ce projet maître.
+                        {isAssignmentsExpanded && (
+                          <tr id={`project-assignments-${projectGroup._id}`}>
+                            <td colSpan="6" className="p-0 border-0">
+                              <div className="p-3 ms-3 me-3 mb-2 border-start border-success border-3 rounded thm-bg-light">
+                                <h6 className="mb-3 d-flex align-items-center gap-2">
+                                  <i className="bi bi-person-check"></i>
+                                  Apprenants assignés
+                                  <span className="badge bg-success rounded-pill">
+                                    {assignmentsCount}
+                                  </span>
+                                </h6>
+                                {assignmentsCount > 0 ? (
+                                  <ul className="list-group list-group-flush">
+                                    {projectGroup.assignments.map(
+                                      (assignedProject) => (
+                                        <li
+                                          key={assignedProject._id}
+                                          className="list-group-item thm-bg d-flex flex-wrap align-items-center justify-content-between gap-2 py-2"
+                                        >
+                                          <div className="d-flex flex-column">
+                                            <strong>
+                                              {assignedProject.student
+                                                ? assignedProject.student.name
+                                                : "N/A"}
+                                            </strong>
+                                            {assignedProject.student?.email && (
+                                              <small className="text-muted">
+                                                {assignedProject.student.email}
+                                              </small>
+                                            )}
+                                          </div>
+                                          <span
+                                            className={`badge rounded-pill bg-${
+                                              assignedProject.status ===
+                                              "assigned"
+                                                ? "warning text-dark"
+                                                : assignedProject.status ===
+                                                  "submitted"
+                                                ? "info"
+                                                : assignedProject.status ===
+                                                  "awaiting_staff_review"
+                                                ? "primary"
+                                                : assignedProject.status ===
+                                                  "approved"
+                                                ? "success"
+                                                : assignedProject.status ===
+                                                  "rejected"
+                                                ? "danger"
+                                                : "secondary"
+                                            }`}
+                                          >
+                                            <i
+                                              className={`bi bi-${
+                                                assignedProject.status ===
+                                                "assigned"
+                                                  ? "clock"
+                                                  : assignedProject.status ===
+                                                    "submitted"
+                                                  ? "hourglass-split"
+                                                  : assignedProject.status ===
+                                                    "awaiting_staff_review"
+                                                  ? "person-workspace"
+                                                  : assignedProject.status ===
+                                                    "approved"
+                                                  ? "check-circle"
+                                                  : assignedProject.status ===
+                                                    "rejected"
+                                                  ? "x-circle"
+                                                  : "question-circle"
+                                              } me-1`}
+                                            ></i>
+                                            {assignedProject.status ===
+                                            "assigned"
+                                              ? "Assigné"
+                                              : assignedProject.status ===
+                                                "submitted"
+                                              ? "Soumis (en attente des pairs)"
+                                              : assignedProject.status ===
+                                                "awaiting_staff_review"
+                                              ? "En attente de révision staff"
+                                              : assignedProject.status ===
+                                                "approved"
+                                              ? "Approuvé"
+                                              : assignedProject.status ===
+                                                "rejected"
+                                              ? "Rejeté"
+                                              : "Inconnu"}
+                                          </span>
+                                        </li>
+                                      )
+                                    )}
+                                  </ul>
+                                ) : (
+                                  <p className="mb-0 text-muted">
+                                    <i className="bi bi-info-circle me-2"></i>
+                                    Aucun apprenant assigné à ce projet.
+                                  </p>
+                                )}
+                              </div>
                             </td>
-                            <td></td>
                           </tr>
                         )}
                       </React.Fragment>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -1393,3 +1393,82 @@
   background: rgba(255, 133, 86, 0.08);
 }
 
+/* Pagination liste apprenants */
+.paginationBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f0f0f0;
+}
+
+:global(.themed:not(.light)) .paginationBar {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.paginationInfo {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+:global(.themed:not(.light)) .paginationInfo {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.paginationPage {
+  font-size: 13px;
+  font-weight: 600;
+  color: #179349;
+  min-width: 90px;
+  text-align: center;
+}
+
+:global(.themed:not(.light)) .paginationPage {
+  color: #1db558;
+}
+
+.paginationButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid #179349;
+  background: transparent;
+  color: #179349;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background: #179349;
+  color: #fff;
+}
+
+.paginationButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+:global(.themed:not(.light)) .paginationButton {
+  border-color: #1db558;
+  color: #1db558;
+}
+
+:global(.themed:not(.light)) .paginationButton:hover:not(:disabled) {
+  background: #1db558;
+  color: #fff;
+}
+

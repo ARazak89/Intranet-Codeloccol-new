@@ -8,6 +8,8 @@ const API = process.env.NEXT_PUBLIC_API_URL;
 
 function AdminUsersPage() {
   const [users, setUsers] = useState([]);
+  const [usersPage, setUsersPage] = useState(1);
+  const USERS_PAGE_SIZE = 10;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [me, setMe] = useState(null); // Pour stocker les infos de l'utilisateur (rôle)
@@ -59,6 +61,7 @@ function AdminUsersPage() {
       }
       const usersData = await usersRes.json();
       setUsers(usersData);
+      setUsersPage(1);
     } catch (e) {
       setError('Erreur lors du chargement des utilisateurs: ' + e.message);
       console.error(e);
@@ -343,6 +346,16 @@ function AdminUsersPage() {
     );
   }
 
+  const usersTotalPages = Math.max(1, Math.ceil(users.length / USERS_PAGE_SIZE));
+  const safeUsersPage = Math.min(usersPage, usersTotalPages);
+  const paginatedUsers = users.slice(
+    (safeUsersPage - 1) * USERS_PAGE_SIZE,
+    safeUsersPage * USERS_PAGE_SIZE
+  );
+  const usersRangeStart =
+    users.length === 0 ? 0 : (safeUsersPage - 1) * USERS_PAGE_SIZE + 1;
+  const usersRangeEnd = Math.min(safeUsersPage * USERS_PAGE_SIZE, users.length);
+
   return (
     <div className={`${styles.pageContainer} container-fluid pt-5`}>
       <div className={styles.pageHeader}>
@@ -402,7 +415,7 @@ function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {paginatedUsers.map((user) => (
                 <tr key={user._id}>
                   <td><strong><Link href={`/user/${user._id}`}>{user.name}</Link></strong></td>
                   <td style={{ fontSize: '12px' }}>{user.email}</td>
@@ -510,6 +523,38 @@ function AdminUsersPage() {
             </tbody>
           </table>
           </div>
+          {usersTotalPages > 1 && (
+            <div className={styles.paginationBar}>
+              <span className={styles.paginationInfo}>
+                {usersRangeStart}–{usersRangeEnd} sur {users.length}
+              </span>
+              <div className={styles.paginationControls}>
+                <button
+                  type="button"
+                  className={styles.paginationButton}
+                  onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                  disabled={safeUsersPage <= 1}
+                  aria-label="Page précédente"
+                >
+                  <i className="bi bi-chevron-left"></i>
+                  Précédent
+                </button>
+                <span className={styles.paginationPage}>
+                  Page {safeUsersPage} / {usersTotalPages}
+                </span>
+                <button
+                  type="button"
+                  className={styles.paginationButton}
+                  onClick={() => setUsersPage((p) => Math.min(usersTotalPages, p + 1))}
+                  disabled={safeUsersPage >= usersTotalPages}
+                  aria-label="Page suivante"
+                >
+                  Suivant
+                  <i className="bi bi-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

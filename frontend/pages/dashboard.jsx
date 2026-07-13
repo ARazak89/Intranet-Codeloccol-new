@@ -46,6 +46,8 @@ export default function Dashboard() {
   const [upcomingEvaluations, setUpcomingEvaluations] = useState([]);
   const [projectsAwaitingStaffReview, setProjectsAwaitingStaffReview] = useState([]);
   const [learners, setLearners] = useState([]);
+  const [learnersPage, setLearnersPage] = useState(1);
+  const LEARNERS_PAGE_SIZE = 10;
   const [allProjects, setAllProjects] = useState([]);
   const [allPendingEvaluationsForStaff, setAllPendingEvaluationsForStaff] = useState([]);
   const [expandedLearners, setExpandedLearners] = useState({});
@@ -230,6 +232,7 @@ export default function Dashboard() {
         if (learnersRes.ok) {
           const learnersData = await learnersRes.json();
           setLearners(learnersData);
+          setLearnersPage(1);
         }
 
         const allProjectsRes = await fetch(`${API}/projects/all`, {
@@ -805,6 +808,15 @@ export default function Dashboard() {
   if (isLoading) {
     return <Loader message="Chargement du tableau de bord..." />;
   }
+
+  const learnersTotalPages = Math.max(1, Math.ceil(learners.length / LEARNERS_PAGE_SIZE));
+  const safeLearnersPage = Math.min(learnersPage, learnersTotalPages);
+  const paginatedLearners = learners.slice(
+    (safeLearnersPage - 1) * LEARNERS_PAGE_SIZE,
+    safeLearnersPage * LEARNERS_PAGE_SIZE
+  );
+  const learnersRangeStart = learners.length === 0 ? 0 : (safeLearnersPage - 1) * LEARNERS_PAGE_SIZE + 1;
+  const learnersRangeEnd = Math.min(safeLearnersPage * LEARNERS_PAGE_SIZE, learners.length);
 
   return (
     <div className={`${styles.dashboardContainer} container-fluid pt-5`}>
@@ -1609,7 +1621,7 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {learners.map((learner) => (
+                      {paginatedLearners.map((learner) => (
                         <React.Fragment key={learner._id}>
                           <tr>
                             <td><strong>{learner.name}</strong></td>
@@ -1763,6 +1775,38 @@ export default function Dashboard() {
                     </tbody>
                   </table>
                 </div>
+                {learnersTotalPages > 1 && (
+                  <div className={styles.paginationBar}>
+                    <span className={styles.paginationInfo}>
+                      {learnersRangeStart}–{learnersRangeEnd} sur {learners.length}
+                    </span>
+                    <div className={styles.paginationControls}>
+                      <button
+                        type="button"
+                        className={styles.paginationButton}
+                        onClick={() => setLearnersPage((p) => Math.max(1, p - 1))}
+                        disabled={safeLearnersPage <= 1}
+                        aria-label="Page précédente"
+                      >
+                        <i className="bi bi-chevron-left"></i>
+                        Précédent
+                      </button>
+                      <span className={styles.paginationPage}>
+                        Page {safeLearnersPage} / {learnersTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.paginationButton}
+                        onClick={() => setLearnersPage((p) => Math.min(learnersTotalPages, p + 1))}
+                        disabled={safeLearnersPage >= learnersTotalPages}
+                        aria-label="Page suivante"
+                      >
+                        Suivant
+                        <i className="bi bi-chevron-right"></i>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

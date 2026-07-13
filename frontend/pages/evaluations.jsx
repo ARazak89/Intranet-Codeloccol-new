@@ -34,6 +34,8 @@ export default function EvaluationPage() {
     setCancelledProjectsForReassignment,
   ] = useState([]); // Nouveau: Projets annulés pour réassignation
   const [expandedRows, setExpandedRows] = useState({}); // id d'évaluation => bool (affichage feedbacks pairs)
+  const [evaluationsPage, setEvaluationsPage] = useState(1);
+  const EVALUATIONS_PAGE_SIZE = 10;
 
   // Nouveaux états pour les champs de feedback détaillés
   // const [feedbackAssiduite, setFeedbackAssiduite] = useState('');
@@ -82,6 +84,7 @@ export default function EvaluationPage() {
           throw new Error("Failed to fetch all evaluations for staff");
         const allEvalsData = await allEvalsRes.json();
         setEvaluations(allEvalsData);
+        setEvaluationsPage(1);
 
         // Fetch all evaluators (toujours utile pour l'affichage)
         const evaluatorsRes = await fetch(`${API}/users/evaluators`, {
@@ -124,6 +127,7 @@ export default function EvaluationPage() {
           ...myPendingAsEvaluatorData,
         ];
         setEvaluations(allMyEvaluations);
+        setEvaluationsPage(1);
 
         // Si un ID d'évaluation est spécifié dans l'URL, pré-sélectionner cette évaluation
         if (queryEvaluationId) {
@@ -318,6 +322,60 @@ export default function EvaluationPage() {
     );
   }
 
+  const evaluationsTotalPages = Math.max(
+    1,
+    Math.ceil(evaluations.length / EVALUATIONS_PAGE_SIZE)
+  );
+  const safeEvaluationsPage = Math.min(evaluationsPage, evaluationsTotalPages);
+  const paginatedEvaluations = evaluations.slice(
+    (safeEvaluationsPage - 1) * EVALUATIONS_PAGE_SIZE,
+    safeEvaluationsPage * EVALUATIONS_PAGE_SIZE
+  );
+  const evaluationsRangeStart =
+    evaluations.length === 0
+      ? 0
+      : (safeEvaluationsPage - 1) * EVALUATIONS_PAGE_SIZE + 1;
+  const evaluationsRangeEnd = Math.min(
+    safeEvaluationsPage * EVALUATIONS_PAGE_SIZE,
+    evaluations.length
+  );
+
+  const evaluationsPaginationBar =
+    evaluationsTotalPages > 1 ? (
+      <div className={styles.paginationBar}>
+        <span className={styles.paginationInfo}>
+          {evaluationsRangeStart}–{evaluationsRangeEnd} sur {evaluations.length}
+        </span>
+        <div className={styles.paginationControls}>
+          <button
+            type="button"
+            className={styles.paginationButton}
+            onClick={() => setEvaluationsPage((p) => Math.max(1, p - 1))}
+            disabled={safeEvaluationsPage <= 1}
+            aria-label="Page précédente"
+          >
+            <i className="bi bi-chevron-left"></i>
+            Précédent
+          </button>
+          <span className={styles.paginationPage}>
+            Page {safeEvaluationsPage} / {evaluationsTotalPages}
+          </span>
+          <button
+            type="button"
+            className={styles.paginationButton}
+            onClick={() =>
+              setEvaluationsPage((p) => Math.min(evaluationsTotalPages, p + 1))
+            }
+            disabled={safeEvaluationsPage >= evaluationsTotalPages}
+            aria-label="Page suivante"
+          >
+            Suivant
+            <i className="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    ) : null;
+
   // Rendu pour le rôle staff/admin
   if (me.role === "staff" || me.role === "admin") {
     return (
@@ -417,8 +475,8 @@ export default function EvaluationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {evaluations.length > 0 ? (
-                    evaluations.map((evalItem) => {
+                  {paginatedEvaluations.length > 0 ? (
+                    paginatedEvaluations.map((evalItem) => {
                       const isLate =
                         evalItem.slot &&
                         dayjs().tz(TIMEZONE).isAfter(dayjs(evalItem.slot.endTime).tz(TIMEZONE));
@@ -663,6 +721,7 @@ export default function EvaluationPage() {
                 </tbody>
               </table>
             </div>
+            {evaluationsPaginationBar}
           </div>
         </div>
 
@@ -844,8 +903,8 @@ export default function EvaluationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {evaluations.length > 0 ? (
-                    evaluations.map((evalItem) => {
+                  {paginatedEvaluations.length > 0 ? (
+                    paginatedEvaluations.map((evalItem) => {
                       const slotStartTime = evalItem.slot?.startTime
                         ? dayjs(evalItem.slot.startTime).tz(TIMEZONE)
                         : null;
@@ -972,6 +1031,7 @@ export default function EvaluationPage() {
                 </tbody>
               </table>
             </div>
+            {evaluationsPaginationBar}
           </div>
         </div>
       </div>
