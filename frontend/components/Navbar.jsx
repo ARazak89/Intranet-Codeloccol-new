@@ -30,19 +30,33 @@ const Navbar = ({
   const [displaySeconds, setDisplaySeconds] = useState(0);
 
   useEffect(() => {
-    const calculateTimeRemaining = () => {
+    const LAGOS_OFFSET_MS = 60 * 60 * 1000; // Africa/Lagos = UTC+1 (pas d'heure d'été)
+
+    /** Millisecondes jusqu'à minuit Africa/Lagos (aligné sur le backend) */
+    const msUntilLagosMidnight = () => {
       const now = new Date();
-      const midnight = new Date(now);
-      midnight.setHours(24, 0, 0, 0); // Minuit du jour suivant
+      const utcMs = now.getTime() + now.getTimezoneOffset() * 60_000;
+      const lagosNow = new Date(utcMs + LAGOS_OFFSET_MS);
+      const midnight = new Date(lagosNow);
+      midnight.setHours(24, 0, 0, 0);
+      return Math.max(0, midnight.getTime() - lagosNow.getTime());
+    };
 
-      const msUntilMidnight = midnight.getTime() - now.getTime();
-      
-      let seconds = Math.floor((msUntilMidnight / 1000) % 60);
-      let minutes = Math.floor((msUntilMidnight / (1000 * 60)) % 60);
-      let hours = Math.floor((msUntilMidnight / (1000 * 60 * 60)) % 24);
+    const calculateTimeRemaining = () => {
+      const days = Math.max(0, Number(initialDaysRemaining) || 0);
 
-      // Les jours complets viennent directement du backend
-      let days = initialDaysRemaining;
+      if (days <= 0) {
+        setDisplayDays(0);
+        setDisplayHours(0);
+        setDisplayMinutes(0);
+        setDisplaySeconds(0);
+        return;
+      }
+
+      const msUntilMidnight = msUntilLagosMidnight();
+      const seconds = Math.floor((msUntilMidnight / 1000) % 60);
+      const minutes = Math.floor((msUntilMidnight / (1000 * 60)) % 60);
+      const hours = Math.floor((msUntilMidnight / (1000 * 60 * 60)) % 24);
 
       setDisplayDays(days);
       setDisplayHours(hours);
@@ -50,9 +64,8 @@ const Navbar = ({
       setDisplaySeconds(seconds);
     };
 
-    calculateTimeRemaining(); // Calcul initial
-
-    const interval = setInterval(calculateTimeRemaining, 1000); // Mettre à jour toutes les secondes
+    calculateTimeRemaining();
+    const interval = setInterval(calculateTimeRemaining, 1000);
 
     return () => clearInterval(interval);
   }, [initialDaysRemaining]);
@@ -121,9 +134,13 @@ const Navbar = ({
                 <span className="me-3 fw-bold p-2 rounded-pill thm-bg-light thm-shadow-s">
                   <i className="bi bi-hourglass-split me-1"></i> Temps restant:{" "}
                   {displayDays > 1 && `${displayDays - 1}J `}
-                  {displayHours.toString().padStart(2, '0')}H{" "}
-                  {displayMinutes.toString().padStart(2, '0')}M{" "}
-                  {displaySeconds.toString().padStart(2, '0')}S
+                  {displayDays > 0
+                    ? `${displayHours.toString().padStart(2, "0")}H ${displayMinutes
+                        .toString()
+                        .padStart(2, "0")}M ${displaySeconds
+                        .toString()
+                        .padStart(2, "0")}S`
+                    : "0J 00H 00M 00S"}
                 </span>
               </div>
             )}

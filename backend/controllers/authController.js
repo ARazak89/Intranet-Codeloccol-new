@@ -5,12 +5,13 @@ import User from "../models/User.js";
 // import { sendMail } from "../utils/emailService.js"; // Commenter si non utilisé
 import Project from "../models/Project.js"; // Importer le modèle Project
 import ActivityLogger from "../utils/activityLogger.js";
+import { applyPendingDayDecrements } from "../utils/daysRemainingService.js";
 
 export async function login(req, res) {
   try {
     const { email, password } = req.body;
     console.log(`[AUTH] Tentative de connexion pour l'email: '${email}'`);
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
     if (!user) {
       console.log(`[AUTH] Utilisateur non trouvé pour l'email: '${email}' dans la base de données.`);
       return res.status(400).json({ error: "Email Invalide" });
@@ -27,6 +28,16 @@ export async function login(req, res) {
         error: "Votre compte est bloqué pour cause d'inactivité (plus de 4 jours sans connexion). Veuillez contacter le personnel pour le réactiver.",
       });
     }
+
+    // Décrémenter les jours manqués avant de renvoyer le token (cron peut avoir raté)
+    user = await applyPendingDayDecrements(user);
+    if (user.status === "blocked") {
+      return res.status(403).json({
+        error:
+          "Votre compte a été bloqué car vous n'avez plus de jours restants. Veuillez contacter le personnel.",
+      });
+    }
+
     // Mettre à jour la date de dernière connexion
     user.lastLogin = new Date();
     await user.save();

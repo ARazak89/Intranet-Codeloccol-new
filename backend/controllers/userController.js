@@ -6,11 +6,26 @@ import Notification from '../models/Notification.js';
 import bcrypt from 'bcryptjs'; // Importez bcryptjs pour le hachage des mots de passe
 import { levelToModuleMap } from './projectController.js'; // Importez levelToModuleMap
 import mongoose from 'mongoose'; // Importez mongoose pour la gestion des sessions de transaction
+import {
+  applyPendingDayDecrements,
+  getStartOfTodayInLagos,
+} from '../utils/daysRemainingService.js';
 
 export async function me(req, res) {
-  const u = req.user;
+  let u = req.user;
   if (!u) {
     return res.status(401).json({ error: "User not authenticated." });
+  }
+
+  // Appliquer les jours écoulés même si le cron de minuit a raté (API endormie / redémarrée)
+  u = await applyPendingDayDecrements(u);
+  req.user = u;
+
+  if (u.status === "blocked") {
+    return res.status(403).json({
+      error:
+        "Votre compte a été bloqué car vous n'avez plus de jours restants. Veuillez contacter le personnel.",
+    });
   }
 
   // Récupérer les projets de l'utilisateur
@@ -570,6 +585,7 @@ export async function createUser(req, res) {
       status: 'active', // Les utilisateurs créés par admin sont actifs par défaut
       level: role === 'apprenant' ? 1 : undefined, // Niveau 1 pour les apprenants par défaut
       daysRemaining: role === 'apprenant' ? 30 : undefined, // 30 jours pour les apprenants par défaut
+      lastDaysDecrementAt: role === 'apprenant' ? getStartOfTodayInLagos() : undefined,
     });
 
     await newUser.save();
@@ -657,6 +673,8 @@ export async function updateUser(req, res) {
     }
     if (daysRemaining !== undefined) {
       user.daysRemaining = daysRemaining;
+      // Reprendre le compteur journalier à partir d'aujourd'hui (évite un double débit immédiat)
+      user.lastDaysDecrementAt = getStartOfTodayInLagos();
     }
 
     // Hacher le nouveau mot de passe si fourni

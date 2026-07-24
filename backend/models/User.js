@@ -36,6 +36,8 @@ const userSchema = new mongoose.Schema({
   status: { type: String, default: 'active' },
   totalProjectsCompleted: { type: Number, default: 0 },
   daysRemaining: { type: Number, default: 0 },
+  /** Dernier jour (Africa/Lagos) déjà compté pour la décrémentation — évite de rater minuit si l'API dormait */
+  lastDaysDecrementAt: { type: Date, default: null },
   evaluationPoints: { type: Number, default: 2 },
 }, { timestamps: true });
 
