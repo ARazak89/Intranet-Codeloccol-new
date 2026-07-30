@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { getAuthToken } from "../utils/auth";
-import Loader from "../components/Loader";
+import { getAuthToken } from "../../utils/auth";
+import Loader from "../../components/Loader";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const STAFF_ROLES = ["admin", "staff", "evaluator"];
