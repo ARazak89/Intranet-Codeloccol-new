@@ -19,7 +19,8 @@ const sanitizeProjectArrays = (project) => ({
 
 /**
  * `ProjectsPage` est le composant principal pour afficher et gérer les projets.
- * Il gère l'affichage des projets pour les apprenants (par module) et pour le staff/admin (vue tableau avec CRUD).
+ * Il gère l'affichage des projets pour les apprenants (par module), les évaluateurs (par module, lecture seule)
+ * et pour le staff/admin (vue tableau avec CRUD).
  * Il inclut la logique pour les modales d'ajout, modification, suppression et soumission de projet.
  */
 function ProjectsPage() {
@@ -160,6 +161,38 @@ function ProjectsPage() {
             .sort((a, b) => (b.order || 0) - (a.order || 0)); // Ordre décroissant (numéro d'ordre)
           setAllProjects(sanitizedProjects); // Stocke tous les projets pour la vue admin.
           setProjects([]); // Cet état n'est pas directement utilisé pour le staff/admin dans la nouvelle structure.
+        } else if (userData.role === "evaluator") {
+          // Évaluateur: vue par module (templates), comme l'aperçu apprenant — sans CRUD.
+          const templatesRes = await fetch(`${API}/projects`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!templatesRes.ok) {
+            const errorData = await templatesRes.json();
+            throw new Error(
+              errorData.error ||
+                "Échec du chargement des projets pour l'évaluateur."
+            );
+          }
+          const rawTemplates = await templatesRes.json();
+          const sanitizedTemplates = rawTemplates
+            .map((project) => sanitizeProjectArrays(project))
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+          const grouped = sanitizedTemplates.reduce((acc, project) => {
+            const moduleName = project.module || "Sans module";
+            if (!acc[moduleName]) {
+              acc[moduleName] = [];
+            }
+            acc[moduleName].push({
+              ...project,
+              projectId: project._id,
+              assignmentStatus: null,
+              templateProject: { order: project.order },
+            });
+            return acc;
+          }, {});
+          setGroupedProjectsByModule(grouped);
+          setAllProjects(sanitizedTemplates);
+          setProjects([]);
         } else {
           // Pour l'apprenant: charger ses projets assignés.
           const myProjectsRes = await fetch(`${API}/projects/my-projects`, {
@@ -807,9 +840,13 @@ function ProjectsPage() {
     );
 
   const isStaffOrAdmin = me && (me.role === "staff" || me.role === "admin");
+  const isEvaluator = me && me.role === "evaluator";
   const showAdminManagementView = isStaffOrAdmin && !viewAsLearner;
+  const isModuleBrowsePreview = viewAsLearner || isEvaluator;
   const showLearnerStyleView =
-    (me && me.role === "apprenant") || (isStaffOrAdmin && viewAsLearner);
+    (me && me.role === "apprenant") ||
+    isEvaluator ||
+    (isStaffOrAdmin && viewAsLearner);
 
   // Vue "comme apprenant" pour staff/admin : projets templates regroupés par module (ordre croissant).
   const staffPreviewGroupedByModule = (() => {
@@ -831,7 +868,7 @@ function ProjectsPage() {
   })();
 
   const modulesForLearnerView =
-    me?.role === "apprenant"
+    me?.role === "apprenant" || isEvaluator
       ? groupedProjectsByModule
       : staffPreviewGroupedByModule;
 
@@ -842,6 +879,8 @@ function ProjectsPage() {
           ? "Gestion des Projets"
           : viewAsLearner
           ? "Mes Projets (vue apprenant)"
+          : isEvaluator
+          ? "Projets"
           : "Mes Projets"}
       </h1>
       {error && (
@@ -1082,7 +1121,7 @@ function ProjectsPage() {
           </div>
         </div>
       ) : showLearnerStyleView ? (
-        // Vue pour Apprenant (ou prévisualisation staff/admin): projets regroupés par modules.
+        // Vue pour Apprenant / Évaluateur (ou prévisualisation staff/admin): projets regroupés par modules.
         <div className="row">
           <div className="col-12 mb-4">
             {viewAsLearner && (
@@ -1104,7 +1143,21 @@ function ProjectsPage() {
                 </span>
               </div>
             )}
-            <h3>{viewAsLearner ? "Liste des projets (aperçu)" : "Mes Projets"}</h3>
+            {isEvaluator && (
+              <div className="mb-3">
+                <span className="badge bg-primary rounded-pill">
+                  <i className="bi bi-clipboard-check me-1"></i>
+                  Vue évaluateur — consultation par module
+                </span>
+              </div>
+            )}
+            <h3>
+              {isModuleBrowsePreview
+                ? isEvaluator
+                  ? "Liste des projets"
+                  : "Liste des projets (aperçu)"
+                : "Mes Projets"}
+            </h3>
             {selectedModule ? (
               // Afficher les projets individuels pour le module sélectionné.
               <div className="mb-3">
@@ -1196,7 +1249,7 @@ function ProjectsPage() {
                                 </span>
                               )}
                             </div>
-                            {!viewAsLearner &&
+                            {!isModuleBrowsePreview &&
                               project.assignmentStatus === "assigned" && (
                               <div className="mt-auto">
                                 <button
@@ -1261,7 +1314,7 @@ function ProjectsPage() {
             ) : (
               <div className="alert alert-info text-center mt-3">
                 <i className="bi bi-info-circle me-2"></i>{" "}
-                {viewAsLearner
+                {isModuleBrowsePreview
                   ? "Aucun projet disponible pour le moment."
                   : "Aucun projet assigné pour le moment."}
               </div>
@@ -1272,9 +1325,9 @@ function ProjectsPage() {
         </div>
       ) : null}
 
-      {/* Modale d'affichage des détails du projet (pour apprenant / aperçu staff) */}
+      {/* Modale d'affichage des détails du projet (pour apprenant / évaluateur / aperçu staff) */}
       {me &&
-        (me.role === "apprenant" || viewAsLearner) &&
+        (me.role === "apprenant" || isEvaluator || viewAsLearner) &&
         showProjectModal &&
         selectedProject && (
         <div className="modal" tabIndex="-1" style={{ display: "block" }}>
@@ -1665,7 +1718,7 @@ function ProjectsPage() {
         </div>
       )}
       {me &&
-        (me.role === "apprenant" || viewAsLearner) &&
+        (me.role === "apprenant" || isEvaluator || viewAsLearner) &&
         showProjectModal && (
         <div className="modal-backdrop fade show"></div>
       )}

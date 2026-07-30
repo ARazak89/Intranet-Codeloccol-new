@@ -40,7 +40,9 @@ const Sidebar = ({ user, showSidebar, setShowSidebar }) => {
                 onClick={() => setShowSidebar(false)}
               >
                 <i className="bi bi-folder-fill me-2 sidebar-icon"></i>
-                <span className="sidebar-text">Mes Projets</span>
+                <span className="sidebar-text">
+                  {user?.role === "evaluator" ? "Projets" : "Mes Projets"}
+                </span>
               </Link>
             </li>
             
@@ -139,6 +141,19 @@ const Sidebar = ({ user, showSidebar, setShowSidebar }) => {
               >
                 <i className="bi bi-person-circle me-2 sidebar-icon"></i>
                 <span className="sidebar-text">Mon Profil</span>
+              </Link>
+            </li>
+
+            <li className="nav-item">
+              <Link
+                href="/guide/co-bot"
+                className={`sidebar-link d-flex align-items-center text-decoration-none rounded py-2 px-2 px-md-3 ${
+                  router.pathname === "/guide/co-bot" ? "active" : ""
+                }`}
+                onClick={() => setShowSidebar(false)}
+              >
+                <i className="bi bi-robot me-2 sidebar-icon"></i>
+                <span className="sidebar-text">Guide Co-Bot</span>
               </Link>
             </li>
             

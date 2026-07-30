@@ -908,8 +908,12 @@ export async function finalReviewProject(req, res) {
         .json({ error: "ID d'assignation ou statut manquant." });
     }
 
-    // Vérifier que l'utilisateur est un membre du personnel/admin.
-    if (req.user.role !== "staff" && req.user.role !== "admin") {
+    // Vérifier que l'utilisateur est staff, admin ou évaluateur.
+    if (
+      req.user.role !== "staff" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "evaluator"
+    ) {
       console.log(`Erreur 403: Rôle non autorisé: ${req.user.role}`);
       return res.status(403).json({
         error: "Non autorisé à évaluer des projets.",
@@ -1091,8 +1095,12 @@ export async function finalReviewProject(req, res) {
  */
 export async function getProjectsAwaitingStaffReview(req, res) {
   try {
-    // Vérifier que l'utilisateur est un membre du personnel/admin.
-    if (req.user.role !== "staff" && req.user.role !== "admin") {
+    // Vérifier que l'utilisateur est staff, admin ou évaluateur.
+    if (
+      req.user.role !== "staff" &&
+      req.user.role !== "admin" &&
+      req.user.role !== "evaluator"
+    ) {
       return res.status(403).json({
         error: "Non autorisé à consulter cette ressource.",
       });

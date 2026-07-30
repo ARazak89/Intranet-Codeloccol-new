@@ -9,7 +9,7 @@ interface User {
   _id: string
   name: string
   email: string
-  role: 'apprenant' | 'staff' | 'admin'
+  role: 'apprenant' | 'staff' | 'admin' | 'evaluator'
   profilePicture?: string
   daysRemaining: number
 }

@@ -102,50 +102,78 @@ export default function EvaluationPage() {
           throw new Error("Failed to fetch cancelled projects");
         const cancelledProjectsData = await cancelledProjectsRes.json();
         setCancelledProjectsForReassignment(cancelledProjectsData);
-      } else if (userData.role === "apprenant") {
-        // Pour l'apprenant, récupérer toutes ses évaluations (soumises par lui ou à faire par lui)
-        const mySubmittedEvalRes = await fetch(`${API}/evaluations/mine`, {
-          headers: { Authorization: `Bearer ${storedToken}` },
-        });
-        if (!mySubmittedEvalRes.ok)
-          throw new Error("Failed to fetch my submitted evaluations");
-        const mySubmittedEvalData = await mySubmittedEvalRes.json();
+      } else if (
+        userData.role === "apprenant" ||
+        userData.role === "evaluator"
+      ) {
+        // Apprenant / évaluateur : évaluations soumises (apprenant) + en attente en tant qu'évaluateur
+        if (userData.role === "apprenant") {
+          const mySubmittedEvalRes = await fetch(`${API}/evaluations/mine`, {
+            headers: { Authorization: `Bearer ${storedToken}` },
+          });
+          if (!mySubmittedEvalRes.ok)
+            throw new Error("Failed to fetch my submitted evaluations");
+          const mySubmittedEvalData = await mySubmittedEvalRes.json();
 
-        const myPendingAsEvaluatorRes = await fetch(
-          `${API}/evaluations/pending-as-evaluator`,
-          { headers: { Authorization: `Bearer ${storedToken}` } }
-        );
-        if (!myPendingAsEvaluatorRes.ok)
-          throw new Error(
-            "Failed to fetch my pending evaluations as evaluator"
+          const myPendingAsEvaluatorRes = await fetch(
+            `${API}/evaluations/pending-as-evaluator`,
+            { headers: { Authorization: `Bearer ${storedToken}` } }
           );
-        const myPendingAsEvaluatorData = await myPendingAsEvaluatorRes.json();
+          if (!myPendingAsEvaluatorRes.ok)
+            throw new Error(
+              "Failed to fetch my pending evaluations as evaluator"
+            );
+          const myPendingAsEvaluatorData =
+            await myPendingAsEvaluatorRes.json();
 
-        // Fusionner les deux listes d'évaluations
-        const allMyEvaluations = [
-          ...mySubmittedEvalData,
-          ...myPendingAsEvaluatorData,
-        ];
-        setEvaluations(allMyEvaluations);
-        setEvaluationsPage(1);
+          const allMyEvaluations = [
+            ...mySubmittedEvalData,
+            ...myPendingAsEvaluatorData,
+          ];
+          setEvaluations(allMyEvaluations);
+          setEvaluationsPage(1);
 
-        // Si un ID d'évaluation est spécifié dans l'URL, pré-sélectionner cette évaluation
-        if (queryEvaluationId) {
-          const preselectedEval = allMyEvaluations.find(
-            (evalItem) => evalItem._id === queryEvaluationId
+          if (queryEvaluationId) {
+            const preselectedEval = allMyEvaluations.find(
+              (evalItem) => evalItem._id === queryEvaluationId
+            );
+            if (preselectedEval) {
+              setSelectedEvaluation(preselectedEval);
+              if (preselectedEval.slot) {
+                setStartTime(
+                  dayjs(preselectedEval.slot.startTime).tz(TIMEZONE)
+                );
+                setEndTime(dayjs(preselectedEval.slot.endTime).tz(TIMEZONE));
+              }
+            }
+          }
+        } else {
+          // Évaluateur : uniquement les évaluations en attente qui lui sont assignées
+          const myPendingAsEvaluatorRes = await fetch(
+            `${API}/evaluations/pending-as-evaluator`,
+            { headers: { Authorization: `Bearer ${storedToken}` } }
           );
-          if (preselectedEval) {
-            setSelectedEvaluation(preselectedEval);
-            // Initialiser les champs de feedback si déjà existants
-            // setFeedbackAssiduite(preselectedEval.feedback?.assiduite || '');
-            // setFeedbackComprehension(preselectedEval.feedback?.comprehension || '');
-            // setFeedbackSpecifications(preselectedEval.feedback?.specifications || '');
-            // setFeedbackMaitriseConcepts(preselectedEval.feedback?.maitrise_concepts || '');
-            // setFeedbackCapaciteExpliquer(preselectedEval.feedback?.capacite_expliquer || '');
-            // setComments(preselectedEval.comments || ''); // Toujours initialiser les commentaires
-            if (preselectedEval.slot) {
-              setStartTime(dayjs(preselectedEval.slot.startTime).tz(TIMEZONE));
-              setEndTime(dayjs(preselectedEval.slot.endTime).tz(TIMEZONE));
+          if (!myPendingAsEvaluatorRes.ok)
+            throw new Error(
+              "Failed to fetch my pending evaluations as evaluator"
+            );
+          const myPendingAsEvaluatorData =
+            await myPendingAsEvaluatorRes.json();
+          setEvaluations(myPendingAsEvaluatorData);
+          setEvaluationsPage(1);
+
+          if (queryEvaluationId) {
+            const preselectedEval = myPendingAsEvaluatorData.find(
+              (evalItem) => evalItem._id === queryEvaluationId
+            );
+            if (preselectedEval) {
+              setSelectedEvaluation(preselectedEval);
+              if (preselectedEval.slot) {
+                setStartTime(
+                  dayjs(preselectedEval.slot.startTime).tz(TIMEZONE)
+                );
+                setEndTime(dayjs(preselectedEval.slot.endTime).tz(TIMEZONE));
+              }
             }
           }
         }
@@ -855,8 +883,8 @@ export default function EvaluationPage() {
     );
   }
 
-  // Rendu par défaut pour l'apprenant (vue d'une seule évaluation)
-  if (me.role === "apprenant") {
+  // Rendu par défaut pour l'apprenant / évaluateur (vue d'une seule évaluation)
+  if (me.role === "apprenant" || me.role === "evaluator") {
     const formatTime = (date) => {
       if (!date) return "N/A";
       return dayjs(date).tz(TIMEZONE).format('HH[h]mm');

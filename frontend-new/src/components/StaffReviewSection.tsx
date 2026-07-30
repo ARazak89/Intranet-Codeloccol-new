@@ -64,7 +64,7 @@ export default function StaffReviewSection({
   };
 
   // Vérifier si l'utilisateur a les permissions
-  if (!user || (user.role !== 'staff' && user.role !== 'admin')) {
+  if (!user || (user.role !== 'staff' && user.role !== 'admin' && user.role !== 'evaluator')) {
     return null;
   }
 

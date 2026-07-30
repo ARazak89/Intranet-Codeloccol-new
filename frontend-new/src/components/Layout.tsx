@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   LogOut,
-  Settings
+  Settings,
+  Bot
 } from 'lucide-react';
 import { getMineNotifications } from '@/actions/notifications';
 
@@ -67,6 +68,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Mon Profil', href: '/profile', icon: User },
     { name: 'Évaluations', href: '/evaluations', icon: CheckSquare },
     { name: 'Calendrier', href: '/calendar', icon: Calendar },
+    { name: 'Guide Co-Bot', href: '/guide/co-bot', icon: Bot },
   ];
 
   if (user?.role === 'staff' || user?.role === 'admin') {

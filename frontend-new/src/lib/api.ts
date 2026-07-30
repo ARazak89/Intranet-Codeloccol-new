@@ -84,6 +84,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
+    getAwaitingStaffReview: () => api.request('/projects/awaiting-staff-review'),
+    finalReview: (id: string, payload: { assignmentId: string; status: 'approved' | 'rejected' }) =>
+      api.request(`/projects/${id}/final-review`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
   },
 
   // Hackathon endpoints

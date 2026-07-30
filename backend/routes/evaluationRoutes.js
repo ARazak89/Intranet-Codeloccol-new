@@ -19,7 +19,7 @@ r.get(
 r.get(
   "/pending-as-evaluator",
   requireAuth,
-  requireRole(["apprenant", "staff", "admin"]),
+  requireRole(["apprenant", "staff", "admin", "evaluator"]),
   getPendingEvaluationsAsEvaluator,
 );
 r.get(
@@ -31,7 +31,7 @@ r.get(
 r.post(
   "/:evaluationId/submit",
   requireAuth,
-  requireRole(["apprenant"]),
+  requireRole(["apprenant", "evaluator"]),
   submitEvaluation,
 );
 r.put(

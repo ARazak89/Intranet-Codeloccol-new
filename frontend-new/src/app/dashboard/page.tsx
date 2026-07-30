@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const [evaluationsMine, setEvaluationsMine] = useState<any[]>([]);
   const [slotsMine, setSlotsMine] = useState<any[]>([]);
   const [pendingForStaff, setPendingForStaff] = useState<any[]>([]);
+  const [projectsAwaitingReview, setProjectsAwaitingReview] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Create slot modal state
@@ -83,7 +84,7 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const requests = [
+      const requests: Promise<any>[] = [
         getMineProjects(),
         getHackathons(),
         getMineNotifications(),
@@ -92,9 +93,21 @@ export default function DashboardPage() {
         evaluationsForStafs(),
       ];
 
-   
+      if (user?.role === 'staff' || user?.role === 'admin' || user?.role === 'evaluator') {
+        requests.push(api.projects.getAwaitingStaffReview().catch(() => []));
+      } else {
+        requests.push(Promise.resolve([]));
+      }
 
-      const [projectsData, hackathonsData, notificationsData, evaluationsData, slotsData, pendingEvals] = await Promise.all(requests);
+      const [
+        projectsData,
+        hackathonsData,
+        notificationsData,
+        evaluationsData,
+        slotsData,
+        pendingEvals,
+        awaitingReview,
+      ] = await Promise.all(requests);
 
       setProjects(projectsData);
       setHackathons(hackathonsData);
@@ -102,6 +115,7 @@ export default function DashboardPage() {
       setEvaluationsMine(evaluationsData);
       setSlotsMine(slotsData);
       setPendingForStaff(pendingEvals);
+      setProjectsAwaitingReview(Array.isArray(awaitingReview) ? awaitingReview : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -173,11 +187,21 @@ export default function DashboardPage() {
   };
 
   const handleApproveProject = async (projectId: string, assignmentId: string) => {
-    console.log('Approving project:', projectId, assignmentId);
+    try {
+      await api.projects.finalReview(projectId, { assignmentId, status: 'approved' });
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Error approving project:', error);
+    }
   };
 
   const handleRejectProject = async (projectId: string, assignmentId: string) => {
-    console.log('Rejecting project:', projectId, assignmentId);
+    try {
+      await api.projects.finalReview(projectId, { assignmentId, status: 'rejected' });
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Error rejecting project:', error);
+    }
   };
 
   const stats = [
@@ -283,7 +307,7 @@ export default function DashboardPage() {
         />
 
         <StaffReviewSection
-          projects={pendingForStaff || []}
+          projects={projectsAwaitingReview || []}
           user={user}
           onApprove={handleApproveProject}
           onReject={handleRejectProject}

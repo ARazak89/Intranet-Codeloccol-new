@@ -186,16 +186,11 @@ export default function Dashboard() {
         setUpcomingEvaluations(evalAsEvaluatorData);
       }
 
-      if (userData.role === "staff" || userData.role === "admin") {
-        const allPendingEvalsRes = await fetch(
-          `${API}/evaluations/all-for-staff`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (allPendingEvalsRes.ok) {
-          const allPendingEvalsData = await allPendingEvalsRes.json();
-          setAllPendingEvaluationsForStaff(allPendingEvalsData);
-        }
-
+      if (
+        userData.role === "staff" ||
+        userData.role === "admin" ||
+        userData.role === "evaluator"
+      ) {
         const staffReviewRes = await fetch(
           `${API}/projects/awaiting-staff-review`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -224,6 +219,17 @@ export default function Dashboard() {
             })
           );
           setProjectsAwaitingStaffReview(sanitizedStaffReviewData);
+        }
+      }
+
+      if (userData.role === "staff" || userData.role === "admin") {
+        const allPendingEvalsRes = await fetch(
+          `${API}/evaluations/all-for-staff`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (allPendingEvalsRes.ok) {
+          const allPendingEvalsData = await allPendingEvalsRes.json();
+          setAllPendingEvaluationsForStaff(allPendingEvalsData);
         }
 
         const learnersRes = await fetch(`${API}/users`, {
@@ -1151,7 +1157,11 @@ export default function Dashboard() {
         )}
 
         {/* Section des corrections à venir */}
-        {me && (me.role === "apprenant" || me.role === "staff" || me.role === "admin") && (
+        {me &&
+          (me.role === "apprenant" ||
+            me.role === "staff" ||
+            me.role === "admin" ||
+            me.role === "evaluator") && (
           <div className="row mb-4">
             <div className="col-12">
               <div className={styles.cardOrange}>
@@ -1159,10 +1169,13 @@ export default function Dashboard() {
                   <h2 className={styles.sectionTitle}>
                     <i className="bi bi-list-check"></i>
                     Corrections à Venir
-                    {me.role !== "apprenant" && " (Toutes les évaluations)"}
+                    {(me.role === "staff" || me.role === "admin") &&
+                      " (Toutes les évaluations)"}
                   </h2>
                   <span className={styles.sectionCount}>
-                    {me.role === "apprenant" ? upcomingEvaluations.length : allPendingEvaluationsForStaff.filter((evaluation) => {
+                    {me.role === "apprenant" || me.role === "evaluator"
+                      ? upcomingEvaluations.length
+                      : allPendingEvaluationsForStaff.filter((evaluation) => {
                       const evaluationEndTime = evaluation.slot ? dayjs.utc(evaluation.slot.endTime) : null;
                       if (!evaluationEndTime) return false;
                       const twoHoursAfterEndTime = evaluationEndTime.add(2, 'hour');
@@ -1171,7 +1184,7 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div>
-                  {me.role === "apprenant" ? (
+                  {me.role === "apprenant" || me.role === "evaluator" ? (
                     upcomingEvaluations.map((evaluation) => {
                       const evaluationStartTime = evaluation.slot
                         ? dayjs.utc(evaluation.slot.startTime)
@@ -1504,7 +1517,11 @@ export default function Dashboard() {
         )}
 
         {/* Section des projets en attente de révision finale */}
-        {me && (me.role === "staff" || me.role === "admin") && projectsAwaitingStaffReview.length > 0 && (
+        {me &&
+          (me.role === "staff" ||
+            me.role === "admin" ||
+            me.role === "evaluator") &&
+          projectsAwaitingStaffReview.length > 0 && (
           <div className="row mb-4">
             <div className="col-12">
               <div className={styles.cardGreen}>

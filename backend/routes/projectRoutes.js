@@ -345,7 +345,7 @@ router.post("/:id/submit-solution", requireAuth, requireRole(["apprenant"]), sub
  *       500:
  *         description: Erreur serveur.
  */
-router.get("/", requireAuth, requireRole(["staff", "admin"]), getProjects); // Pour lister les projets templates.
+router.get("/", requireAuth, requireRole(["staff", "admin", "evaluator"]), getProjects); // Pour lister les projets templates.
 
 /**
  * @swagger
@@ -388,7 +388,7 @@ router.get("/", requireAuth, requireRole(["staff", "admin"]), getProjects); // P
  *       500:
  *         description: Erreur serveur.
  */
-router.post("/:id/final-review", requireAuth, requireRole(["staff", "admin"]), finalReviewProject); // Gère la revue finale (approbation/rejet) d'un projet.
+router.post("/:id/final-review", requireAuth, requireRole(["staff", "admin", "evaluator"]), finalReviewProject); // Gère la revue finale (approbation/rejet) d'un projet.
 
 /**
  * @swagger
@@ -414,7 +414,7 @@ router.post("/:id/final-review", requireAuth, requireRole(["staff", "admin"]), f
  *       500:
  *         description: Erreur serveur.
  */
-router.get("/awaiting-staff-review", requireAuth, requireRole(["staff", "admin"]), getProjectsAwaitingStaffReview);
+router.get("/awaiting-staff-review", requireAuth, requireRole(["staff", "admin", "evaluator"]), getProjectsAwaitingStaffReview);
 
 /**
  * @swagger

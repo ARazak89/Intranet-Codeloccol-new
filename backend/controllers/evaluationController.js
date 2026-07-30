@@ -395,9 +395,9 @@ export async function submitEvaluation(req, res) {
           type: "project_status_update",
           message: `Votre projet \'${project.title}\' a été validé par les pairs et est maintenant en attente de l'évaluation finale par le personnel.`,
         });
-        // Notifier TOUS les membres du personnel qu'un projet est prêt pour l'évaluation finale
+        // Notifier staff, admin et évaluateurs qu'un projet est prêt pour l'évaluation finale
         const staffUsers = await User.find({
-          role: { $in: ["staff", "admin"] },
+          role: { $in: ["staff", "admin", "evaluator"] },
         });
         for (const staff of staffUsers) {
           await Notification.create({
